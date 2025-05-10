@@ -1,0 +1,6 @@
+// Este archivo facilita importar todos los estilos compartidos
+// Usamos el prefijo _ para indicar que es un archivo parcial que no debe compilarse independientemente
+
+// Reexportar variables y mixins
+@forward 'variables';
+@forward 'mixins'; 

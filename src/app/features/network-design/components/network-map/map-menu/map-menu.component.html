@@ -1,0 +1,28 @@
+<button mat-menu-item (click)="addElement('ODF')">
+  <mat-icon>add_box</mat-icon>
+  <span>Agregar ODF</span>
+</button>
+<button mat-menu-item (click)="addElementBatch('ODF')">
+  <mat-icon>library_add</mat-icon>
+  <span>Agregar múltiples ODFs</span>
+</button>
+</mat-menu>
+
+<button mat-menu-item (click)="addElement('TERMINAL_BOX')">
+  <mat-icon>add_box</mat-icon>
+  <span>Agregar Terminal Box</span>
+</button>
+<button mat-menu-item (click)="addElementBatch('TERMINAL_BOX')">
+  <mat-icon>library_add</mat-icon>
+  <span>Agregar múltiples Terminal Box</span>
+</button>
+</mat-menu>
+
+<button 
+  mat-menu-item 
+  *ngIf="selectedElement"
+  (click)="showElementHistory()"
+>
+  <mat-icon>history</mat-icon>
+  <span>Ver historial</span>
+</button> 

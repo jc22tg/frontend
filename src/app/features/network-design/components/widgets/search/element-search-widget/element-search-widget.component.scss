@@ -1,0 +1,37 @@
+// Variables y estilos básicos
+$bg-color: white;
+$text-color: #333;
+$primary-color: #2196f3;
+$border-color: #e0e0e0;
+$border-radius: 8px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+
+// Estilos para el widget
+.element-search-widget {
+  background-color: $bg-color;
+  border-radius: $border-radius;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: $spacing-md;
+  overflow: hidden;
+  width: 100%;
+  max-width: 350px;
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid $border-color;
+  
+  h3 {
+    margin: 0 0 0 $spacing-sm;
+    flex-grow: 1;
+    font-size: 14px;
+  }
+}
+
+.widget-content {
+  padding: $spacing-md;
+} 

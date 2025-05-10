@@ -1,0 +1,176 @@
+<div class="editor-container" [@fadeAnimation]>
+  <header class="editor-header">
+    <h1>{{ isEditMode ? 'Editar Elemento' : 'Crear Nuevo Elemento' }}</h1>
+    <div class="actions">
+      <button mat-icon-button color="primary" (click)="showHelp()" matTooltip="Ayuda">
+        <mat-icon>help_outline</mat-icon>
+      </button>
+      <button mat-button color="warn" (click)="cancel()" [disabled]="loading">
+        <mat-icon>close</mat-icon>
+        Cancelar
+      </button>
+      <button mat-raised-button color="primary" (click)="saveElement()" [disabled]="loading || elementForm.invalid">
+        <mat-icon *ngIf="!loading">save</mat-icon>
+        <mat-spinner diameter="20" *ngIf="loading"></mat-spinner>
+        <span>{{ isEditMode ? 'Actualizar' : 'Guardar' }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Indicador de cambios sin guardar -->
+  <div class="unsaved-changes-indicator" *ngIf="elementForm.dirty">
+    <mat-icon>warning</mat-icon>
+    <span>Hay cambios sin guardar</span>
+  </div>
+
+  <mat-horizontal-stepper [linear]="true" (selectionChange)="onStepChange($event.selectedIndex)" 
+                        #stepper aria-label="Pasos para crear elemento" class="element-stepper">
+    
+    <!-- Paso 1: Selección de tipo -->
+    <mat-step [stepControl]="elementForm" label="Tipo de Elemento">
+      <div class="step-content">
+        <app-element-type-selector
+          [parentForm]="elementForm"
+          [elementTypes]="elementTypes"
+          (typeSelected)="onElementTypeSelected($event)">
+        </app-element-type-selector>
+        
+        <div class="step-actions">
+          <button mat-button (click)="cancel()">Cancelar</button>
+          <div class="spacer"></div>
+          <button mat-button matStepperNext [disabled]="!elementForm.get('type')?.valid">Siguiente</button>
+        </div>
+      </div>
+    </mat-step>
+    
+    <!-- Paso 2: Información básica -->
+    <mat-step [stepControl]="elementForm" label="Información Básica">
+      <div class="step-content">
+        <mat-card class="form-card">
+          <mat-card-header>
+            <mat-card-title>Información Básica</mat-card-title>
+          </mat-card-header>
+          
+          <mat-card-content>
+            <div class="form-fields" [formGroup]="elementForm">
+              <div class="form-row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Nombre</mat-label>
+                  <input matInput formControlName="name" placeholder="Nombre del elemento">
+                  <mat-error *ngIf="elementForm.get('name')?.hasError('required')">
+                    El nombre es obligatorio
+                  </mat-error>
+                  <mat-error *ngIf="elementForm.get('name')?.hasError('minlength')">
+                    El nombre debe tener al menos 3 caracteres
+                  </mat-error>
+                </mat-form-field>
+                
+                <mat-form-field appearance="outline">
+                  <mat-label>Código</mat-label>
+                  <input matInput formControlName="code" placeholder="Código identificador" uppercase>
+                  <mat-error *ngIf="elementForm.get('code')?.hasError('required')">
+                    El código es obligatorio
+                  </mat-error>
+                  <mat-error *ngIf="elementForm.get('code')?.hasError('pattern')">
+                    El código debe contener solo letras mayúsculas, números y guiones (3-20 caracteres)
+                  </mat-error>
+                </mat-form-field>
+              </div>
+              
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Descripción</mat-label>
+                  <textarea matInput formControlName="description" placeholder="Descripción opcional" rows="3"></textarea>
+                  <mat-error *ngIf="elementForm.get('description')?.hasError('maxlength')">
+                    La descripción no debe exceder 500 caracteres
+                  </mat-error>
+                </mat-form-field>
+              </div>
+              
+              <div class="form-row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Estado</mat-label>
+                  <mat-select formControlName="status">
+                    <mat-option [value]="ElementStatus.ACTIVE">Activo</mat-option>
+                    <mat-option [value]="ElementStatus.INACTIVE">Inactivo</mat-option>
+                    <mat-option [value]="ElementStatus.MAINTENANCE">Mantenimiento</mat-option>
+                    <mat-option [value]="ElementStatus.PLANNED">Planificado</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+        
+        <div class="step-actions">
+          <button mat-button matStepperPrevious>Atrás</button>
+          <div class="spacer"></div>
+          <button mat-button matStepperNext [disabled]="!elementForm.get('name')?.valid || !elementForm.get('code')?.valid">Siguiente</button>
+        </div>
+      </div>
+    </mat-step>
+    
+    <!-- Paso 3: Ubicación -->
+    <mat-step [stepControl]="elementForm" label="Ubicación">
+      <div class="step-content">
+        <app-map-position-selector [parentForm]="elementForm"></app-map-position-selector>
+        
+        <div class="map-sync-tip">
+          <mat-icon>sync</mat-icon>
+          <span>Selecciona una posición en el mapa o ingresa las coordenadas manualmente</span>
+        </div>
+        
+        <div class="step-actions">
+          <button mat-button matStepperPrevious>Atrás</button>
+          <div class="spacer"></div>
+          <button mat-button matStepperNext [disabled]="!elementForm.get('position.coordinates')?.valid">Siguiente</button>
+        </div>
+      </div>
+    </mat-step>
+    
+    <!-- Paso 4: Propiedades específicas del tipo -->
+    <mat-step [stepControl]="elementForm" label="Propiedades">
+      <div class="step-content">
+        <div [ngSwitch]="elementForm.get('type')?.value">
+          <app-olt-form *ngSwitchCase="ElementType.OLT" [parentForm]="elementForm"></app-olt-form>
+          <app-odf-form *ngSwitchCase="ElementType.ODF" [parentForm]="elementForm"></app-odf-form>
+          <app-ont-form *ngSwitchCase="ElementType.ONT" [parentForm]="elementForm"></app-ont-form>
+          <app-splitter-form *ngSwitchCase="ElementType.SPLITTER" [parentForm]="elementForm"></app-splitter-form>
+          <app-edfa-form *ngSwitchCase="ElementType.EDFA" [parentForm]="elementForm"></app-edfa-form>
+          <app-manga-form *ngSwitchCase="ElementType.MANGA" [parentForm]="elementForm"></app-manga-form>
+          <app-terminal-box-form *ngSwitchCase="ElementType.TERMINAL_BOX" [parentForm]="elementForm"></app-terminal-box-form>
+          <!-- Aquí irían el resto de componentes específicos por tipo -->
+          <mat-card *ngSwitchDefault class="form-card">
+            <mat-card-content>
+              <p class="placeholder-message">No hay propiedades específicas para este tipo de elemento.</p>
+            </mat-card-content>
+          </mat-card>
+        </div>
+        
+        <div class="step-actions">
+          <button mat-button matStepperPrevious>Atrás</button>
+          <div class="spacer"></div>
+          <button mat-raised-button color="primary" (click)="saveElement()" [disabled]="loading || elementForm.invalid">
+            <mat-icon *ngIf="!loading">save</mat-icon>
+            <mat-spinner diameter="20" *ngIf="loading"></mat-spinner>
+            {{ isEditMode ? 'Actualizar' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </mat-step>
+  </mat-horizontal-stepper>
+  
+  <!-- Estados -->
+  <div class="status-container">
+    <mat-progress-bar *ngIf="loading" mode="indeterminate" class="loading-progress"></mat-progress-bar>
+    
+    <div *ngIf="error" class="error-message" role="alert">
+      <mat-icon>error</mat-icon>
+      <span>{{ error }}</span>
+    </div>
+  </div>
+  
+  <div class="keyboard-shortcuts-hint">
+    <small>Atajos: <span class="kbd">Esc</span> para cancelar, <span class="kbd">Ctrl+S</span> para guardar</small>
+  </div>
+</div>

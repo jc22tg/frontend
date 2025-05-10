@@ -1,0 +1,177 @@
+<div class="network-toolbar transition-element">
+  <!-- Control de capas -->
+  <div class="layer-controls">
+    <button mat-button [matMenuTriggerFor]="layerMenu" class="menu-button transition-element active-button" [class.active]="activeLayers.length > 0" matRipple>
+      <mat-icon>layers</mat-icon>
+      <span>Capas</span>
+      <mat-icon class="dropdown-icon">arrow_drop_down</mat-icon>
+    </button>
+    <mat-menu #layerMenu="matMenu" class="enhanced-menu">
+      <div class="menu-header">
+        <span>Mostrar/Ocultar Elementos</span>
+      </div>
+      <mat-divider></mat-divider>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.FDP)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.FDP) ? 'primary' : ''">{{ isLayerActive(ElementType.FDP) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.FDP) }}</span>
+      </button>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.OLT)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.OLT) ? 'primary' : ''">{{ isLayerActive(ElementType.OLT) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.OLT) }}</span>
+      </button>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.ONT)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.ONT) ? 'primary' : ''">{{ isLayerActive(ElementType.ONT) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.ONT) }}</span>
+      </button>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.EDFA)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.EDFA) ? 'primary' : ''">{{ isLayerActive(ElementType.EDFA) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.EDFA) }}</span>
+      </button>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.SPLITTER)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.SPLITTER) ? 'primary' : ''">{{ isLayerActive(ElementType.SPLITTER) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.SPLITTER) }}</span>
+      </button>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.MANGA)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.MANGA) ? 'primary' : ''">{{ isLayerActive(ElementType.MANGA) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.MANGA) }}</span>
+      </button>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.TERMINAL_BOX)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.TERMINAL_BOX) ? 'primary' : ''">{{ isLayerActive(ElementType.TERMINAL_BOX) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.TERMINAL_BOX) }}</span>
+      </button>
+      <mat-divider></mat-divider>
+      <button mat-menu-item (click)="onToggleLayer(ElementType.FIBER_CONNECTION)" class="transition-element">
+        <mat-icon [color]="isLayerActive(ElementType.FIBER_CONNECTION) ? 'primary' : ''">{{ isLayerActive(ElementType.FIBER_CONNECTION) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span>{{ getElementTypeName(ElementType.FIBER_CONNECTION) }}</span>
+      </button>
+    </mat-menu>
+  </div>
+
+  <!-- Controles de elementos -->
+  <div class="element-controls">
+    <button mat-button [matMenuTriggerFor]="addMenu" class="menu-button transition-element active-button" matRipple>
+      <mat-icon>add_circle</mat-icon>
+      <span>Agregar</span>
+      <mat-icon class="dropdown-icon">arrow_drop_down</mat-icon>
+    </button>
+    <mat-menu #addMenu="matMenu" class="enhanced-menu">
+      <div class="menu-header">
+        <span>Seleccione Elemento</span>
+      </div>
+      <mat-divider></mat-divider>
+      <button mat-menu-item (click)="onAddElement(ElementType.FDP)" class="transition-element">
+        <mat-icon class="network-icon fdp-icon">hub</mat-icon>
+        <span>{{ getElementTypeName(ElementType.FDP) }}</span>
+      </button>
+      <button mat-menu-item (click)="onAddElement(ElementType.OLT)" class="transition-element">
+        <mat-icon class="network-icon olt-icon">dns</mat-icon>
+        <span>{{ getElementTypeName(ElementType.OLT) }}</span>
+      </button>
+      <button mat-menu-item (click)="onAddElement(ElementType.ONT)" class="transition-element">
+        <mat-icon class="network-icon ont-icon">router</mat-icon>
+        <span>{{ getElementTypeName(ElementType.ONT) }}</span>
+      </button>
+      <button mat-menu-item (click)="onAddElement(ElementType.EDFA)" class="transition-element">
+        <mat-icon class="network-icon edfa-icon">power</mat-icon>
+        <span>{{ getElementTypeName(ElementType.EDFA) }}</span>
+      </button>
+      <button mat-menu-item (click)="onAddElement(ElementType.SPLITTER)" class="transition-element">
+        <mat-icon class="network-icon splitter-icon">account_tree</mat-icon>
+        <span>{{ getElementTypeName(ElementType.SPLITTER) }}</span>
+      </button>
+      <button mat-menu-item (click)="onAddElement(ElementType.MANGA)" class="transition-element">
+        <mat-icon class="network-icon manga-icon">lan</mat-icon>
+        <span>{{ getElementTypeName(ElementType.MANGA) }}</span>
+      </button>
+      <button mat-menu-item (click)="onAddElement(ElementType.TERMINAL_BOX)" class="transition-element">
+        <mat-icon class="network-icon terminal-box-icon">developer_board</mat-icon>
+        <span>{{ getElementTypeName(ElementType.TERMINAL_BOX) }}</span>
+      </button>
+    </mat-menu>
+    
+    <button mat-flat-button color="primary" (click)="onCreateConnection()" class="action-button transition-element" [class.active]="isCreatingConnection" matRipple>
+      <mat-icon>timeline</mat-icon>
+      <span>Conectar</span>
+    </button>
+  </div>
+
+  <!-- Controles del mapa -->
+  <div class="map-controls">
+    <div class="control-group transition-element">
+      <button mat-icon-button (click)="onZoomIn()" matTooltip="Acercar" class="map-control-button transition-element" matRipple>
+        <mat-icon>zoom_in</mat-icon>
+      </button>
+      <button mat-icon-button (click)="onCenterMap()" matTooltip="Centrar mapa" class="map-control-button transition-element" matRipple>
+        <mat-icon>my_location</mat-icon>
+      </button>
+      <button mat-icon-button (click)="onZoomOut()" matTooltip="Alejar" class="map-control-button transition-element" matRipple>
+        <mat-icon>zoom_out</mat-icon>
+      </button>
+    </div>
+    
+    <button mat-icon-button (click)="onClearSelection()" matTooltip="Limpiar selección" 
+            *ngIf="selectedElements.length > 0" 
+            class="map-control-button transition-element" 
+            [matBadge]="selectedElements.length" 
+            matBadgeColor="accent" 
+            matBadgePosition="above after"
+            matRipple>
+      <mat-icon>clear_all</mat-icon>
+    </button>
+    
+    <button mat-icon-button (click)="onExportMap()" matTooltip="Exportar mapa" class="map-control-button transition-element" matRipple>
+      <mat-icon>file_download</mat-icon>
+    </button>
+    
+    <button mat-icon-button (click)="onOpenSettings()" matTooltip="Configuración" class="map-control-button transition-element" matRipple>
+      <mat-icon>settings</mat-icon>
+    </button>
+    
+    <!-- Botones para mostrar/ocultar paneles -->
+    <button mat-icon-button 
+            (click)="onToggleSearchWidget()" 
+            [matTooltip]="showSearchWidget ? 'Ocultar buscador' : 'Mostrar buscador'" 
+            class="map-control-button transition-element" 
+            [class.active]="showSearchWidget"
+            matRipple>
+      <mat-icon>{{ showSearchWidget ? 'search_off' : 'search' }}</mat-icon>
+    </button>
+    
+    <button mat-icon-button 
+            (click)="onToggleElementsPanel()" 
+            [matTooltip]="showElementsPanel ? 'Ocultar panel de elementos' : 'Mostrar panel de elementos'" 
+            class="map-control-button transition-element" 
+            [class.active]="showElementsPanel"
+            matRipple>
+      <mat-icon>{{ showElementsPanel ? 'view_sidebar_off' : 'view_sidebar' }}</mat-icon>
+    </button>
+    
+    <!-- Botón de diagnóstico del mapa -->
+    <button mat-icon-button 
+            (click)="onNavigateToDiagnostic()" 
+            matTooltip="Diagnóstico del mapa" 
+            class="map-control-button transition-element diagnostic-button"
+            matRipple>
+      <mat-icon>assessment</mat-icon>
+    </button>
+    
+    <!-- Botón de ayuda -->
+    <button mat-icon-button 
+            (click)="onOpenHelp()" 
+            matTooltip="Mostrar ayuda" 
+            class="map-control-button transition-element help-button"
+            matRipple>
+      <mat-icon>help_outline</mat-icon>
+    </button>
+
+    <!-- Botón para modo offline -->
+    <button 
+      mat-icon-button
+      matTooltip="Preparar mapa para modo offline"
+      class="toolbar-button offline-button"
+      [class.active]="isOfflineMode"
+      (click)="prepareOfflineMode()">
+      <mat-icon>cloud_download</mat-icon>
+    </button>
+  </div>
+</div>

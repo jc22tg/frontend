@@ -1,0 +1,97 @@
+<div class="fiber-path-viewer">
+  <div class="fiber-path-header">
+    <h3>Visualizador de Ruta de Fibra</h3>
+    <div class="path-details" *ngIf="path.length > 0">
+      <span class="path-length">Distancia total: {{ opticalLossData?.distance ?? 'N/A' }} km</span>
+      <span class="path-segments">Segmentos: {{ path.length }}</span>
+    </div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas #pathCanvas width="800" height="150"></canvas>
+    <div class="loading-overlay" *ngIf="loading">
+      <div class="spinner"></div>
+      <span>Calculando ruta...</span>
+    </div>
+  </div>
+
+  <div class="error-message" *ngIf="error">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span>{{ error }}</span>
+  </div>
+
+  <div class="optical-loss-section" *ngIf="showLossCalculation && opticalLossData">
+    <h4>Cálculo de Pérdidas Ópticas</h4>
+    <div class="loss-total">
+      <strong>Pérdida total:</strong> {{ opticalLossData.totalLossDb.toFixed(2) }} dB
+    </div>
+    
+    <div class="loss-details">
+      <table>
+        <thead>
+          <tr>
+            <th>Elemento</th>
+            <th>Pérdida (dB)</th>
+            <th>Descripción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let detail of opticalLossData.details">
+            <td>{{ detail.elementType }}</td>
+            <td>{{ detail.lossDb.toFixed(2) }}</td>
+            <td>{{ detail.description }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="simulation-section" *ngIf="showSimulation">
+    <h4>Simulador de Fallos</h4>
+    <div class="simulation-form">
+      <div class="form-group">
+        <label for="deviceType">Tipo de Dispositivo:</label>
+        <select id="deviceType" name="deviceType" [(ngModel)]="selectedSimulation.deviceType">
+          <option value="">Seleccione un tipo</option>
+          <option *ngFor="let type of simulationOptions.deviceTypes" [value]="type">
+            {{ type }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="selectedSimulation.deviceType && selectedSimulation.deviceType !== 'fiber_connection'">
+        <label for="deviceId">ID del Dispositivo:</label>
+        <input type="number" id="deviceId" name="deviceId" [(ngModel)]="selectedSimulation.deviceId">
+      </div>
+
+      <div class="form-group" *ngIf="selectedSimulation.deviceType === 'fiber_connection'">
+        <label for="connectionId">ID de Conexión:</label>
+        <input type="number" id="connectionId" name="connectionId" [(ngModel)]="selectedSimulation.connectionId">
+      </div>
+
+      <div class="form-group">
+        <label for="failureType">Tipo de Fallo:</label>
+        <select id="failureType" name="failureType" [(ngModel)]="selectedSimulation.failureType">
+          <option value="">Seleccione un tipo</option>
+          <option *ngFor="let type of simulationOptions.failureTypes" [value]="type">
+            {{ type }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="severity">Severidad:</label>
+        <select id="severity" name="severity" [(ngModel)]="selectedSimulation.severity">
+          <option *ngFor="let severity of simulationOptions.severityLevels" [value]="severity">
+            {{ severity }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-simulate" (click)="simulateFailure()">Simular Fallo</button>
+        <button class="btn-reset" (click)="resetSimulation()">Reiniciar</button>
+      </div>
+    </div>
+  </div>
+</div> 

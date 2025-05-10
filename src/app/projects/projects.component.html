@@ -1,0 +1,174 @@
+<div class="projects-container">
+  <div class="projects-header">
+    <h1>Proyectos</h1>
+    <div class="header-actions">
+      <button mat-button color="primary" (click)="exportProjects()" [disabled]="isLoading || filteredProjects.length === 0">
+        <mat-icon>download</mat-icon>
+        Exportar
+      </button>
+      <button mat-raised-button color="primary" (click)="createProject()" [disabled]="isLoading">
+        <mat-icon>add</mat-icon>
+        Nuevo Proyecto
+      </button>
+    </div>
+  </div>
+
+  <div class="filters-container" role="search">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Buscar proyectos</mat-label>
+      <input matInput 
+             [(ngModel)]="searchTerm" 
+             (ngModelChange)="onSearchChange()"
+             placeholder="Buscar por nombre o descripción"
+             aria-label="Buscar proyectos">
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="status-field">
+      <mat-label>Filtrar por estado</mat-label>
+      <mat-select [(ngModel)]="selectedStatus" (ngModelChange)="onStatusChange()" aria-label="Estado del proyecto">
+        <mat-option *ngFor="let option of statusOptions" [value]="option.value">
+          {{ option.label }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="date-field">
+      <mat-label>Rango de fechas</mat-label>
+      <mat-date-range-input [rangePicker]="picker" aria-label="Rango de fechas del proyecto">
+        <input matStartDate [(ngModel)]="startDate" (ngModelChange)="onDateChange()" placeholder="Fecha inicio">
+        <input matEndDate [(ngModel)]="endDate" (ngModelChange)="onDateChange()" placeholder="Fecha fin">
+      </mat-date-range-input>
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-date-range-picker #picker></mat-date-range-picker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="budget-field">
+      <mat-label>Presupuesto máximo</mat-label>
+      <input matInput 
+             type="number" 
+             [(ngModel)]="maxBudget" 
+             (ngModelChange)="onBudgetChange()"
+             placeholder="Ingrese monto"
+             aria-label="Presupuesto máximo">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="sort-field">
+      <mat-label>Ordenar por</mat-label>
+      <mat-select [(ngModel)]="sortField" (ngModelChange)="onSortChange()" aria-label="Campo de ordenamiento">
+        <mat-option value="nombre">Nombre</mat-option>
+        <mat-option value="fechaInicio">Fecha de inicio</mat-option>
+        <mat-option value="fechaFin">Fecha de fin</mat-option>
+        <mat-option value="presupuesto">Presupuesto</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button mat-icon-button 
+            (click)="toggleSortDirection()" 
+            [class.asc]="sortDirection === 'asc'"
+            [matTooltip]="sortDirection === 'asc' ? 'Orden ascendente' : 'Orden descendente'"
+            aria-label="Cambiar dirección de ordenamiento">
+      <mat-icon>{{ sortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+    </button>
+  </div>
+
+  <div class="projects-content">
+    <div class="projects-list">
+      @if (isLoading) {
+        <div class="loading-container">
+          <mat-spinner diameter="50"></mat-spinner>
+          <p>Cargando proyectos...</p>
+        </div>
+      } @else if (error) {
+        <div class="error-container">
+          <mat-icon class="error-icon">error_outline</mat-icon>
+          <p>{{ error }}</p>
+          <button mat-button color="primary" (click)="loadProjects()">
+            Reintentar
+          </button>
+        </div>
+      } @else {
+        @for (project of paginatedProjects; track project.id) {
+          <mat-card class="project-card">
+            <mat-card-header>
+              <mat-card-title>{{ project.nombre }}</mat-card-title>
+              <mat-card-subtitle>
+                <span class="status-badge" [ngClass]="'status-' + project.estado.toLowerCase()">
+                  <mat-icon>{{ getStatusIcon(project.estado) }}</mat-icon>
+                  {{ getStatusLabel(project.estado) }}
+                </span>
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p class="description">{{ project.descripcion }}</p>
+              <div class="project-details">
+                <div class="detail-item">
+                  <mat-icon>person</mat-icon>
+                  <span>Responsable: {{ project.responsableId }}</span>
+                </div>
+                <div class="detail-item">
+                  <mat-icon>attach_money</mat-icon>
+                  <span>Presupuesto: {{ project.presupuesto | currency }}</span>
+                </div>
+                <div class="detail-item">
+                  <mat-icon>event</mat-icon>
+                  <span>Inicio: {{ project.fechaInicio | date:'mediumDate' }}</span>
+                </div>
+                <div class="detail-item">
+                  <mat-icon>event_available</mat-icon>
+                  <span>Fin: {{ project.fechaFin | date:'mediumDate' }}</span>
+                </div>
+                <div class="detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ project.ubicacionGeografica }}</span>
+                </div>
+              </div>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-button color="primary" (click)="viewProjectDetails(project)" [disabled]="isLoading">
+                <mat-icon>visibility</mat-icon>
+                Ver Detalles
+              </button>
+              <button mat-button color="primary" (click)="selectProject(project)" [disabled]="isLoading">
+                <mat-icon>edit</mat-icon>
+                Editar
+              </button>
+              <button mat-button color="warn" (click)="deleteProject(project.id)" [disabled]="isLoading">
+                <mat-icon>delete</mat-icon>
+                Eliminar
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        } @empty {
+          <div class="empty-state">
+            <mat-icon>folder_open</mat-icon>
+            <p>No hay proyectos disponibles</p>
+            <button mat-button color="primary" (click)="createProject()">
+              Crear primer proyecto
+            </button>
+          </div>
+        }
+      }
+    </div>
+
+    @if (selectedProject || isCreating) {
+      <div class="project-form">
+        <app-project-form
+          [project]="selectedProject"
+          (saved)="onProjectSaved()"
+        ></app-project-form>
+      </div>
+    }
+  </div>
+
+  @if (!isLoading && !error && filteredProjects.length > 0) {
+    <mat-paginator
+      [length]="filteredProjects.length"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      (page)="onPageChange($event)"
+      aria-label="Seleccionar página de proyectos"
+      class="projects-paginator">
+    </mat-paginator>
+  }
+</div> 

@@ -57,3 +57,23 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Arquitectura del Mapa de Red
+
+### Componentes Consolidados
+
+Para mejorar el rendimiento y eliminar duplicación de código, se ha consolidado la funcionalidad del mapa en:
+
+1. **MapContainerComponent**: Componente principal que gestiona la visualización y la interacción con el mapa
+2. **NetworkMapComponent**: Componente de presentación que maneja la renderización del mapa
+3. **MapFacadeService**: Servicio que centraliza la lógica de gestión del mapa
+
+### Servicios relacionados con el mapa
+
+- **MapFacadeService**: Fachada que centraliza toda la lógica relacionada con la gestión del mapa
+- **NetworkStateService**: Gestiona el estado global de la red
+- **LayerManagerService**: Gestiona las capas del mapa
+- **ElementService**: Gestiona los elementos de la red
+- **MapEventsService**: Centraliza los eventos del mapa
+
+La estructura anterior reemplaza la implementación anterior que utilizaba dos componentes separados (NetworkMapPageComponent y MapContainerComponent) con funcionalidades duplicadas.

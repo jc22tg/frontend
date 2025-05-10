@@ -11,9 +11,31 @@
     "moduleResolution": "bundler",
     "importHelpers": true,
     "target": "ES2022",
-    "module": "ES2022"
+    "module": "ES2022",
+    "baseUrl": "./",
+    "strict": true,
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@environments/*": ["src/environments/*"],
+      "@angular/*": ["node_modules/@angular/*"],
+      "@core/*": ["src/app/core/*"],
+      "@features/*": ["src/app/features/*"],
+      "@shared/*": ["src/app/shared/*"],
+      "@projects/*": ["src/app/projects/*"]
+    }
   },
   "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false
-  }
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictTemplates": true
+  },
+  "files": [
+    "src/environments/environment.ts",
+    "src/environments/environment.prod.ts",
+    "src/main.ts",
+    "src/polyfills.ts",
+    "src/main.server.ts",
+    "src/server.ts"
+  ]
 }

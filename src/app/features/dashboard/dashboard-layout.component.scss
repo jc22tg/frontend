@@ -1,0 +1,135 @@
+// Dashboard variables
+$dashboard-padding: 20px;
+$card-spacing: 16px;
+$font-size-title: 28px;
+$text-primary: #333333;
+$text-secondary: #666666;
+$breakpoint-medium: 960px;
+$border-radius: 8px;
+
+// Mixins simplificados
+@mixin card-base {
+  border-radius: $border-radius;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  overflow: hidden;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin grid-responsive($columns: 2, $gap: 20px) {
+  display: grid;
+  grid-template-columns: repeat($columns, 1fr);
+  gap: $gap;
+  
+  @media (max-width: $breakpoint-medium) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-container {
+  padding: $dashboard-padding;
+  position: relative;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $card-spacing;
+
+  h1 {
+    margin: 0;
+    font-size: $font-size-title;
+    font-weight: 500;
+    color: $text-primary;
+  }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.dashboard-period-selector {
+  margin-left: 10px;
+}
+
+.dashboard-grid {
+  @include grid-responsive(2, 20px);
+  
+  & {
+  margin-bottom: 20px;
+  }
+
+  &.compact {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-section {
+  @include card-base;
+  margin-bottom: $card-spacing;
+
+  &.wide-section {
+    grid-column: span 2;
+
+    @media (max-width: $breakpoint-medium) {
+      grid-column: span 1;
+    }
+  }
+}
+
+.hidden {
+  display: none;
+}
+
+.section-menu-button {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+
+.customization-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  width: 100%;
+  max-width: 500px;
+
+  mat-card {
+    @include card-base;
+  }
+}
+
+.section-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  @include flex-center;
+  flex-direction: column;
+  z-index: 1000;
+
+  p {
+    margin-top: 16px;
+    color: $text-secondary;
+  }
+} 

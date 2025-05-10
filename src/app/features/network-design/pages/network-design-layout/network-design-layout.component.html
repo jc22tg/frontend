@@ -1,0 +1,37 @@
+<div class="network-design-layout">
+  <header class="design-header">
+    <h1>Diseño de Red</h1>
+    
+    <nav class="design-nav">
+      <a [routerLink]="['/network-design/map']" routerLinkActive="active">Mapa de Red</a>
+      
+      <div class="dropdown">
+        <button class="dropdown-toggle">
+          Crear Elemento <i class="fas fa-caret-down"></i>
+        </button>
+        <div class="dropdown-menu">
+          <a *ngFor="let type of elementTypes" 
+             [routerLink]="['/network-design/editor/new', type.id]">
+            {{ type.name }}
+          </a>
+        </div>
+      </div>
+    </nav>
+  </header>
+  
+  <main class="design-content">
+    <div class="network-design-content">
+      <div class="network-design-container" [ngClass]="{'map-hidden': !mapVisible}">
+        <div [@routeAnimations]="prepareRoute(outlet)" class="router-container">
+          <router-outlet #outlet="outlet"></router-outlet>
+        </div>
+      </div>
+      
+      <!-- Componente de vista rápida cuando hay un elemento seleccionado -->
+      <app-element-quick-view 
+        *ngIf="selectedElement && showElementsPanel" 
+        class="element-details-panel">
+      </app-element-quick-view>
+    </div>
+  </main>
+</div> 

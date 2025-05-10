@@ -1,0 +1,76 @@
+// Variables de diseño compartidas para dashboards
+$dashboard-padding: 20px;
+$card-spacing: 16px;
+$border-radius: 8px;
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+$transition-fast: 0.2s ease;
+
+// Colores principales
+$color-primary: #3f51b5;
+$color-accent: #ff4081;
+$color-success: #4caf50;
+$color-warning: #ff9800;
+$color-error: #f44336;
+$color-info: #2196f3;
+
+// Colores de texto
+$text-primary: #333333;
+$text-secondary: #666666;
+$text-hint: #9e9e9e;
+
+// Estilos de fuente
+$font-size-title: 28px;
+$font-size-subtitle: 20px;
+$font-size-body: 16px;
+$font-size-small: 14px;
+$font-size-xs: 12px;
+
+// Breakpoints
+$breakpoint-small: 600px;
+$breakpoint-medium: 960px;
+$breakpoint-large: 1280px;
+
+// Mixins útiles
+@mixin card-base {
+  border-radius: $border-radius;
+  box-shadow: $shadow-sm;
+  background-color: white;
+  overflow: hidden;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin grid-responsive($columns: 2, $gap: 20px) {
+  display: grid;
+  grid-template-columns: repeat($columns, 1fr);
+  gap: $gap;
+  
+  @media (max-width: $breakpoint-medium) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Clases de estado
+@mixin status-colors {
+  &.active, &.success, &.good {
+    color: $color-success;
+  }
+  
+  &.warning, &.medium {
+    color: $color-warning;
+  }
+  
+  &.error, &.critical, &.bad {
+    color: $color-error;
+  }
+  
+  &.info {
+    color: $color-info;
+  }
+} 

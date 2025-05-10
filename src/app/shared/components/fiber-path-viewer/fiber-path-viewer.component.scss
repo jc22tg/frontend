@@ -1,0 +1,216 @@
+.fiber-path-viewer {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+
+  .fiber-path-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+
+    h3 {
+      margin: 0;
+      color: #0066cc;
+      font-size: 1.2rem;
+    }
+
+    .path-details {
+      display: flex;
+      gap: 15px;
+      font-size: 0.9rem;
+      color: #555;
+
+      .path-length,
+      .path-segments {
+        background-color: #e6f0ff;
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
+    }
+  }
+
+  .canvas-container {
+    position: relative;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    
+    canvas {
+      background-color: #fff;
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #0066cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 10px;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    }
+  }
+
+  .error-message {
+    background-color: #ffebee;
+    color: #d32f2f;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    
+    i {
+      margin-right: 8px;
+    }
+  }
+
+  .optical-loss-section {
+    margin-top: 20px;
+    
+    h4 {
+      color: #333;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+
+    .loss-total {
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      background-color: #e8f5e9;
+      padding: 8px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .loss-details {
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        
+        th, td {
+          border: 1px solid #ddd;
+          padding: 8px 12px;
+          text-align: left;
+        }
+        
+        th {
+          background-color: #f2f2f2;
+          font-weight: 500;
+        }
+        
+        tr:nth-child(even) {
+          background-color: #f9f9f9;
+        }
+        
+        tr:hover {
+          background-color: #f0f7ff;
+        }
+      }
+    }
+  }
+
+  .simulation-section {
+    margin-top: 20px;
+    border-top: 1px solid #ddd;
+    padding-top: 15px;
+    
+    h4 {
+      color: #333;
+      font-size: 1rem;
+      margin-bottom: 15px;
+    }
+
+    .simulation-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      
+      .form-group {
+        margin-bottom: 10px;
+        
+        label {
+          display: block;
+          margin-bottom: 5px;
+          font-size: 0.9rem;
+          color: #555;
+        }
+        
+        select, input {
+          width: 100%;
+          padding: 8px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 0.9rem;
+          
+          &:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+          }
+        }
+      }
+
+      .form-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        
+        button {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 4px;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: background-color 0.2s;
+          
+          &.btn-simulate {
+            background-color: #0066cc;
+            color: white;
+            
+            &:hover {
+              background-color: #0055aa;
+            }
+          }
+          
+          &.btn-reset {
+            background-color: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+            
+            &:hover {
+              background-color: #e6e6e6;
+            }
+          }
+        }
+      }
+    }
+  }
+} 

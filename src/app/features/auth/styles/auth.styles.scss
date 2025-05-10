@@ -1,0 +1,129 @@
+// Variables
+$auth-background: #f5f5f5;
+$auth-card-background: #ffffff;
+$auth-primary: #1976d2;
+$auth-text: #333333;
+$auth-text-secondary: #666666;
+$auth-error: #d32f2f;
+$auth-success: #2e7d32;
+
+// Mixins
+@mixin auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $auth-background;
+  padding: 2rem;
+}
+
+@mixin auth-container {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+@mixin auth-card {
+  background: $auth-card-background;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
+
+@mixin auth-title {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: $auth-text;
+}
+
+@mixin auth-subtitle {
+  color: $auth-text-secondary;
+  margin-bottom: 2rem;
+}
+
+@mixin auth-links {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  a {
+    color: $auth-primary;
+    text-decoration: none;
+    font-size: 0.9rem;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+@mixin auth-form-field {
+  width: 100%;
+  margin-bottom: 1rem;
+
+  .mat-form-field-wrapper {
+    padding-bottom: 0;
+  }
+
+  .mat-form-field-underline {
+    display: none;
+  }
+
+  .mat-form-field-appearance-outline .mat-form-field-outline {
+    background-color: $auth-card-background;
+  }
+}
+
+@mixin auth-button {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+// Clases globales
+.auth-page {
+  @include auth-page;
+}
+
+.auth-container {
+  @include auth-container;
+}
+
+.auth-card {
+  @include auth-card;
+}
+
+.auth-title {
+  @include auth-title;
+}
+
+.auth-subtitle {
+  @include auth-subtitle;
+}
+
+.auth-links {
+  @include auth-links;
+}
+
+.auth-form-field {
+  @include auth-form-field;
+}
+
+.auth-button {
+  @include auth-button;
+}
+
+// Mensajes de error y éxito
+.auth-error {
+  color: $auth-error;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.auth-success {
+  color: $auth-success;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+} 

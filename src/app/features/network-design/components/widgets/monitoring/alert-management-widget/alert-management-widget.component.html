@@ -1,0 +1,171 @@
+<!-- Contenedor principal del widget de gestión de alertas -->
+<div class="alert-widget-container" role="region" aria-label="Gestión de alertas de red">
+  <!-- Cabecera del widget con título y acciones -->
+  <header class="alert-header">
+    <h2>Gestión de Alertas</h2>
+    <div class="alert-actions">
+      <button mat-icon-button 
+              matTooltip="Actualizar alertas" 
+              aria-label="Actualizar alertas"
+              (click)="refreshAlerts()">
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <button mat-icon-button 
+              matTooltip="Limpiar alertas resueltas" 
+              aria-label="Limpiar alertas resueltas"
+              (click)="clearResolvedAlerts()">
+        <mat-icon>cleaning_services</mat-icon>
+      </button>
+      <button mat-icon-button 
+              matTooltip="Exportar alertas" 
+              aria-label="Exportar alertas filtradas a JSON"
+              (click)="exportAlerts()">
+        <mat-icon>download</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <!-- Filtros para las alertas -->
+  <section class="alert-filters" aria-label="Filtros de alertas">
+    <mat-button-toggle-group [(ngModel)]="severityFilter" 
+                            aria-label="Filtrar por severidad">
+      <mat-button-toggle value="all" matTooltip="Todas las alertas">Todas</mat-button-toggle>
+      <mat-button-toggle value="critical" matTooltip="Alertas críticas">
+        <mat-icon class="severity-icon critical">error</mat-icon>
+      </mat-button-toggle>
+      <mat-button-toggle value="warning" matTooltip="Alertas de advertencia">
+        <mat-icon class="severity-icon warning">warning</mat-icon>
+      </mat-button-toggle>
+      <mat-button-toggle value="info" matTooltip="Alertas informativas">
+        <mat-icon class="severity-icon info">info</mat-icon>
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+    
+    <mat-slide-toggle [(ngModel)]="showResolved" 
+                     color="primary" 
+                     matTooltip="Mostrar/ocultar alertas resueltas">
+      Mostrar resueltas
+    </mat-slide-toggle>
+  </section>
+
+  <!-- Contadores de alertas por severidad -->
+  <section class="alert-counts" aria-label="Conteo de alertas por severidad">
+    <div class="count-item critical" 
+         [class.active]="severityFilter === 'critical'" 
+         (click)="severityFilter = 'critical'"
+         role="button"
+         [attr.aria-pressed]="severityFilter === 'critical'"
+         [attr.aria-label]="'Alertas críticas: ' + criticalCount">
+      <mat-icon>error</mat-icon>
+      <span>{{ criticalCount }}</span>
+    </div>
+    <div class="count-item warning" 
+         [class.active]="severityFilter === 'warning'" 
+         (click)="severityFilter = 'warning'"
+         role="button"
+         [attr.aria-pressed]="severityFilter === 'warning'"
+         [attr.aria-label]="'Alertas de advertencia: ' + warningCount">
+      <mat-icon>warning</mat-icon>
+      <span>{{ warningCount }}</span>
+    </div>
+    <div class="count-item info" 
+         [class.active]="severityFilter === 'info'" 
+         (click)="severityFilter = 'info'"
+         role="button"
+         [attr.aria-pressed]="severityFilter === 'info'"
+         [attr.aria-label]="'Alertas informativas: ' + infoCount">
+      <mat-icon>info</mat-icon>
+      <span>{{ infoCount }}</span>
+    </div>
+    <div class="count-item total" 
+         [class.active]="severityFilter === 'all'" 
+         (click)="severityFilter = 'all'"
+         role="button"
+         [attr.aria-pressed]="severityFilter === 'all'"
+         [attr.aria-label]="'Todas las alertas: ' + alerts.length">
+      <mat-icon>notifications</mat-icon>
+      <span>{{ alerts.length }}</span>
+    </div>
+  </section>
+
+  <!-- Lista de alertas -->
+  <section class="alert-list" 
+           *ngIf="filteredAlerts.length > 0" 
+           [@listAnimation]="filteredAlerts.length"
+           aria-label="Lista de alertas">
+    <mat-card class="alert-card" 
+              *ngFor="let alert of filteredAlerts; let i = index" 
+              [ngClass]="{'resolved': alert.resolved}"
+              [@cardAnimation]
+              [attr.aria-label]="'Alerta ' + (i + 1) + ' de ' + filteredAlerts.length">
+      <div class="alert-item" [ngClass]="alert.severity">
+        <div class="alert-icon">
+          <mat-icon *ngIf="alert.severity === 'critical'" [@pulseAnimation]>error</mat-icon>
+          <mat-icon *ngIf="alert.severity === 'warning'">warning</mat-icon>
+          <mat-icon *ngIf="alert.severity === 'info'">info</mat-icon>
+        </div>
+        <div class="alert-content">
+          <div class="alert-title">
+            <h3>{{ alert.title }}</h3>
+            <time class="alert-time" [attr.datetime]="alert.timestamp | date:'yyyy-MM-ddTHH:mm:ss'">
+              {{ alert.timestamp | date:'short' }}
+            </time>
+          </div>
+          <p class="alert-message">{{ alert.message }}</p>
+          <div class="alert-details">
+            <div class="device-type">
+              <mat-icon class="small-icon">{{ getElementTypeIcon(alert.elementType) }}</mat-icon>
+              <span>{{ alert.deviceType }}</span>
+            </div>
+            <div class="status-badge" 
+                [ngClass]="alert.resolved ? 'resolved-badge' : 'active-badge'"
+                [attr.aria-label]="alert.resolved ? 'Alerta resuelta' : 'Alerta activa'">
+              {{ alert.resolved ? 'Resuelta' : 'Activa' }}
+            </div>
+          </div>
+        </div>
+        <div class="alert-actions">
+          <button mat-icon-button 
+                  [matTooltip]="alert.resolved ? 'Marcar como activa' : 'Marcar como resuelta'" 
+                  [attr.aria-label]="alert.resolved ? 'Marcar como activa' : 'Marcar como resuelta'"
+                  (click)="toggleResolved(alert)">
+            <mat-icon>{{ alert.resolved ? 'refresh' : 'check' }}</mat-icon>
+          </button>
+          <button mat-icon-button 
+                  matTooltip="Eliminar" 
+                  aria-label="Eliminar alerta"
+                  (click)="deleteAlert(alert)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </div>
+    </mat-card>
+  </section>
+
+  <!-- Estado sin alertas -->
+  <section class="no-alerts" 
+           *ngIf="filteredAlerts.length === 0" 
+           [@fadeAnimation]
+           aria-live="polite">
+    <mat-icon>notifications_off</mat-icon>
+    <p>No hay alertas {{ getFilterDescription() }}</p>
+    <button mat-button 
+            color="primary" 
+            *ngIf="hasFiltersApplied()" 
+            (click)="resetFilters()"
+            aria-label="Quitar filtros para mostrar todas las alertas">
+      Mostrar todas
+    </button>
+  </section>
+
+  <!-- Paginación -->
+  <footer class="alert-pagination" *ngIf="alerts.length > pageSize">
+    <mat-paginator 
+      [length]="alerts.length"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[5, 10, 20]"
+      (page)="onPageChange($event)"
+      aria-label="Paginación de alertas">
+    </mat-paginator>
+  </footer>
+</div> 

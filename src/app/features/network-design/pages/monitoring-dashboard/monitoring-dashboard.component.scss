@@ -1,0 +1,224 @@
+@use '../../../../../shared/styles/_index' as theme;
+
+// Variables
+$card-spacing: 16px;
+$border-radius: 8px;
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+$transition-fast: 0.2s ease;
+
+// Estilos para el dashboard de monitoreo
+.monitoring-dashboard-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: theme.$dashboard-padding;
+  box-sizing: border-box;
+  overflow-y: auto;
+  font-family: 'Roboto', sans-serif;
+}
+
+.dashboard-title {
+  margin-bottom: 24px;
+  font-size: theme.$font-size-title;
+  font-weight: 500;
+  color: theme.$text-primary;
+}
+
+// Nueva sección para container de widgets
+.widgets-container {
+  @include theme.grid-responsive(2, $card-spacing);
+  margin-bottom: 24px;
+
+  .widget-item {
+    min-height: 300px;
+    height: 100%;
+  }
+}
+
+.filters-section {
+  margin-bottom: 24px;
+  
+  .filter-card {
+    @include theme.card-base;
+    background-color: #f5f5f5;
+  }
+  
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $card-spacing;
+    
+    mat-form-field {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}
+
+.metrics-section {
+  margin-bottom: 24px;
+  
+  .metrics-card, .no-selection-card {
+    @include theme.card-base;
+  }
+  
+  .metrics-table {
+    width: 100%;
+    
+    .mat-column-timestamp {
+      min-width: 120px;
+    }
+    
+    .mat-column-value {
+      min-width: 100px;
+    }
+    
+    .mat-column-trend {
+      width: 80px;
+      text-align: center;
+    }
+    
+    .mat-column-actions {
+      width: 80px;
+      text-align: center;
+    }
+  }
+  
+  .no-selection-message {
+    @include theme.flex-center;
+    padding: 32px 16px;
+    
+    mat-icon {
+      margin-right: 8px;
+      color: theme.$text-hint;
+    }
+    
+    span {
+      color: theme.$text-secondary;
+    }
+  }
+}
+
+.elements-section {
+  margin-top: 24px;
+
+  .elements-card {
+    @include theme.card-base;
+  }
+  
+  .elements-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: $card-spacing;
+    padding: $card-spacing;
+  }
+  
+  .element-card {
+    border-radius: $border-radius;
+    cursor: pointer;
+    transition: $transition-fast;
+    border-left: 4px solid transparent;
+    
+    &:hover {
+      box-shadow: $shadow-lg;
+      transform: translateY(-2px);
+    }
+    
+    &.selected {
+      border-left-color: theme.$color-primary;
+      background-color: rgba(theme.$color-primary, 0.05);
+    }
+  }
+  
+  .element-info {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    position: relative;
+    
+    mat-icon {
+      margin-right: 16px;
+      color: theme.$text-secondary;
+    }
+    
+    .element-details {
+      flex: 1;
+      
+      h3 {
+        margin: 0 0 4px 0;
+        font-size: theme.$font-size-body;
+        font-weight: 500;
+      }
+      
+      p {
+        margin: 0;
+        font-size: theme.$font-size-xs;
+        color: theme.$text-secondary;
+      }
+    }
+    
+    .element-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      @include theme.status-colors;
+    }
+  }
+}
+
+// Colores para tendencias
+.green {
+  color: theme.$color-success;
+}
+
+.red {
+  color: theme.$color-error;
+}
+
+.gray {
+  color: theme.$text-hint;
+}
+
+// Asegurar que la barra de desplazamiento sea agradable
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme.$text-hint;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: theme.$text-secondary;
+}
+
+// Tema oscuro
+:host-context(.dark-theme) {
+  .dashboard-title {
+    color: #e0e0e0;
+  }
+  
+  .metrics-section .no-selection-message {
+    color: #bdbdbd;
+  }
+  
+  .element-card .element-info .element-details p {
+    color: #bdbdbd;
+  }
+} 

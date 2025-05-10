@@ -1,0 +1,163 @@
+// Variables
+$widget-bg-color: rgba(255, 255, 255, 0.96);
+$widget-border-color: rgba(0, 0, 0, 0.1);
+$widget-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+$widget-header-bg: #f5f5f5;
+$widget-border-radius: 6px;
+$widget-content-padding: 12px;
+$widget-header-padding: 8px 12px;
+
+// Mixins
+@mixin widget-container {
+  background-color: $widget-bg-color;
+  border: 1px solid $widget-border-color;
+  border-radius: $widget-border-radius;
+  box-shadow: $widget-shadow;
+  overflow: hidden;
+  position: absolute;
+  z-index: 100;
+  transition: box-shadow 0.2s ease, opacity 0.3s ease;
+  
+  &.widget-dragging {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    opacity: 0.85;
+  }
+}
+
+@mixin widget-header {
+  background-color: $widget-header-bg;
+  padding: $widget-header-padding;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid $widget-border-color;
+  cursor: move;
+  user-select: none;
+  
+  h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+@mixin widget-content {
+  padding: $widget-content-padding;
+  overflow: auto;
+}
+
+@mixin widget-controls {
+  display: flex;
+  gap: 4px;
+  
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    opacity: 0.7;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      opacity: 1;
+    }
+  }
+}
+
+// Clases de posicionamiento
+.widget-position-top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.widget-position-top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.widget-position-bottom-left {
+  bottom: 16px;
+  left: 16px;
+}
+
+.widget-position-bottom-right {
+  bottom: 16px;
+  right: 16px;
+}
+
+.widget-position-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+// Generales
+.widget-container {
+  @include widget-container;
+  
+  .widget-header {
+    @include widget-header;
+    
+    .widget-controls {
+      @include widget-controls;
+    }
+  }
+  
+  .widget-content {
+    @include widget-content;
+  }
+  
+  .widget-footer {
+    padding: 8px 12px;
+    border-top: 1px solid $widget-border-color;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  
+  .widget-error {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// Estados comunes
+.status-active { background-color: #e8f5e9; color: #2e7d32; }
+.status-inactive { background-color: #f5f5f5; color: #757575; }
+.status-fault { background-color: #ffebee; color: #c62828; }
+.status-warning { background-color: #fff8e1; color: #ff8f00; }
+.status-maintenance { background-color: #e3f2fd; color: #1565c0; }
+
+// Elementos comunes
+.property-row {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.property-label {
+  font-weight: 500;
+  width: 35%;
+  color: #616161;
+}
+
+.property-value {
+  flex-grow: 1;
+}
+
+.widget-badge {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+} 

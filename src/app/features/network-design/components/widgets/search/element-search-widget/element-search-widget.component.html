@@ -1,0 +1,40 @@
+<div class="search-widget">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>
+        <div class="title-container">
+          <mat-icon>search</mat-icon>
+          <span>Buscar Elementos</span>
+        </div>
+      </mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="search-form">
+        <mat-form-field appearance="outline" class="search-input">
+          <mat-label>Buscar elemento</mat-label>
+          <input matInput [(ngModel)]="searchTerm" placeholder="Ingrese nombre o ID" (keyup.enter)="search()">
+          <button mat-icon-button matSuffix (click)="search()">
+            <mat-icon>search</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+      
+      <div class="search-results" *ngIf="searchResults.length > 0">
+        <h3>Resultados ({{ searchResults.length }})</h3>
+        <mat-list>
+          <mat-list-item *ngFor="let element of searchResults" (click)="selectElement(element)">
+            <mat-icon matListItemIcon>device_hub</mat-icon>
+            <div matListItemTitle>{{ element.name }}</div>
+            <div matListItemLine>ID: {{ element.id }}</div>
+          </mat-list-item>
+        </mat-list>
+      </div>
+      
+      <div class="no-results" *ngIf="searchResults.length === 0 && searchTerm">
+        <mat-icon>search_off</mat-icon>
+        <p>No se encontraron elementos</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div> 

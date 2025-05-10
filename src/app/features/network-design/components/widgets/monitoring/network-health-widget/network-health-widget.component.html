@@ -1,0 +1,83 @@
+<div class="health-widget">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>
+        <div class="title-container">
+          <mat-icon>health_and_safety</mat-icon>
+          <span>Estado de Salud de la Red</span>
+        </div>
+      </mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="widget-content" *ngIf="!(widgetState$ | async)?.isCollapsed" [@fadeAnimation]="'in'">
+        <!-- Componente de Error -->
+        <app-error-display 
+          *ngIf="(widgetState$ | async)?.hasError"
+          [message]="(widgetState$ | async)?.errorInfo?.message || 'Error desconocido'"
+          [title]="'Error en Salud de Red'"
+          (retry)="refreshData()">
+        </app-error-display>
+        
+        <!-- Contenido principal -->
+        <div *ngIf="!((widgetState$ | async)?.hasError)" class="health-stats-container">
+          <!-- Indicador de carga -->
+          <div *ngIf="isLoading" class="loading-container">
+            <mat-spinner diameter="30"></mat-spinner>
+          </div>
+          
+          <!-- Métrica principal de salud -->
+          <div class="health-primary">
+            <div class="health-indicator" [ngClass]="getHealthColor(networkMetrics?.health || 0)">
+              {{ networkMetrics?.health || 0 }}%
+            </div>
+            <div class="health-label">Salud General</div>
+          </div>
+          
+          <!-- Métricas secundarias -->
+          <div class="secondary-stats">
+            <div class="stat-item">
+              <div class="stat-value">{{ networkMetrics?.elementCount || 0 }}</div>
+              <div class="stat-label">Elementos</div>
+              <div class="stat-breakdown" *ngIf="elementStats">
+                <span class="active-count">{{ elementStats.active || 0 }} activos</span>
+                <span *ngIf="elementStats.warning > 0" class="warning-count">
+                  {{ elementStats.warning || 0 }} alerta{{ elementStats.warning !== 1 ? 's' : '' }}
+                </span>
+                <span *ngIf="elementStats.error > 0" class="error-count">
+                  {{ elementStats.error || 0 }} error{{ elementStats.error !== 1 ? 'es' : '' }}
+                </span>
+              </div>
+            </div>
+            
+            <div class="stat-item">
+              <div class="stat-value">{{ networkMetrics?.connectionCount || 0 }}</div>
+              <div class="stat-label">Conexiones</div>
+            </div>
+            
+            <div class="stat-item">
+              <div class="stat-value">{{ networkMetrics?.utilization || 0 }}%</div>
+              <div class="stat-label">Utilización</div>
+            </div>
+          </div>
+          
+          <div class="status-summary">
+            <div class="status-circle" 
+                *ngFor="let status of statusDistribution" 
+                [style.background-color]="status.color"
+                [style.width.px]="calculateStatusCircleSize(status.count)"
+                [style.height.px]="calculateStatusCircleSize(status.count)"
+                [matTooltip]="status.label + ': ' + status.count">
+            </div>
+          </div>
+          
+          <!-- Información de última actualización -->
+          <div class="last-updated" *ngIf="networkMetrics?.lastUpdated">
+            <mat-icon>update</mat-icon>
+            Actualizado: {{ networkMetrics?.lastUpdated | date:'HH:mm:ss' }}
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div> 

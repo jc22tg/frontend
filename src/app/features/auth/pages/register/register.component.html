@@ -1,0 +1,12 @@
+<div class="register-page">
+  <div class="register-container">
+    <h1>Crear Cuenta</h1>
+    <p class="subtitle">Regístrate para comenzar</p>
+    
+    <app-register-form (submit)="onRegisterSubmit($event)"></app-register-form>
+
+    <div class="links">
+      <a routerLink="/auth/login">¿Ya tienes una cuenta? Inicia sesión</a>
+    </div>
+  </div>
+</div> 

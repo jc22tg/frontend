@@ -1,0 +1,89 @@
+<mat-card class="project-form-card">
+  <mat-card-header>
+    <mat-card-title>
+      {{ project ? 'Editar Proyecto' : 'Nuevo Proyecto' }}
+    </mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <form [formGroup]="projectForm" (ngSubmit)="onSubmit()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="nombre" required title="Nombre del proyecto" placeholder="Ingrese el nombre del proyecto">
+        <mat-error *ngIf="projectForm.get('nombre')?.hasError('required')">
+          El nombre es requerido
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Descripción</mat-label>
+        <textarea matInput formControlName="descripcion" rows="3" required title="Descripción del proyecto" placeholder="Ingrese la descripción del proyecto"></textarea>
+        <mat-error *ngIf="projectForm.get('descripcion')?.hasError('required')">
+          La descripción es requerida
+        </mat-error>
+      </mat-form-field>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha de Inicio</mat-label>
+          <input matInput [matDatepicker]="startPicker" formControlName="fechaInicio" required title="Fecha de inicio del proyecto" placeholder="Seleccione la fecha de inicio">
+          <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+          <mat-error *ngIf="projectForm.get('fechaInicio')?.hasError('required')">
+            La fecha de inicio es requerida
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha de Fin</mat-label>
+          <input matInput [matDatepicker]="endPicker" formControlName="fechaFin" title="Fecha de fin del proyecto" placeholder="Seleccione la fecha de fin">
+          <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Estado</mat-label>
+        <mat-select formControlName="estado" required>
+          <mat-option *ngFor="let status of projectStatus | keyvalue" [value]="status.value">
+            {{ status.key }}
+          </mat-option>
+        </mat-select>
+        <mat-error *ngIf="projectForm.get('estado')?.hasError('required')">
+          El estado es requerido
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Responsable</mat-label>
+        <input matInput formControlName="responsableId" required title="Responsable del proyecto" placeholder="Ingrese el responsable">
+        <mat-error *ngIf="projectForm.get('responsableId')?.hasError('required')">
+          El responsable es requerido
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Presupuesto</mat-label>
+        <input matInput type="number" formControlName="presupuesto" required title="Presupuesto del proyecto" placeholder="Ingrese el presupuesto">
+        <mat-error *ngIf="projectForm.get('presupuesto')?.hasError('required')">
+          El presupuesto es requerido
+        </mat-error>
+        <mat-error *ngIf="projectForm.get('presupuesto')?.hasError('min')">
+          El presupuesto debe ser mayor o igual a 0
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Ubicación Geográfica</mat-label>
+        <input matInput formControlName="ubicacionGeografica" title="Ubicación geográfica del proyecto" placeholder="Ingrese la ubicación geográfica">
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button mat-button type="button" (click)="saved.emit()">Cancelar</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="!projectForm.valid">
+          {{ project ? 'Actualizar' : 'Crear' }}
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card> 

@@ -1,0 +1,23 @@
+<div class="network-design">
+  <!-- Eliminamos la barra de herramientas duplicada, ya que network-toolbar se mostrará en los componentes hijos -->
+  <!--
+  <app-network-toolbar
+    (toggleSearchWidget)="toggleSearchWidget()"
+    (toggleElementsPanel)="toggleElementsPanel()"
+  ></app-network-toolbar>
+  -->
+  
+  <div class="network-design-content">
+    <div class="network-design-container" [ngClass]="{'map-hidden': !mapVisible}">
+      <div [@routeAnimations]="prepareRoute(outlet)" class="router-container">
+        <router-outlet #outlet="outlet"></router-outlet>
+      </div>
+    </div>
+    
+    <!-- Botón flotante para mostrar/ocultar el buscador -->
+    <!-- Eliminado botón search-toggle-button por solicitud del usuario -->
+    
+    <!-- Componente de vista rápida cuando hay un elemento seleccionado -->
+    <app-element-quick-view *ngIf="selectedElement && showElementsPanel" class="element-details-panel"></app-element-quick-view>
+  </div>
+</div> 

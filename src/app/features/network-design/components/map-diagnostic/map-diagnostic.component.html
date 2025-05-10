@@ -1,0 +1,209 @@
+<div class="map-diagnostic-container">
+  <mat-card class="diagnostic-card">
+    <mat-card-header>
+      <mat-card-title>
+        <div class="title-container">
+          <mat-icon class="title-icon">assessment</mat-icon>
+          <span>Diagnóstico del Mapa</span>
+          <div class="status-indicator" *ngIf="diagnosticoResultado">
+            <mat-icon [ngClass]="isProblemaSevero() ? 'status-error' : warningCount > 0 ? 'status-warning' : 'status-ok'">
+              {{ isProblemaSevero() ? 'error' : warningCount > 0 ? 'warning' : 'check_circle' }}
+            </mat-icon>
+          </div>
+        </div>
+      </mat-card-title>
+      <mat-card-subtitle>
+        <div class="subtitle-container">
+          <span>{{ getResultadoResumen() }}</span>
+          <span *ngIf="ultimoDiagnostico" class="last-update">
+            Último: {{ getUltimoDiagnosticoTiempo() }}
+            <mat-icon *ngIf="autoDiagnosticoActive" class="auto-icon" 
+                     matTooltip="Diagnóstico automático activado">autorenew</mat-icon>
+          </span>
+        </div>
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Barra de progreso durante la carga -->
+      <div class="progress-container" *ngIf="cargando">
+        <mat-progress-bar mode="indeterminate" color="primary" class="loading-progress"></mat-progress-bar>
+        <span class="progress-text">Ejecutando diagnóstico...</span>
+      </div>
+
+      <!-- Resultados del diagnóstico -->
+      <div class="diagnostic-results" *ngIf="diagnosticoResultado && !cargando">
+        <!-- Resumen de estado general -->
+        <div class="status-summary" [ngClass]="{'error': isProblemaSevero(), 'warning': !isProblemaSevero() && warningCount > 0, 'ok': !isProblemaSevero() && warningCount === 0}">
+          <mat-icon class="status-icon">
+            {{ isProblemaSevero() ? 'error' : warningCount > 0 ? 'warning' : 'check_circle' }}
+          </mat-icon>
+          <div class="status-details">
+            <h3>{{ isProblemaSevero() ? 'Problemas detectados' : warningCount > 0 ? 'Advertencias detectadas' : 'Sistema funcionando correctamente' }}</h3>
+            <p>{{ diagnosticoResultado.mensaje || getResultadoResumen() }}</p>
+          </div>
+          <button mat-icon-button color="primary" *ngIf="!isProblemaSevero()" 
+                  matTooltip="Exportar resultados" (click)="exportarResultados()">
+            <mat-icon>file_download</mat-icon>
+          </button>
+        </div>
+
+        <!-- Panel de expansión para recursos -->
+        <mat-expansion-panel *ngIf="recursosVerificados && recursosVerificados.length > 0">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <div class="panel-title-with-badge">
+                <span>Recursos verificados</span>
+                <span class="badge-container" *ngIf="errorCount > 0">
+                  <mat-icon matBadge="{{ errorCount }}" matBadgeColor="warn" class="badge-icon" aria-hidden="false">report_problem</mat-icon>
+                </span>
+              </div>
+            </mat-panel-title>
+            <mat-panel-description>
+              {{ recursosVerificados.length }} recursos analizados
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+          
+          <mat-list>
+            <mat-list-item *ngFor="let recurso of recursosVerificados" class="resource-item">
+              <mat-icon [ngStyle]="{'color': getStatusColor(recurso.status)}" mat-list-icon>
+                {{ getStatusIcon(recurso.status) }}
+              </mat-icon>
+              <div mat-line>{{ recurso.url }}</div>
+              <div mat-line *ngIf="recurso.message" class="resource-message">{{ recurso.message }}</div>
+              <div mat-line *ngIf="recurso.responseTime" class="resource-response-time">
+                Tiempo de respuesta: {{ formatearTiempo(recurso.responseTime) }}
+              </div>
+            </mat-list-item>
+          </mat-list>
+        </mat-expansion-panel>
+
+        <!-- Panel de expansión para estadísticas -->
+        <mat-expansion-panel *ngIf="estadisticas && Object.keys(estadisticas).length > 0">
+          <mat-expansion-panel-header>
+            <mat-panel-title>Estadísticas</mat-panel-title>
+            <mat-panel-description>Rendimiento y recursos</mat-panel-description>
+          </mat-expansion-panel-header>
+          
+          <mat-list>
+            <ng-container *ngFor="let key of Object.keys(estadisticas)">
+              <mat-list-item class="statistics-item">
+                <mat-icon mat-list-icon>analytics</mat-icon>
+                <div mat-line class="statistic-key">{{ key | titlecase }}</div>
+                <div mat-line class="statistic-value">
+                  <ng-container [ngSwitch]="key">
+                    <ng-container *ngSwitchCase="'memoria'">{{ estadisticas[key] | formatPercentage }}</ng-container>
+                    <ng-container *ngSwitchCase="'rendimiento'">{{ estadisticas[key] | formatPercentage }}</ng-container>
+                    <ng-container *ngSwitchCase="'tiempoInicializacion'">{{ formatearTiempo(estadisticas[key]) }}</ng-container>
+                    <ng-container *ngSwitchDefault>{{ estadisticas[key] }}</ng-container>
+                  </ng-container>
+                </div>
+              </mat-list-item>
+              <mat-divider *ngIf="key !== Object.keys(estadisticas)[Object.keys(estadisticas).length-1]"></mat-divider>
+            </ng-container>
+          </mat-list>
+        </mat-expansion-panel>
+
+        <!-- Panel de expansión para advertencias -->
+        <mat-expansion-panel *ngIf="diagnosticoResultado.warnings && diagnosticoResultado.warnings.length > 0">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <div class="panel-title-with-badge">
+                <span>Advertencias</span>
+                <span class="badge-container">
+                  <mat-icon matBadge="{{ warningCount }}" matBadgeColor="accent" class="badge-icon" aria-hidden="false">warning</mat-icon>
+                </span>
+              </div>
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+          
+          <mat-list>
+            <mat-list-item *ngFor="let warning of diagnosticoResultado.warnings" class="warning-item">
+              <mat-icon mat-list-icon color="accent">warning</mat-icon>
+              <div mat-line>{{ warning }}</div>
+            </mat-list-item>
+          </mat-list>
+        </mat-expansion-panel>
+
+        <!-- Panel para estado de tiles -->
+        <mat-expansion-panel *ngIf="diagnosticoResultado.tiles !== undefined">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <div class="panel-title-with-badge">
+                <span>Servicio de Tiles</span>
+                <mat-icon *ngIf="diagnosticoResultado.tiles" color="primary">check_circle</mat-icon>
+                <mat-icon *ngIf="!diagnosticoResultado.tiles" color="warn">error</mat-icon>
+              </div>
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+          
+          <div class="tiles-status">
+            <p *ngIf="diagnosticoResultado.tiles">
+              <mat-icon color="primary">check_circle</mat-icon>
+              Los servicios de tiles están funcionando correctamente.
+            </p>
+            <p *ngIf="!diagnosticoResultado.tiles" class="error-message">
+              <mat-icon color="warn">error</mat-icon>
+              Se han detectado problemas con los servicios de tiles. Esto puede afectar a la visualización del mapa.
+            </p>
+          </div>
+        </mat-expansion-panel>
+      </div>
+
+      <!-- Mensaje de error si no hay resultados -->
+      <div class="no-results" *ngIf="!diagnosticoResultado && !cargando">
+        <mat-icon>info</mat-icon>
+        <p>No se ha ejecutado ningún diagnóstico</p>
+        <p class="hint-text">Utilice los controles inferiores para ejecutar un análisis del mapa</p>
+      </div>
+    </mat-card-content>
+
+    <mat-divider></mat-divider>
+    
+    <mat-card-actions align="end">
+      <div class="actions-container">
+        <div class="actions-group">
+          <!-- Botón de opciones y herramientas -->
+          <button mat-button color="primary" [matMenuTriggerFor]="toolsMenu" [disabled]="cargando" matTooltip="Opciones adicionales">
+            <mat-icon>more_vert</mat-icon>
+            Opciones
+          </button>
+          <mat-menu #toolsMenu="matMenu">
+            <button mat-menu-item (click)="toggleLogs()">
+              <mat-icon>bug_report</mat-icon>
+              <span>Activar logs</span>
+            </button>
+            <button mat-menu-item (click)="exportarResultados()" [disabled]="!diagnosticoResultado">
+              <mat-icon>file_download</mat-icon>
+              <span>Exportar resultados</span>
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="toggleAutoDiagnostico()">
+              <mat-icon>{{ autoDiagnosticoActive ? 'pause_circle' : 'play_circle' }}</mat-icon>
+              <span>{{ autoDiagnosticoActive ? 'Detener diagnóstico automático' : 'Iniciar diagnóstico automático' }}</span>
+            </button>
+            <button mat-menu-item (click)="reiniciarServicioMapa()" class="warn-action">
+              <mat-icon>refresh</mat-icon>
+              <span>Reiniciar servicio de mapa</span>
+            </button>
+          </mat-menu>
+        </div>
+        
+        <div class="actions-group primary-actions">
+          <button mat-stroked-button color="primary" (click)="toggleAutoDiagnostico()" matTooltip="{{ autoDiagnosticoActive ? 'Detener diagnóstico automático' : 'Iniciar diagnóstico automático' }}">
+            <mat-icon>{{ autoDiagnosticoActive ? 'pause_circle' : 'play_circle' }}</mat-icon>
+            {{ autoDiagnosticoActive ? 'Detener Auto' : 'Auto Diagnóstico' }}
+          </button>
+          <button mat-button color="primary" (click)="verificarDeTiles()" [disabled]="cargando" matTooltip="Verificar servicios de tiles">
+            <mat-icon>map</mat-icon>
+            Verificar Tiles
+          </button>
+          <button mat-raised-button color="primary" (click)="ejecutarDiagnostico()" [disabled]="cargando" matTooltip="Ejecutar diagnóstico completo">
+            <mat-icon>assessment</mat-icon>
+            Ejecutar Diagnóstico
+          </button>
+        </div>
+      </div>
+    </mat-card-actions>
+  </mat-card>
+</div> 

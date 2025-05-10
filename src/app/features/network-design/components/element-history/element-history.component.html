@@ -1,0 +1,237 @@
+<div class="history-container">
+  <mat-card class="history-card">
+    <mat-card-header>
+      <mat-card-title>
+        <div class="header-content">
+          <span>Historial del elemento</span>
+          <span *ngIf="element" class="element-code" [matTooltip]="'Código del elemento'">{{ element.code }}</span>
+        </div>
+      </mat-card-title>
+      <div class="header-actions">
+        <button mat-icon-button color="primary" (click)="refreshData()" [disabled]="refreshing" [matTooltip]="'Actualizar historial'">
+          <mat-icon [class.rotating]="refreshing">refresh</mat-icon>
+        </button>
+        <button mat-icon-button color="primary" (click)="navigateToElementDetails()" [matTooltip]="'Ver detalles del elemento'">
+          <mat-icon>info</mat-icon>
+        </button>
+        <button mat-icon-button color="primary" (click)="navigateToMapView()" [matTooltip]="'Ver en mapa'">
+          <mat-icon>map</mat-icon>
+        </button>
+        <button mat-icon-button color="primary" (click)="printHistory()" [matTooltip]="'Imprimir historial'">
+          <mat-icon>print</mat-icon>
+        </button>
+      </div>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Información básica del elemento -->
+      <div *ngIf="element && !loading && !error" class="element-summary">
+        <div class="element-info">
+          <h2>{{ element.name }}</h2>
+          <div class="element-metadata">
+            <span class="element-type" [matTooltip]="'Tipo de elemento'">
+              <mat-icon class="info-icon">category</mat-icon> {{ element.type }}
+            </span>
+            <span class="element-status" [matTooltip]="'Estado actual'">
+              <mat-icon class="info-icon">lens</mat-icon> {{ element.status }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Muestra error si hay alguno -->
+      <div *ngIf="error" class="error-message">
+        <mat-icon>error</mat-icon>
+        <span>{{ error }}</span>
+      </div>
+
+      <!-- Muestra cargando si está cargando -->
+      <div *ngIf="loading && !error" class="loading-container">
+        <mat-spinner diameter="40" color="accent"></mat-spinner>
+        <p>Cargando historial...</p>
+      </div>
+
+      <!-- Si no hay errores ni está cargando, muestra el historial -->
+      <div *ngIf="!loading && !error" class="history-content">
+        <mat-tab-group animationDuration="300ms" (selectedTabChange)="onTabChange($event)">
+          <!-- Pestaña de cambios -->
+          <mat-tab label="Cambios">
+            <!-- Lista de cambios -->
+            <div class="changes-list" *ngIf="changes.length > 0">
+              <mat-list>
+                <div *ngFor="let change of changes; let last = last">
+                  <mat-list-item class="change-item" [matTooltip]="getChangeTypeLabel(change.changeType)">
+                    <div class="change-header">
+                      <div class="change-icon">
+                        <mat-icon [color]="getChangeTypeColor(change.changeType)" [matTooltip]="getChangeTypeLabel(change.changeType)">
+                          {{ getChangeTypeIcon(change.changeType) }}
+                        </mat-icon>
+                      </div>
+                      <div class="change-info">
+                        <h3 class="change-title">
+                          {{ getChangeTypeLabel(change.changeType) }}
+                        </h3>
+                        <p class="change-details">
+                          <span class="change-user" [matTooltip]="'Usuario que realizó el cambio'">
+                            <mat-icon class="small-icon">person</mat-icon> {{ change.userName }}
+                          </span>
+                          <span class="change-timestamp" [matTooltip]="change.timestamp | date: 'dd/MM/yyyy HH:mm:ss'">
+                            <mat-icon class="small-icon">schedule</mat-icon> {{ change.timestamp | date: 'dd/MM/yyyy HH:mm' }}
+                            <span class="time-ago">({{ getTimeDifference(change.timestamp) }})</span>
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </mat-list-item>
+
+                  <div class="change-content">
+                    <mat-expansion-panel class="change-expansion">
+                      <mat-expansion-panel-header>
+                        <mat-panel-title>
+                          <mat-icon class="inline-icon">info</mat-icon> Detalles del cambio
+                        </mat-panel-title>
+                        <mat-panel-description>
+                          <span class="change-count">{{ change.changes.length }} cambios</span>
+                        </mat-panel-description>
+                      </mat-expansion-panel-header>
+
+                      <table class="changes-table">
+                        <thead>
+                          <tr>
+                            <th>Campo</th>
+                            <th>Valor anterior</th>
+                            <th>Valor nuevo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngFor="let fieldChange of change.changes" [matTooltip]="'Campo: ' + fieldChange.displayName">
+                            <td>{{ fieldChange.displayName }}</td>
+                            <td 
+                              [class.removed-value]="showFieldChangeType(fieldChange) === 'removed'" 
+                              [class.changed-value]="showFieldChangeType(fieldChange) === 'changed'">
+                              <div class="field-value">
+                                <mat-icon *ngIf="showFieldChangeType(fieldChange) === 'removed'" class="tiny-icon">remove_circle</mat-icon>
+                                {{ formatValue(fieldChange.oldValue) }}
+                              </div>
+                            </td>
+                            <td 
+                              [class.added-value]="showFieldChangeType(fieldChange) === 'added'" 
+                              [class.changed-value]="showFieldChangeType(fieldChange) === 'changed'">
+                              <div class="field-value">
+                                <mat-icon *ngIf="showFieldChangeType(fieldChange) === 'added'" class="tiny-icon">add_circle</mat-icon>
+                                {{ formatValue(fieldChange.newValue) }}
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </mat-expansion-panel>
+                  </div>
+
+                  <mat-divider *ngIf="!last"></mat-divider>
+                </div>
+              </mat-list>
+            </div>
+
+            <!-- Mensaje si no hay cambios -->
+            <div *ngIf="changes.length === 0" class="no-data">
+              <mat-icon>history</mat-icon>
+              <p>No hay historial de cambios para este elemento</p>
+              <button mat-stroked-button color="primary" (click)="refreshData()" [disabled]="refreshing">
+                <mat-icon [class.rotating]="refreshing">refresh</mat-icon> Actualizar
+              </button>
+            </div>
+          </mat-tab>
+
+          <!-- Pestaña de mantenimientos -->
+          <mat-tab label="Mantenimiento">
+            <!-- Lista de eventos de mantenimiento -->
+            <div class="maintenance-list" *ngIf="maintenanceEvents.length > 0">
+              <mat-list>
+                <div *ngFor="let event of maintenanceEvents; let last = last">
+                  <mat-list-item class="maintenance-item" [matTooltip]="getMaintenanceTypeLabel(event.type)">
+                    <div class="maintenance-header">
+                      <div class="maintenance-icon">
+                        <mat-icon [color]="getMaintenanceStatusColor(event)" [matTooltip]="getMaintenanceTypeLabel(event.type)">
+                          {{ getMaintenanceTypeIcon(event.type) }}
+                        </mat-icon>
+                      </div>
+                      <div class="maintenance-info">
+                        <h3 class="maintenance-title">
+                          {{ getMaintenanceTypeLabel(event.type) }}:
+                          {{ event.description }}
+                        </h3>
+                        <p class="maintenance-details">
+                          <span class="maintenance-user" [matTooltip]="'Usuario responsable'">
+                            <mat-icon class="small-icon">person</mat-icon> {{ event.userName }}
+                          </span>
+                          <span class="maintenance-timestamp" [matTooltip]="event.timestamp | date: 'dd/MM/yyyy HH:mm:ss'">
+                            <mat-icon class="small-icon">schedule</mat-icon> {{ event.timestamp | date: 'dd/MM/yyyy HH:mm' }}
+                            <span class="time-ago">({{ getTimeDifference(event.timestamp) }})</span>
+                          </span>
+                          <mat-chip-set>
+                            <mat-chip [color]="event.completed ? 'primary' : 'accent'" selected [matTooltip]="event.completed ? 'Mantenimiento finalizado' : 'Mantenimiento pendiente'">
+                              <mat-icon>{{ event.completed ? 'check_circle' : 'pending' }}</mat-icon>
+                              {{ event.completed ? 'Completado' : 'Pendiente' }}
+                            </mat-chip>
+                          </mat-chip-set>
+                        </p>
+                      </div>
+                    </div>
+                  </mat-list-item>
+
+                  <div class="maintenance-content">
+                    <mat-expansion-panel class="maintenance-expansion">
+                      <mat-expansion-panel-header>
+                        <mat-panel-title>
+                          <mat-icon class="inline-icon">info</mat-icon> Detalles del mantenimiento
+                        </mat-panel-title>
+                      </mat-expansion-panel-header>
+
+                      <div class="maintenance-details-content">
+                        <div *ngFor="let detail of event.details | keyvalue" class="detail-item">
+                          <span class="detail-label">{{ detail.key | titlecase }}:</span>
+                          <span class="detail-value">{{ detail.value }}</span>
+                        </div>
+
+                        <div *ngIf="event.completed" class="completion-info">
+                          <p>
+                            <mat-icon class="inline-icon success-icon">check_circle</mat-icon>
+                            <strong>Completado por:</strong> {{ event.completedBy }}
+                          </p>
+                          <p>
+                            <mat-icon class="inline-icon">event_available</mat-icon>
+                            <strong>Fecha de finalización:</strong>
+                            {{ event.completedDate | date: 'dd/MM/yyyy HH:mm' }}
+                          </p>
+                        </div>
+                      </div>
+                    </mat-expansion-panel>
+                  </div>
+
+                  <mat-divider *ngIf="!last"></mat-divider>
+                </div>
+              </mat-list>
+            </div>
+
+            <!-- Mensaje si no hay eventos de mantenimiento -->
+            <div *ngIf="maintenanceEvents.length === 0" class="no-data">
+              <mat-icon>build</mat-icon>
+              <p>No hay eventos de mantenimiento para este elemento</p>
+              <button mat-stroked-button color="primary" (click)="refreshData()" [disabled]="refreshing">
+                <mat-icon [class.rotating]="refreshing">refresh</mat-icon> Actualizar
+              </button>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-button color="accent" [routerLink]="['/network-design/map']">
+        <mat-icon>arrow_back</mat-icon>
+        Volver al mapa
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div> 

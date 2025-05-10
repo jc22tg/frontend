@@ -1,0 +1,442 @@
+.network-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  height: 56px;
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  border-radius: 4px;
+  margin: 8px 8px 12px 8px;
+  z-index: 1000;
+
+  .layer-controls,
+  .element-controls,
+  .map-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+
+    .mat-button {
+      border-radius: 4px;
+      padding: 0 12px;
+      height: 36px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      transition: all 0.2s ease;
+      
+      .mat-icon {
+        margin-right: 6px;
+        font-size: 20px;
+        height: 20px;
+        width: 20px;
+      }
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+        transform: translateY(-1px);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+    }
+
+    .mat-icon-button {
+      height: 36px;
+      width: 36px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+        transform: translateY(-1px);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+      
+      .mat-icon {
+        font-size: 20px;
+        height: 20px;
+        width: 20px;
+      }
+      
+      // Estilo especial para los botones de toggle de paneles
+      &.active {
+        background-color: rgba(25, 118, 210, 0.1);
+        color: #1976d2;
+        
+        &:hover {
+          background-color: rgba(25, 118, 210, 0.15);
+        }
+      }
+    }
+  }
+
+  .menu-button {
+    display: flex;
+    align-items: center;
+    
+    span {
+      font-weight: 500;
+      font-size: 14px;
+    }
+  }
+}
+
+::ng-deep {
+  .mat-menu-panel {
+    max-width: none !important;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    
+    .menu-header {
+      padding: 10px 16px 8px;
+      
+      span {
+        font-size: 13px;
+        font-weight: 500;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+    }
+    
+    .mat-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      height: auto;
+      min-height: 42px;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.1px;
+      transition: all 0.2s ease;
+      border-radius: 4px;
+      margin: 0 4px;
+
+      .mat-icon {
+        margin-right: 8px;
+        font-size: 20px;
+        height: 20px;
+        width: 20px;
+        color: #555;
+      }
+
+      span {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #333;
+      }
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+        transform: translateX(2px);
+      }
+      
+      &:active {
+        background-color: rgba(0, 0, 0, 0.08);
+        transform: translateX(0);
+      }
+
+      // Iconos específicos para cada tipo de elemento
+      .network-icon {
+        &.fdp-icon {
+          color: #2196F3; // Azul
+        }
+        
+        &.olt-icon {
+          color: #4CAF50; // Verde
+        }
+        
+        &.ont-icon {
+          color: #F44336; // Rojo
+        }
+        
+        &.edfa-icon {
+          color: #9C27B0; // Púrpura
+        }
+        
+        &.splitter-icon {
+          color: #FF9800; // Naranja
+        }
+        
+        &.manga-icon {
+          color: #795548; // Marrón
+        }
+        
+        &.terminal-box-icon {
+          color: #607D8B; // Azul grisáceo
+        }
+      }
+    }
+    
+    .mat-divider {
+      margin: 8px 0;
+    }
+
+    // Clase para el menú mejorado
+    &.enhanced-menu {
+      padding: 8px;
+    }
+  }
+}
+
+// Estilos para los tooltips
+::ng-deep {
+  .mat-tooltip {
+    font-size: 13px;
+    padding: 8px 12px;
+    background-color: rgba(33, 33, 33, 0.95);
+    border-radius: 6px;
+    font-weight: 400;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// Animaciones para botones activos
+.active-button {
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #1976d2;
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  
+  &.active::after {
+    transform: scaleX(1);
+  }
+}
+
+// Efectos de transición
+.transition-element {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// Media queries para responsive
+@media (max-width: 768px) {
+  .network-toolbar {
+    padding: 6px 8px;
+    height: auto;
+    flex-wrap: wrap;
+    margin: 4px;
+    
+    .layer-controls,
+    .element-controls,
+    .map-controls {
+      gap: 4px;
+      margin: 2px 0;
+    }
+    
+    .mat-button {
+      padding: 0 8px;
+      font-size: 13px;
+      
+      .mat-icon {
+        margin-right: 4px;
+        font-size: 18px;
+        height: 18px;
+        width: 18px;
+      }
+    }
+    
+    .mat-icon-button {
+      height: 32px;
+      width: 32px;
+      
+      .mat-icon {
+        font-size: 18px;
+        height: 18px;
+        width: 18px;
+      }
+    }
+  }
+}
+
+// Para dispositivos muy pequeños, mostrar solo iconos
+@media (max-width: 480px) {
+  .network-toolbar {
+    padding: 4px;
+    
+    .menu-button {
+      span {
+        display: none; // Ocultar texto, mostrar solo iconos
+      }
+    }
+  }
+}
+
+// Estilos para los nuevos botones y elementos
+.dropdown-icon {
+  font-size: 18px !important;
+  height: 18px !important;
+  width: 18px !important;
+  margin-left: 4px !important;
+  margin-right: 0 !important;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+
+.menu-button:hover .dropdown-icon {
+  transform: translateY(2px);
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 40px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  
+  &.active {
+    background-color: #1565C0;
+  }
+  
+  .mat-icon {
+    margin-right: 8px;
+  }
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.control-group {
+  display: flex;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  padding: 2px;
+  
+  .map-control-button {
+    margin: 0 2px;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+  }
+}
+
+// Mejoras para el badge de elementos seleccionados
+::ng-deep {
+  .mat-badge-content {
+    font-size: 10px;
+    height: 16px;
+    width: 16px;
+    line-height: 16px;
+  }
+}
+
+// Estilo para efecto ripple en botones
+::ng-deep {
+  .mat-ripple-element {
+    background-color: rgba(25, 118, 210, 0.1);
+  }
+}
+
+// Animación de pulse para botones activos
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(25, 118, 210, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+  }
+}
+
+.button-pulse {
+  animation: pulse 1.5s infinite;
+}
+
+// Mejoras para dispositivos móviles
+@media (max-width: 768px) {
+  // ... existing code ...
+  
+  .action-button {
+    padding: 0 12px;
+    
+    span {
+      display: none;
+    }
+    
+    .mat-icon {
+      margin-right: 0;
+    }
+  }
+  
+  .menu-button {
+    span {
+      display: none;
+    }
+    
+    .mat-icon:not(.dropdown-icon) {
+      margin-right: 0;
+    }
+    
+    .dropdown-icon {
+      margin-left: 0;
+    }
+  }
+}
+
+// Animación de entrada para la barra de herramientas
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.network-toolbar {
+  animation: slideDown 0.3s ease forwards;
+}
+
+// Estilos específicos para botones de visibilidad de paneles
+.map-control-button {
+  &.active {
+    background-color: rgba(25, 118, 210, 0.1);
+    color: #1976d2;
+    
+    &:hover {
+      background-color: rgba(25, 118, 210, 0.15);
+    }
+  }
+}
+
+// Animación para el cambio de estado de los paneles
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.map-control-button.active .mat-icon {
+  animation: pulse 0.3s ease-in-out;
+}

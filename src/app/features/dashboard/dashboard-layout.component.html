@@ -1,0 +1,191 @@
+<div class="dashboard-container" [class.loading]="loading$ | async">
+  <div class="dashboard-header">
+    <div class="header-left">
+      <h1>Dashboard</h1>
+      <div class="dashboard-period-selector">
+        <mat-button-toggle-group [value]="selectedPeriod" (change)="changePeriod($event.value)">
+          <mat-button-toggle value="day" matTooltip="Mostrar datos del día">Hoy</mat-button-toggle>
+          <mat-button-toggle value="week" matTooltip="Mostrar datos de la semana">Semana</mat-button-toggle>
+          <mat-button-toggle value="month" matTooltip="Mostrar datos del mes">Mes</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button mat-button color="primary" (click)="refreshDashboard()" matTooltip="Actualizar todos los datos">
+        <mat-icon>refresh</mat-icon> Actualizar
+      </button>
+      <button mat-button [matMenuTriggerFor]="dashMenu" matTooltip="Más opciones">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #dashMenu="matMenu">
+        <button mat-menu-item (click)="exportDashboard('pdf')">
+          <mat-icon>picture_as_pdf</mat-icon>
+          <span>Exportar como PDF</span>
+        </button>
+        <button mat-menu-item (click)="exportDashboard('excel')">
+          <mat-icon>table_chart</mat-icon>
+          <span>Exportar como Excel</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="toggleCustomization()">
+          <mat-icon>dashboard_customize</mat-icon>
+          <span>Personalizar dashboard</span>
+        </button>
+      </mat-menu>
+    </div>
+  </div>
+  
+  <div class="dashboard-grid" [ngClass]="{'compact': isCompactView}">
+    <!-- Widget de Salud de Red -->
+    <mat-card class="dashboard-section" [class.hidden]="hiddenSections.includes('health')">
+      <mat-card-header>
+        <mat-card-title>Salud de la Red</mat-card-title>
+        <button mat-icon-button [matMenuTriggerFor]="healthMenu" class="section-menu-button">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #healthMenu="matMenu">
+          <button mat-menu-item (click)="refreshSection('health')">
+            <mat-icon>refresh</mat-icon>
+            <span>Actualizar</span>
+          </button>
+          <button mat-menu-item (click)="toggleSection('health')">
+            <mat-icon>visibility_off</mat-icon>
+            <span>Ocultar</span>
+          </button>
+        </mat-menu>
+      </mat-card-header>
+      <mat-card-content>
+        <app-network-health-widget></app-network-health-widget>
+      </mat-card-content>
+    </mat-card>
+    
+    <!-- Widget de Mini-Mapa -->
+    <mat-card class="dashboard-section" [class.hidden]="hiddenSections.includes('map')">
+      <mat-card-header>
+        <mat-card-title>Mapa de Red</mat-card-title>
+        <button mat-icon-button [matMenuTriggerFor]="mapMenu" class="section-menu-button">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #mapMenu="matMenu">
+          <button mat-menu-item (click)="refreshSection('map')">
+            <mat-icon>refresh</mat-icon>
+            <span>Actualizar</span>
+          </button>
+          <button mat-menu-item (click)="toggleSection('map')">
+            <mat-icon>visibility_off</mat-icon>
+            <span>Ocultar</span>
+          </button>
+        </mat-menu>
+      </mat-card-header>
+      <mat-card-content>
+        <app-mini-map-widget (fullMapRequested)="navegarAMapaCompleto()"></app-mini-map-widget>
+      </mat-card-content>
+    </mat-card>
+    
+    <!-- Widget de Métricas -->
+    <mat-card class="dashboard-section" [class.hidden]="hiddenSections.includes('metrics')">
+      <mat-card-header>
+        <mat-card-title>Métricas de Rendimiento</mat-card-title>
+        <button mat-icon-button [matMenuTriggerFor]="metricsMenu" class="section-menu-button">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #metricsMenu="matMenu">
+          <button mat-menu-item (click)="refreshSection('metrics')">
+            <mat-icon>refresh</mat-icon>
+            <span>Actualizar</span>
+          </button>
+          <button mat-menu-item (click)="toggleSection('metrics')">
+            <mat-icon>visibility_off</mat-icon>
+            <span>Ocultar</span>
+          </button>
+        </mat-menu>
+      </mat-card-header>
+      <mat-card-content>
+        <app-metrics-widget></app-metrics-widget>
+      </mat-card-content>
+    </mat-card>
+    
+    <!-- Widget de Alertas del Sistema -->
+    <mat-card class="dashboard-section wide-section" [class.hidden]="hiddenSections.includes('alerts')">
+      <mat-card-header>
+        <mat-card-title>Alertas del Sistema</mat-card-title>
+        <button mat-icon-button [matMenuTriggerFor]="alertsMenu" class="section-menu-button">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #alertsMenu="matMenu">
+          <button mat-menu-item (click)="refreshSection('alerts')">
+            <mat-icon>refresh</mat-icon>
+            <span>Actualizar</span>
+          </button>
+          <button mat-menu-item (click)="toggleSection('alerts')">
+            <mat-icon>visibility_off</mat-icon>
+            <span>Ocultar</span>
+          </button>
+        </mat-menu>
+      </mat-card-header>
+      <mat-card-content>
+        <app-system-alerts-widget></app-system-alerts-widget>
+      </mat-card-content>
+    </mat-card>
+    
+    <!-- Widget de Vista Previa de Red -->
+    <mat-card class="dashboard-section" [class.hidden]="hiddenSections.includes('network')">
+      <mat-card-header>
+        <mat-card-title>Vista Previa de Red</mat-card-title>
+        <button mat-icon-button [matMenuTriggerFor]="networkMenu" class="section-menu-button">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #networkMenu="matMenu">
+          <button mat-menu-item (click)="refreshSection('network')">
+            <mat-icon>refresh</mat-icon>
+            <span>Actualizar</span>
+          </button>
+          <button mat-menu-item (click)="toggleSection('network')">
+            <mat-icon>visibility_off</mat-icon>
+            <span>Ocultar</span>
+          </button>
+        </mat-menu>
+      </mat-card-header>
+      <mat-card-content>
+        <app-network-widget></app-network-widget>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  
+  <!-- Panel de personalización -->
+  <div class="customization-panel" *ngIf="isCustomizationEnabled">
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Personalizar Dashboard</mat-card-title>
+        <button mat-icon-button (click)="toggleCustomization()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-card-header>
+      <mat-card-content>
+        <h4>Mostrar/Ocultar Secciones</h4>
+        <div class="section-toggles">
+          <mat-button-toggle [checked]="!hiddenSections.includes('health')" (change)="toggleSection('health')">
+            Salud de Red
+          </mat-button-toggle>
+          <mat-button-toggle [checked]="!hiddenSections.includes('map')" (change)="toggleSection('map')">
+            Mapa
+          </mat-button-toggle>
+          <mat-button-toggle [checked]="!hiddenSections.includes('metrics')" (change)="toggleSection('metrics')">
+            Métricas
+          </mat-button-toggle>
+          <mat-button-toggle [checked]="!hiddenSections.includes('alerts')" (change)="toggleSection('alerts')">
+            Alertas
+          </mat-button-toggle>
+          <mat-button-toggle [checked]="!hiddenSections.includes('network')" (change)="toggleSection('network')">
+            Vista Previa de Red
+          </mat-button-toggle>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  
+  <div class="loading-overlay" *ngIf="loading$ | async">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Cargando datos...</p>
+  </div>
+</div> 

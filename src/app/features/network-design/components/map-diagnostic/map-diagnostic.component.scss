@@ -1,0 +1,351 @@
+@use '../../network-design.styles.scss' as styles;
+
+// Variables específicas que extienden las globales
+$hover-bg-color: rgba(0, 0, 0, 0.04);
+
+.map-diagnostic-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background-color: var(--surface-color, #f8f9fa);
+  
+  .diagnostic-card {
+    width: 100%;
+    margin-bottom: 16px;
+    overflow: visible;
+    
+    .title-container {
+      display: flex;
+      align-items: center;
+      
+      .title-icon {
+        margin-right: 8px;
+        color: var(--primary-color, #2196f3);
+      }
+      
+      .status-indicator {
+        margin-left: auto;
+        
+        .status-ok {
+          color: var(--success-color, #4caf50);
+        }
+        
+        .status-warning {
+          color: var(--warning-color, #ff9800);
+        }
+        
+        .status-error {
+          color: var(--error-color, #f44336);
+        }
+      }
+    }
+    
+    .subtitle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      
+      .last-update {
+        font-size: 0.8em;
+        opacity: 0.8;
+        display: flex;
+        align-items: center;
+        
+        .auto-icon {
+          font-size: 16px;
+          height: 16px;
+          width: 16px;
+          margin-left: 4px;
+          animation: rotate 2s linear infinite;
+        }
+      }
+    }
+    
+    .progress-container {
+      margin: 16px 0;
+      text-align: center;
+      
+      .loading-progress {
+        margin-bottom: 8px;
+      }
+      
+      .progress-text {
+        font-size: 0.9em;
+        color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+      }
+    }
+    
+    .status-summary {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      
+      &.ok {
+        background-color: rgba(76, 175, 80, 0.1);
+        border-left: 4px solid var(--success-color, #4caf50);
+      }
+      
+      &.warning {
+        background-color: rgba(255, 152, 0, 0.1);
+        border-left: 4px solid var(--warning-color, #ff9800);
+      }
+      
+      &.error {
+        background-color: rgba(244, 67, 54, 0.1);
+        border-left: 4px solid var(--error-color, #f44336);
+      }
+      
+      .status-icon {
+        font-size: 32px;
+        margin-right: 16px;
+        
+        &.ok {
+          color: var(--success-color, #4caf50);
+        }
+        
+        &.warning {
+          color: var(--warning-color, #ff9800);
+        }
+        
+        &.error {
+          color: var(--error-color, #f44336);
+        }
+      }
+      
+      .status-details {
+        flex: 1;
+        
+        h3 {
+          margin: 0 0 8px 0;
+          font-size: 1.1em;
+        }
+        
+        p {
+          margin: 0;
+          font-size: 0.9em;
+          color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+        }
+      }
+    }
+    
+    .panel-title-with-badge {
+      display: flex;
+      align-items: center;
+      
+      .badge-container {
+        margin-left: 8px;
+      }
+    }
+    
+    .resource-item, .statistics-item, .warning-item {
+      .resource-message {
+        font-size: 0.85em;
+        color: var(--text-hint-color, rgba(0, 0, 0, 0.38));
+      }
+      
+      .resource-response-time {
+        font-size: 0.85em;
+        color: var(--primary-color, #2196f3);
+      }
+    }
+    
+    .statistic-key {
+      font-weight: 500;
+    }
+    
+    .statistic-value {
+      color: var(--primary-color, #2196f3);
+    }
+    
+    .tiles-status {
+      p {
+        display: flex;
+        align-items: center;
+        
+        mat-icon {
+          margin-right: 8px;
+        }
+        
+        &.error-message {
+          color: var(--error-color, #f44336);
+        }
+      }
+    }
+    
+    .no-results {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+      
+      mat-icon {
+        font-size: 48px;
+        height: 48px;
+        width: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      
+      .hint-text {
+        font-size: 0.9em;
+        font-style: italic;
+        margin-top: 8px;
+      }
+    }
+    
+    .actions-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 8px 16px;
+      
+      .actions-group {
+        display: flex;
+        gap: 8px;
+        
+        &.primary-actions {
+          button {
+            min-width: 120px;
+          }
+        }
+      }
+      
+      .warn-action {
+        color: var(--error-color, #f44336);
+      }
+    }
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:host-context(.dark-theme) {
+  .map-diagnostic-container {
+    background-color: var(--dark-background-color, #121212);
+    
+    .diagnostic-card {
+      background-color: var(--dark-card-background, #1e1e1e);
+      color: var(--dark-text-color, rgba(255, 255, 255, 0.87));
+      
+      .status-summary {
+        &.ok {
+          background-color: rgba(76, 175, 80, 0.05);
+        }
+        
+        &.warning {
+          background-color: rgba(255, 152, 0, 0.05);
+        }
+        
+        &.error {
+          background-color: rgba(244, 67, 54, 0.05);
+        }
+      }
+      
+      .status-details {
+        p {
+          color: var(--dark-text-secondary-color, rgba(255, 255, 255, 0.6));
+        }
+      }
+      
+      .no-results {
+        color: var(--dark-text-secondary-color, rgba(255, 255, 255, 0.6));
+      }
+    }
+  }
+}
+
+// Menú personalizado
+::ng-deep .mat-menu-panel {
+  border-radius: var(--border-radius-md) !important;
+  overflow: hidden;
+  
+  .mat-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    
+    mat-icon {
+      margin-right: var(--spacing-sm);
+    }
+  }
+}
+
+// Responsividad
+@media screen and (max-width: 768px) {
+  .map-diagnostic-container {
+    padding: var(--spacing-sm);
+  }
+  
+  .status-summary {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    
+    .status-icon {
+      margin-bottom: var(--spacing-sm);
+    }
+  }
+  
+  .actions-container {
+    flex-direction: column;
+    
+    .actions-group {
+      width: 100%;
+      justify-content: center;
+      
+      &.primary-actions {
+        margin-left: 0;
+      }
+    }
+  }
+  
+  .subtitle-container {
+    flex-direction: column;
+    align-items: flex-start;
+    
+    .last-update {
+      margin-top: var(--spacing-xs);
+    }
+  }
+}
+
+// Animaciones
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.diagnostic-results {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+// Mejoras específicas para los paneles
+.mat-expansion-panel-header {
+  transition: background-color var(--transition-normal);
+  
+  &:hover {
+    background-color: $hover-bg-color;
+  }
+}
+
+// Estilo para los botones
+button[mat-raised-button] {
+  transition: transform var(--transition-normal);
+  
+  &:hover:not([disabled]) {
+    transform: translateY(-2px);
+  }
+} 

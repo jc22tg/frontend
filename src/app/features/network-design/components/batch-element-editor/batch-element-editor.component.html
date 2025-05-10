@@ -1,0 +1,410 @@
+<div class="batch-editor-container">
+  <mat-card class="batch-editor-card">
+    <mat-card-header>
+      <div class="header-icon">
+        <mat-icon>{{ getElementTypeIcon() }}</mat-icon>
+      </div>
+      <mat-card-title>Crear múltiples {{ getElementTypeName() }}</mat-card-title>
+      <mat-card-subtitle>
+        Utilice este formulario para crear varios elementos del mismo tipo a la vez
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="batchForm" (ngSubmit)="onSubmit()">
+        <!-- Configuración de lote -->
+        <div class="batch-config-section">
+          <h3>
+            <mat-icon>settings</mat-icon>
+            <span>Configuración de lote</span>
+          </h3>
+          
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Plantilla</mat-label>
+              <mat-select formControlName="template">
+                <mat-option [value]="null">Ninguna</mat-option>
+                <mat-option *ngFor="let template of templateOptions" [value]="template.id">
+                  {{ template.name }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matSuffix>category</mat-icon>
+              <mat-hint>Seleccione una plantilla predefinida</mat-hint>
+            </mat-form-field>
+          </div>
+          
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Prefijo de código</mat-label>
+              <input
+                matInput
+                formControlName="prefix"
+                placeholder="Ej: NORTE-"
+              />
+              <mat-icon matSuffix>label</mat-icon>
+              <mat-hint>Prefijo adicional para códigos (opcional)</mat-hint>
+              <mat-error *ngIf="batchForm.get('prefix')?.hasError('pattern')">
+                Solo letras, números, guiones y guiones bajos
+              </mat-error>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Número inicial</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="startNumber"
+                min="1"
+              />
+              <mat-icon matSuffix>first_page</mat-icon>
+              <mat-hint>Número para iniciar la secuencia</mat-hint>
+              <mat-error *ngIf="batchForm.get('startNumber')?.hasError('required')">
+                El número inicial es requerido
+              </mat-error>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Dígitos</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="digits"
+                min="1"
+                max="10"
+              />
+              <mat-icon matSuffix>format_list_numbered</mat-icon>
+              <mat-hint>Cantidad de dígitos para rellenar con ceros</mat-hint>
+              <mat-error *ngIf="batchForm.get('digits')?.hasError('required')">
+                La cantidad de dígitos es requerida
+              </mat-error>
+            </mat-form-field>
+          </div>
+          
+          <div class="batch-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              color="primary"
+              (click)="generateAllCodes()"
+              matTooltip="Regenerar todos los códigos con la configuración actual"
+              class="action-button"
+            >
+              <mat-icon>refresh</mat-icon>
+              <span>Regenerar códigos</span>
+            </button>
+            
+            <button
+              mat-stroked-button
+              type="button"
+              color="accent"
+              (click)="addElement()"
+              matTooltip="Agregar un nuevo elemento a la lista"
+              class="action-button"
+            >
+              <mat-icon>add</mat-icon>
+              <span>Agregar elemento</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Contador y estadísticas -->
+        <div class="batch-stats">
+          <div class="stat-item">
+            <div class="stat-value">{{ elementsArray.controls.length }}</div>
+            <div class="stat-label">Elementos</div>
+          </div>
+          <div class="stat-item" *ngIf="elementType === 'ODF'">
+            <div class="stat-value">{{ getTotalCapacity() }}</div>
+            <div class="stat-label">Capacidad total</div>
+          </div>
+          <div class="stat-item" *ngIf="elementType === 'TERMINAL_BOX'">
+            <div class="stat-value">{{ getTotalCapacity() }}</div>
+            <div class="stat-label">Capacidad total</div>
+          </div>
+        </div>
+
+        <!-- Lista de elementos -->
+        <div class="elements-section">
+          <h3>
+            <mat-icon>view_list</mat-icon>
+            <span>Lista de elementos</span>
+          </h3>
+          
+          <div
+            class="element-list"
+            formArrayName="elements"
+            *ngIf="elementsArray.controls.length > 0"
+            [@listAnimation]="elementsArray.controls.length"
+          >
+            <div
+              *ngFor="let element of elementsArray.controls; let i = index"
+              [formGroupName]="i"
+              class="element-item"
+              [@scaleAnimation]
+            >
+              <div class="element-header">
+                <div class="element-index">{{ i + 1 }}</div>
+                <div class="element-title">
+                  {{ element.get('code')?.value || 'Nuevo elemento' }}
+                </div>
+                <div class="element-actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    color="primary"
+                    (click)="duplicateElement(i)"
+                    matTooltip="Duplicar elemento"
+                    class="action-icon"
+                  >
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    color="warn"
+                    (click)="removeElement(i)"
+                    matTooltip="Eliminar elemento"
+                    class="action-icon"
+                  >
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="element-content">
+                <div class="form-row">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Código</mat-label>
+                    <input matInput formControlName="code" required />
+                    <mat-icon matSuffix>vpn_key</mat-icon>
+                    <mat-error *ngIf="element.get('code')?.hasError('required')">
+                      El código es requerido
+                    </mat-error>
+                    <mat-error *ngIf="element.get('code')?.hasError('pattern')">
+                      Solo letras, números, guiones y guiones bajos
+                    </mat-error>
+                  </mat-form-field>
+                  
+                  <mat-form-field appearance="outline">
+                    <mat-label>Nombre</mat-label>
+                    <input matInput formControlName="name" />
+                    <mat-icon matSuffix>edit</mat-icon>
+                  </mat-form-field>
+                  
+                  <mat-form-field appearance="outline">
+                    <mat-label>Estado</mat-label>
+                    <mat-select formControlName="status">
+                      <mat-option value="active">
+                        <mat-icon class="status-icon active">check_circle</mat-icon>
+                        Activo
+                      </mat-option>
+                      <mat-option value="inactive">
+                        <mat-icon class="status-icon inactive">cancel</mat-icon>
+                        Inactivo
+                      </mat-option>
+                      <mat-option value="planned">
+                        <mat-icon class="status-icon planned">schedule</mat-icon>
+                        Planificado
+                      </mat-option>
+                    </mat-select>
+                    <mat-icon matSuffix>fiber_manual_record</mat-icon>
+                  </mat-form-field>
+                </div>
+                
+                <!-- Campos específicos para ODF -->
+                <ng-container *ngIf="elementType === 'ODF'">
+                  <div class="form-row">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Tipo de ODF</mat-label>
+                      <mat-select formControlName="odfType">
+                        <mat-option value="PRIMARY">Primario</mat-option>
+                        <mat-option value="SECONDARY">Secundario</mat-option>
+                        <mat-option value="TERTIARY">Terciario</mat-option>
+                      </mat-select>
+                      <mat-icon matSuffix>category</mat-icon>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Capacidad de puertos</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        formControlName="totalPortCapacity"
+                        min="0"
+                        required
+                      />
+                      <mat-icon matSuffix>settings_input_component</mat-icon>
+                      <mat-error *ngIf="element.get('totalPortCapacity')?.hasError('required')">
+                        La capacidad es requerida
+                      </mat-error>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Puertos usados</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        formControlName="usedPorts"
+                        min="0"
+                      />
+                      <mat-icon matSuffix>input</mat-icon>
+                    </mat-form-field>
+                  </div>
+                  
+                  <div class="form-row">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Fabricante</mat-label>
+                      <input matInput formControlName="manufacturer" />
+                      <mat-icon matSuffix>business</mat-icon>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Modelo</mat-label>
+                      <input matInput formControlName="model" />
+                      <mat-icon matSuffix>view_module</mat-icon>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Tipo de montaje</mat-label>
+                      <mat-select formControlName="mountingType">
+                        <mat-option value="wall">Pared</mat-option>
+                        <mat-option value="rack">Rack</mat-option>
+                        <mat-option value="pole">Poste</mat-option>
+                      </mat-select>
+                      <mat-icon matSuffix>location_on</mat-icon>
+                    </mat-form-field>
+                  </div>
+                </ng-container>
+                
+                <!-- Campos específicos para Terminal Box -->
+                <ng-container *ngIf="elementType === 'TERMINAL_BOX'">
+                  <div class="form-row">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Capacidad</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        formControlName="capacity"
+                        min="0"
+                        required
+                      />
+                      <mat-error *ngIf="element.get('capacity')?.hasError('required')">
+                        La capacidad es requerida
+                      </mat-error>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Puertos usados</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        formControlName="usedPorts"
+                        min="0"
+                      />
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Tipo de cable</mat-label>
+                      <input matInput formControlName="cableType" />
+                    </mat-form-field>
+                  </div>
+                  
+                  <div class="form-row">
+                    <mat-form-field appearance="outline">
+                      <mat-label>Ubicación</mat-label>
+                      <mat-select formControlName="indoorOutdoor">
+                        <mat-option value="indoor">Interior</mat-option>
+                        <mat-option value="outdoor">Exterior</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Tipo de montaje</mat-label>
+                      <mat-select formControlName="mountingType">
+                        <mat-option value="wall">Pared</mat-option>
+                        <mat-option value="pole">Poste</mat-option>
+                        <mat-option value="aerial">Aéreo</mat-option>
+                        <mat-option value="underground">Subterráneo</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    
+                    <mat-form-field appearance="outline">
+                      <mat-label>Calificación IP</mat-label>
+                      <input matInput formControlName="ipRating" />
+                    </mat-form-field>
+                  </div>
+                </ng-container>
+                
+                <div class="form-row">
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Notas</mat-label>
+                    <textarea
+                      matInput
+                      formControlName="notes"
+                      rows="2"
+                    ></textarea>
+                  </mat-form-field>
+                </div>
+              </div>
+              
+              <!-- Indicador de capacidad para elementos con capacidad -->
+              <div class="usage-indicator" *ngIf="getUsagePercentage(element) > 0">
+                <div class="usage-bar" 
+                     [class.low]="getUsagePercentage(element) < 70"
+                     [class.medium]="getUsagePercentage(element) >= 70 && getUsagePercentage(element) < 90"
+                     [class.high]="getUsagePercentage(element) >= 90"
+                     [style.width.%]="getUsagePercentage(element)">
+                </div>
+                <span class="usage-label">{{ getUsagePercentage(element) }}% Uso</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Estado sin elementos -->
+          <div class="no-elements" *ngIf="elementsArray.controls.length === 0" [@fadeAnimation]>
+            <mat-icon>description</mat-icon>
+            <p>No hay elementos en la lista. Haga clic en "Agregar elemento" para comenzar.</p>
+            <button
+              mat-raised-button
+              color="primary"
+              type="button"
+              (click)="addElement()"
+            >
+              <mat-icon>add</mat-icon>
+              Agregar elemento
+            </button>
+          </div>
+        </div>
+        
+        <!-- Mensaje de error -->
+        <div class="error-message" *ngIf="errorMessage" [@fadeAnimation]>
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage }}</span>
+        </div>
+        
+        <!-- Acciones del formulario -->
+        <div class="form-actions">
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="onCancel()"
+            [disabled]="loading"
+          >
+            Cancelar
+          </button>
+          
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="batchForm.invalid || loading"
+          >
+            <mat-icon>save</mat-icon>
+            Guardar elementos
+            <mat-spinner *ngIf="loading" diameter="20" class="button-spinner"></mat-spinner>
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div> 

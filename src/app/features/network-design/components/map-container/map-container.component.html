@@ -1,0 +1,110 @@
+<!-- Contenedor principal -->
+<div class="map-container" #mapContainer>
+  <!-- Barra de herramientas -->
+  <div class="toolbar-container">
+    <app-network-toolbar
+      [isDarkMode]="isDarkMode"
+      [zoomLevel]="currentZoomLevel"
+      [selectedElements]="interactionService.getSelectionCount()"
+      [hasUnsavedChanges]="hasUnsavedChanges"
+      [currentTool]="currentTool"
+      (setToolEvent)="setTool($event ? $event.toString() : '')"
+      (zoomInEvent)="zoomIn()"
+      (zoomOutEvent)="zoomOut()"
+      (resetZoomEvent)="resetZoom()"
+      (fitToScreenEvent)="fitToScreen()"
+      (toggleDarkModeEvent)="toggleDarkMode()"
+      (toggleMiniMapEvent)="toggleMiniMap()"
+      (toggleLayerEvent)="toggleLayer($event ? $event.toString() : '')"
+      (exportMapEvent)="exportMap($event ? $event.toString() : '')"
+      (saveChangesEvent)="saveChanges()"
+      (showHelpEvent)="showHelp()"
+      (optimizePerformanceEvent)="optimizeForPerformance()"
+      (openDiagnosticViewEvent)="openDiagnosticView()">
+    </app-network-toolbar>
+  </div>
+
+  <!-- Vista principal del mapa -->
+  <div class="map-content">
+    <app-map-view
+      [activeLayers]="activeLayers"
+      [tool]="currentTool"
+      [darkMode]="isDarkMode"
+      [loading]="false"
+      (elementSelected)="onElementSelect($event)"
+      (connectionSelected)="onConnectionSelect($event)"
+      (zoomChanged)="stateManager.setZoomLevel($event)"
+      (mapError)="snackBar.open($event, 'Cerrar', {duration: 3000})"
+      (mapLoaded)="cdr.markForCheck()"
+      (cursorPositionChanged)="cdr.markForCheck()">
+    </app-map-view>
+    
+    <!-- Minimapa -->
+    <app-mini-map
+      [elements]="elementManager.getAllElements()"
+      [darkMode]="isDarkMode"
+      [visible]="showMiniMap">
+    </app-mini-map>
+  </div>
+
+  <!-- Panel de búsqueda -->
+  <div class="search-panel" *ngIf="searchControl.value">
+    <div class="search-header">
+      <span>Resultados de búsqueda</span>
+      <button mat-icon-button (click)="clearSearch()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="search-results">
+      <!-- Resultados de búsqueda -->
+    </div>
+  </div>
+
+  <!-- Barra de estado -->
+  <div class="status-bar">
+    <div class="status-info">
+      <span class="zoom-info">Zoom: {{ currentZoomLevel }}%</span>
+      <span class="elements-info">
+        {{ mapStatistics.totalElements }} elementos
+      </span>
+      <span class="performance-info" [class.warning]="performanceMetrics.fps < 30">
+        {{ performanceMetrics.fps }} FPS
+      </span>
+    </div>
+    <div class="unsaved-changes" *ngIf="hasUnsavedChanges">
+      <button mat-button color="accent" (click)="saveChanges()">
+        <mat-icon>save</mat-icon> Guardar cambios
+      </button>
+    </div>
+  </div>
+
+  <!-- Notificación de guardado -->
+  <div class="save-notification" @saveNotification *ngIf="false">
+    <span>Cambios guardados correctamente</span>
+  </div>
+
+  <!-- Ayudas visuales y mensajes de información -->
+  <div class="measurement-info" *ngIf="interactionService.selectedElement | async">
+    <div class="info-header">
+      <span>Elemento seleccionado</span>
+      <button mat-icon-button (click)="interactionService.selectElement(null)">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="info-content">
+      <!-- Contenido del elemento seleccionado -->
+    </div>
+  </div>
+
+  <!-- Controles de capa -->
+  <div class="layer-controls" *ngIf="hasElementTypes">
+    <button 
+      *ngFor="let layer of ElementType | keyvalue" 
+      mat-mini-fab 
+      [color]="isLayerActive(layer.value) ? 'primary' : 'default'"
+      (click)="toggleLayer(layer.value)"
+      [matTooltip]="'Capa: ' + layer.key">
+      <mat-icon>layers</mat-icon>
+    </button>
+  </div>
+</div> 

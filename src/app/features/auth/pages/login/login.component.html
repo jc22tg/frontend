@@ -1,0 +1,13 @@
+<div class="login-page">
+  <div class="login-container">
+    <h1>Bienvenido</h1>
+    <p class="subtitle">Inicia sesión para continuar</p>
+    
+    <app-login-form (submit)="onLoginSubmit($event)"></app-login-form>
+
+    <div class="links">
+      <a routerLink="/auth/forgot-password">¿Olvidaste tu contraseña?</a>
+      <a routerLink="/auth/register">¿No tienes una cuenta? Regístrate</a>
+    </div>
+  </div>
+</div> 

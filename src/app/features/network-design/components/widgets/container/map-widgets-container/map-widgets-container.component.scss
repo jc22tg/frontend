@@ -1,0 +1,490 @@
+// Variables
+$widget-background: var(--map-widget-bg-color, rgba(255, 255, 255, 0.65));
+$widget-background-dark: var(--map-widget-bg-color-dark, rgba(48, 48, 48, 0.65));
+$widget-border-radius: var(--map-widget-border-radius, 12px);
+$widget-box-shadow: var(--map-widget-shadow, 0 4px 15px rgba(0, 0, 0, 0.1));
+$widget-box-shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.2);
+$toolbar-height: 48px;
+$toolbar-width: 48px;
+$toolbar-background: rgba(255, 255, 255, 0.5);
+$toolbar-background-dark: rgba(48, 48, 48, 0.5);
+$primary-color: #3f51b5;
+$accent-color: #ff4081;
+$widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.25s ease;
+
+// Contenedor principal que organiza todos los widgets
+.map-widgets-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0; // Expandir a toda la pantalla
+  pointer-events: none;
+  z-index: 100;
+  transition: all 0.3s ease;
+  padding: 10px;
+  
+  // Todos los botones y paneles deben recibir eventos de puntero
+  button, .widgets-toolbar, .widgets-panel, .widget-panel, .context-menu-panel {
+    pointer-events: auto;
+  }
+  
+  &.widgets-hidden {
+    .widgets-toolbar {
+      padding: 0;
+      
+      // Si los widgets están ocultos, muestra solamente el botón para desplegarlos
+      button:not(.toggle-widgets-btn) {
+        display: none;
+      }
+    }
+  }
+}
+
+// Optimizaciones para rendimiento
+.widgets-container * {
+  /* Activa la aceleración por hardware */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+// Barra de herramientas para controlar los widgets
+.widgets-toolbar {
+  position: absolute;
+  top: 50%; // Centrar verticalmente
+  left: 20px;
+  transform: translateY(-50%); // Centrar verticalmente
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: $toolbar-background;
+  border-radius: 12px; // Bordes más redondeados
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1); // Sombra más suave
+  margin-bottom: 10px;
+  padding: 10px 6px; // Ajustar el padding
+  transition: all 0.3s ease, background-color 0.3s ease;
+  z-index: 110;
+  backdrop-filter: blur(10px); // Más blur para efecto glass
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2); // Borde sutil para efecto glass
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.7); // Cambiar opacidad al pasar el ratón
+  }
+  
+  button {
+    margin: 6px 0; // Más espacio entre botones
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    border-radius: 8px; // Bordes más redondeados
+    
+    &:hover {
+      transform: scale(1.15);
+      background-color: rgba($primary-color, 0.15);
+    }
+    
+    &.active {
+      background-color: rgba($primary-color, 0.85); // Hacer el botón activo ligeramente transparente
+      color: white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); // Agregar sombra para destacar
+    }
+  }
+}
+
+// Panel principal que contiene todos los widgets activos
+.widgets-panel {
+  // Usar grid en lugar de flexbox para una mejor distribución
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 15px;
+  width: 100%;
+  height: 100%;
+  padding: 70px 20px 20px 80px; // Ajustar espacio para la barra de herramientas
+  overflow: visible;
+  pointer-events: none;
+  
+  // Asegurar que los widgets reciben eventos
+  .widget-panel {
+    pointer-events: auto;
+  }
+}
+
+// Ajustar el contenedor según la posición
+:host {
+  &[position="top-right"] {
+    .widgets-panel {
+      padding: 20px 20px 20px 20px; // Sin espacio extra para la barra de herramientas
+      justify-content: flex-end;
+      align-content: flex-start;
+    }
+  }
+  
+  &[position="bottom-left"] {
+    .widgets-panel {
+      padding: 20px 20px 20px 20px; // Sin espacio extra para la barra de herramientas
+      justify-content: flex-start;
+      align-content: flex-end;
+    }
+  }
+  
+  &[position="bottom-right"] {
+    .widgets-panel {
+      padding: 20px 20px 20px 20px; // Sin espacio extra para la barra de herramientas
+      justify-content: flex-end;
+      align-content: flex-end;
+    }
+  }
+}
+
+// Estilo base para todos los widgets - Alineado con .map-widget
+.widget-panel {
+  background-color: $widget-background;
+  border-radius: $widget-border-radius;
+  box-shadow: $widget-box-shadow;
+  padding: 18px;
+  width: 100%;
+  max-width: 350px;
+  max-height: calc(50vh - 40px); // Limitar altura para evitar que ocupen toda la pantalla
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: $widget-transition;
+  transform-origin: top right;
+  will-change: transform, opacity;
+  position: relative; // Asegurar que tenga posición relativa por defecto
+  user-select: none; // Evitar selección de texto al arrastrar
+  margin: 5px; // Agregar margen entre widgets
+  border: 1px solid rgba(255, 255, 255, 0.3); // Borde más claro para efecto glass
+  backdrop-filter: blur(12px); // Más blur para efecto glass
+  -webkit-backdrop-filter: blur(12px); // Compatibilidad con webkit
+  
+  // Efecto de brillos sutiles en los bordes para efecto "glass morphism"
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    opacity: 0.5;
+    border-radius: $widget-border-radius $widget-border-radius 0 0;
+  }
+  
+  // Estilo unificado para todos los widgets del sistema
+  &[id^="widget-"] {
+    background-color: $widget-background;
+    border-radius: $widget-border-radius;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  // Posicionamiento específico para asegurar que no se solapan
+  &:nth-child(1) { grid-area: 1 / 1 / 2 / 2; }
+  &:nth-child(2) { grid-area: 1 / 2 / 2 / 3; }
+  &:nth-child(3) { grid-area: 1 / 3 / 2 / 4; }
+  &:nth-child(4) { grid-area: 2 / 1 / 3 / 2; }
+  &:nth-child(5) { grid-area: 2 / 2 / 3 / 3; }
+  &:nth-child(6) { grid-area: 2 / 3 / 3 / 4; }
+  &:nth-child(7) { grid-area: 3 / 1 / 4 / 2; }
+  &:nth-child(8) { grid-area: 3 / 2 / 4 / 3; }
+  
+  // Mejoras de rendimiento para scroll suave
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  // Mejorar la experiencia de arrastrar
+  &.widget-dragging {
+    transition: none !important;
+    cursor: grabbing !important;
+    opacity: 0.9;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    transform: scale(1.02);
+    
+    // Asegurarnos que el widget que se arrastra esté siempre encima
+    z-index: 9999 !important;
+  }
+  
+  // Encabezado con controles para cada widget
+  .widget-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 36px; // Un poco más alto para comodidad
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: $widget-border-radius $widget-border-radius 0 0;
+    cursor: grab;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px; // Más espacio horizontal
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+    
+    &:active {
+      cursor: grabbing;
+    }
+    
+    // Título del widget en el encabezado
+    .widget-title {
+      font-weight: 500;
+      font-size: 13px; // Ligeramente más grande
+      color: rgba(0, 0, 0, 0.7); // Más oscuro para legibilidad
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-left: 4px;
+    }
+    
+    // Botón de cierre en el encabezado
+    .close-btn {
+      position: absolute;
+      right: 4px; // Ajustar posición
+      top: 2px;
+      transform: scale(0.85);
+      z-index: 2;
+      
+      &:hover {
+        background-color: rgba(255, 0, 0, 0.1);
+      }
+    }
+  }
+  
+  // Agregar espaciado para el encabezado
+  > *:first-child:not(.widget-header) {
+    margin-top: 36px; // Ajustar a la nueva altura del encabezado
+  }
+  
+  // Estilo para encabezados dentro de widgets
+  h3, h4 {
+    margin-top: 0;
+    color: $primary-color;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  
+  // Animación de entrada
+  &.widget-enter {
+    transform: scale(0.9);
+    opacity: 0;
+    &.widget-enter-active {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  // Efecto de elevación al pasar el mouse
+  &:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+  }
+}
+
+// Estilo para widgets específicos
+.widget-mini-map {
+  width: 250px !important;
+  height: 250px !important;
+}
+
+.widget-performance, .widget-health, .widget-status, .widget-search, .widget-metrics {
+  width: 300px !important;
+  
+  // Estilo común para todos los widgets de estadísticas
+  .stats-container, .performance-stats, .health-stats, .status-stats, .metrics-stats {
+    display: flex;
+    flex-direction: column;
+    
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding: 4px;
+      border-radius: 4px;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+      }
+      
+      .stat-label {
+        color: rgba(0, 0, 0, 0.6);
+      }
+      
+      .stat-value {
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+// Estilo para el menú contextual
+.context-menu-panel {
+  position: absolute;
+  background-color: $widget-background;
+  border-radius: $widget-border-radius;
+  box-shadow: $widget-box-shadow;
+  overflow: hidden;
+  z-index: 120; // Asegurar que esté encima de otros widgets
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+// Media queries para responsividad
+@media (max-width: 1024px) {
+  .widgets-panel {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 70px 15px 15px 70px;
+  }
+}
+
+@media (max-width: 768px) {
+  .widgets-panel {
+    grid-template-columns: 1fr;
+    padding: 70px 10px 10px 60px;
+  }
+  
+  .widget-panel {
+    max-width: 100%;
+  }
+  
+  .widgets-toolbar {
+    left: 10px;
+    padding: 8px 4px;
+    
+    button {
+      margin: 4px 0;
+    }
+  }
+}
+
+// Soporte para modo oscuro
+:host-context(.dark-theme) {
+  .widgets-toolbar {
+    background-color: $toolbar-background-dark;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    
+    &:hover {
+      background-color: rgba(48, 48, 48, 0.8);
+    }
+    
+    button {
+      color: rgba(255, 255, 255, 0.85);
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      &.active {
+        background-color: rgba($primary-color, 0.7);
+      }
+    }
+  }
+  
+  .widget-panel {
+    background-color: $widget-background-dark;
+    box-shadow: $widget-box-shadow-dark;
+    border-color: rgba(255, 255, 255, 0.08);
+    
+    .widget-header {
+      background-color: rgba(255, 255, 255, 0.05);
+      
+      .widget-title {
+        color: rgba(255, 255, 255, 0.8);
+      }
+    }
+    
+    h3, h4 {
+      color: $accent-color;
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .performance-stats, .stats-container, .health-stats, .status-stats, .metrics-stats {
+      .stat-item {
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.03);
+        }
+        
+        .stat-label {
+          color: rgba(255, 255, 255, 0.6);
+        }
+      }
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    &::-webkit-scrollbar-track {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  }
+  
+  .context-menu-panel {
+    background-color: $widget-background-dark;
+    box-shadow: $widget-box-shadow-dark;
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+// Animaciones para transiciones fluidas
+@keyframes widget-pop-in {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes widget-slide-in {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Aplicar animaciones a los widgets
+.widget-panel {
+  &.widget-appearing {
+    animation: widget-pop-in 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+  }
+}
+
+// Estilos para prevenir superposición y colisión
+.collision-indicator {
+  position: absolute;
+  border: 2px dashed rgba(255, 65, 129, 0.5);
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 4px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+  100% { opacity: 0.3; }
+} 

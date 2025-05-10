@@ -1,0 +1,246 @@
+<div class="map-widgets-container" [class.widgets-hidden]="!showWidgets">
+  <!-- Barra de herramientas principal para controlar los widgets - Solo visible cuando position es 'left' -->
+  <div class="widgets-toolbar" *ngIf="position === 'left'">
+    <button mat-icon-button (click)="toggleAllWidgets()" matTooltip="Mostrar/ocultar widgets" class="toggle-widgets-btn" matTooltipPosition="right">
+      <mat-icon>{{ showWidgets ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+    </button>
+    
+    <ng-container *ngIf="showWidgets">
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.layers" 
+        (click)="toggleWidget('layers')" 
+        matTooltip="Administrar capas" matTooltipPosition="right">
+        <mat-icon>layers</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.creator" 
+        (click)="toggleWidget('creator')" 
+        matTooltip="Crear elementos" matTooltipPosition="right">
+        <mat-icon>add_circle</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.connection" 
+        (click)="toggleWidget('connection')" 
+        matTooltip="Crear conexiones" matTooltipPosition="right">
+        <mat-icon>timeline</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.search" 
+        (click)="toggleWidget('search')" 
+        matTooltip="Buscar elementos" matTooltipPosition="right">
+        <mat-icon>search</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.metrics" 
+        (click)="toggleWidget('metrics')" 
+        matTooltip="Métricas de red" matTooltipPosition="right">
+        <mat-icon>insert_chart</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.health" 
+        (click)="toggleWidget('health')" 
+        matTooltip="Estado de salud de la red" matTooltipPosition="right">
+        <mat-icon>favorite</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.status" 
+        (click)="toggleWidget('status')" 
+        matTooltip="Estado de red" matTooltipPosition="right">
+        <mat-icon>info</mat-icon>
+      </button>
+      
+      <button mat-icon-button 
+        [class.active]="widgetVisibility.miniMap" 
+        (click)="toggleWidget('miniMap')" 
+        matTooltip="Vista general del mapa" matTooltipPosition="right">
+        <mat-icon>map</mat-icon>
+      </button>
+      
+      <button mat-icon-button (click)="organizeWidgets()"
+              matTooltip="Organizar widgets" matTooltipPosition="right">
+        <mat-icon>auto_awesome_mosaic</mat-icon>
+      </button>
+    </ng-container>
+  </div>
+  
+  <!-- Panel principal de widgets -->
+  <div class="widgets-panel" *ngIf="showWidgets">
+    <!-- Widget de capas -->
+    <app-layer-manager
+      *ngIf="widgetVisibility.layers"
+      class="widget-panel widget-layers"
+      #widgetItem
+      id="widget-layers"
+      [activeLayers]="activeLayers"
+      (onToggleLayer)="handleToggleLayer($event)"
+      (onToggleCustomLayer)="handleToggleCustomLayer($event)">
+      <div class="widget-header">
+        <span class="widget-title">Administrador de Capas</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('layers')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-layer-manager>
+    
+    <!-- Widget de creación de elementos -->
+    <app-element-creator
+      *ngIf="widgetVisibility.creator"
+      class="widget-panel widget-creator"
+      #widgetItem
+      id="widget-creator"
+      (onAddElement)="handleAddElement($event)">
+      <div class="widget-header">
+        <span class="widget-title">Crear Elemento</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('creator')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-element-creator>
+    
+    <!-- Widget de creación de conexiones -->
+    <app-connection-creator
+      *ngIf="widgetVisibility.connection && connectionSourceElement"
+      class="widget-panel widget-connection"
+      #widgetItem
+      id="widget-connection"
+      [sourceElement]="connectionSourceElement"
+      [targetElement]="connectionTargetElement"
+      (onCreateConnection)="handleCreateConnection($event)"
+      (onCancel)="handleCancelConnection()"
+      (onReset)="handleCancelConnection()">
+      <div class="widget-header">
+        <span class="widget-title">Crear Conexión</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('connection')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-connection-creator>
+    
+    <!-- Widget de búsqueda de elementos -->
+    <app-element-search-widget
+      *ngIf="widgetVisibility.search"
+      class="widget-panel widget-search"
+      #widgetItem
+      id="widget-search"
+      (onSearch)="handleSearchElements($event)"
+      (onSelectElement)="handleCenterOnElement($event)">
+      <div class="widget-header">
+        <span class="widget-title">Búsqueda de Elementos</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('search')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-element-search-widget>
+    
+    <!-- Widget de métricas de red -->
+    <app-network-metrics-widget
+      *ngIf="widgetVisibility.metrics"
+      class="widget-panel widget-metrics"
+      #widgetItem
+      id="widget-metrics"
+      [elementStats]="elementStats"
+      [connectionStats]="connectionStats">
+      <div class="widget-header">
+        <span class="widget-title">Métricas de Red</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('metrics')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-network-metrics-widget>
+    
+    <!-- Widget de salud de la red -->
+    <app-network-health-widget
+      *ngIf="widgetVisibility.health"
+      class="widget-panel widget-health"
+      #widgetItem
+      id="widget-health">
+      <div class="widget-header">
+        <span class="widget-title">Estado de Salud</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('health')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-network-health-widget>
+    
+    <!-- Widget de estado de red -->
+    <app-connection-status-widget
+      *ngIf="widgetVisibility.status"
+      class="widget-panel widget-status"
+      #widgetItem
+      id="widget-status"
+      [connectionStats]="connectionStats"
+      [elementStats]="elementStats">
+      <div class="widget-header">
+        <span class="widget-title">Estado de Conexiones</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('status')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-connection-status-widget>
+    
+    <!-- Widget de rendimiento -->
+    <div *ngIf="widgetVisibility.performance" 
+         class="widget-panel widget-performance"
+         #widgetItem
+         id="widget-performance">
+      <div class="widget-header">
+        <span class="widget-title">Rendimiento</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('performance')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="performance-stats">
+        <div class="stat-item">
+          <span class="stat-label">FPS:</span>
+          <span class="stat-value">{{ performanceStats.fps }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Elementos totales:</span>
+          <span class="stat-value">{{ performanceStats.elements }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Elementos visibles:</span>
+          <span class="stat-value">{{ performanceStats.visible }}</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Widget de mini-mapa -->
+    <app-mini-map-widget
+      *ngIf="widgetVisibility.miniMap"
+      class="widget-panel widget-mini-map"
+      #widgetItem
+      id="widget-mini-map"
+      [elements]="allElements"
+      [connections]="allConnections"
+      [isDarkMode]="isDarkMode"
+      [currentZoom]="zoomLevel"
+      [viewportWidth]="viewportWidth"
+      [viewportHeight]="viewportHeight"
+      [viewportOffsetX]="viewportOffsetX"
+      [viewportOffsetY]="viewportOffsetY"
+      (onClose)="handleCloseMiniMap()">
+      <div class="widget-header">
+        <span class="widget-title">Mini Mapa</span>
+        <button mat-icon-button class="close-btn" (click)="toggleWidget('miniMap')">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </app-mini-map-widget>
+  </div>
+  
+  <!-- Menú contextual del mapa -->
+  <app-map-menu
+    *ngIf="showMapMenu && selectedElement"
+    class="context-menu-panel"
+    [selectedElement]="selectedElement"
+    (onEditElement)="handleEditElement($event)"
+    (onDeleteElement)="handleDeleteElement($event)">
+  </app-map-menu>
+</div> 

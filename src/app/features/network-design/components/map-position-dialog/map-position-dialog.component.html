@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<div class="map-position-dialog" role="dialog" aria-labelledby="dialog-title">
+  <h2 mat-dialog-title id="dialog-title">
+    <mat-icon class="title-icon">place</mat-icon>
+    {{ data.title || 'Seleccionar Posición' }}
+  </h2>
+
+  <mat-dialog-content>
+    <!-- Descripción opcional -->
+    <p *ngIf="data.description" [attr.aria-label]="data.description" class="dialog-description">{{ data.description }}</p>
+
+    <!-- Barra de búsqueda -->
+    <div class="search-container">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Buscar ubicación</mat-label>
+        <input 
+          matInput 
+          [(ngModel)]="searchQuery" 
+          placeholder="Ej: Ciudad, Dirección, etc." 
+          aria-label="Buscar ubicación" 
+          [attr.aria-invalid]="!!error"
+          [disabled]="loading"
+          (keyup.enter)="searchLocation()"
+        />
+        <button
+          mat-icon-button
+          matSuffix
+          (click)="searchLocation()"
+          [disabled]="loading || !searchQuery.trim()"
+          matTooltip="Buscar"
+          aria-label="Buscar ubicación"
+          class="search-button"
+        >
+          <mat-icon>{{ loading ? 'hourglass_empty' : 'search' }}</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
+    <!-- Indicador de carga -->
+    <div *ngIf="loading" class="loading-indicator" aria-live="polite">
+      <mat-spinner diameter="30"></mat-spinner>
+      <span>Buscando ubicación...</span>
+    </div>
+
+    <!-- Mensaje de error -->
+    <div *ngIf="error" class="error-message" aria-live="assertive">
+      <mat-icon color="warn">error</mat-icon>
+      <span>{{ error }}</span>
+    </div>
+
+    <!-- Contenedor del mapa -->
+    <div class="map-container">
+      <!-- Controles del mapa -->
+      <div class="map-controls" aria-label="Controles del mapa">
+        <button
+          mat-mini-fab
+          color="primary"
+          (click)="centerMap()"
+          matTooltip="Centrar mapa"
+          aria-label="Centrar mapa en la posición actual"
+          class="map-control-button"
+        >
+          <mat-icon>my_location</mat-icon>
+        </button>
+        <button
+          mat-mini-fab
+          color="primary"
+          (click)="zoomIn()"
+          matTooltip="Acercar"
+          aria-label="Acercar el mapa"
+          class="map-control-button"
+        >
+          <mat-icon>add</mat-icon>
+        </button>
+        <button
+          mat-mini-fab
+          color="primary"
+          (click)="zoomOut()"
+          matTooltip="Alejar"
+          aria-label="Alejar el mapa"
+          class="map-control-button"
+        >
+          <mat-icon>remove</mat-icon>
+        </button>
+      </div>
+
+      <!-- Mapa -->
+      <div 
+        #mapContainer 
+        class="map" 
+        [attr.aria-label]="getMapAriaLabel()"
+        role="application"
+        tabindex="0"
+      ></div>
+      
+      <!-- Estado del mapa -->
+      <div *ngIf="!mapInitialized" class="map-status-overlay">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Cargando mapa...</span>
+      </div>
+
+      <!-- Indicador de ubicación actual -->
+      <div *ngIf="mapInitialized" class="map-indicator">
+        <mat-icon>place</mat-icon>
+        <span>{{ isWithinDominicanRepublic() ? 'Ubicación válida' : 'Fuera de República Dominicana' }}</span>
+      </div>
+    </div>
+
+    <!-- Coordenadas -->
+    <div class="coordinates-container" aria-labelledby="coordinates-heading">
+      <h3 id="coordinates-heading">
+        <mat-icon>explore</mat-icon>
+        Coordenadas
+      </h3>
+      <div class="coordinates-fields">
+        <mat-form-field appearance="outline">
+          <mat-label>Latitud</mat-label>
+          <input
+            matInput
+            type="number"
+            step="0.000001"
+            [(ngModel)]="position.lat"
+            (change)="updateCoordinates()"
+            aria-label="Latitud"
+            [attr.aria-invalid]="!isValidPosition"
+            min="-90"
+            max="90"
+          />
+          <mat-hint align="start">Entre -90 y 90</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Longitud</mat-label>
+          <input
+            matInput
+            type="number"
+            step="0.000001"
+            [(ngModel)]="position.lng"
+            (change)="updateCoordinates()"
+            aria-label="Longitud"
+            [attr.aria-invalid]="!isValidPosition"
+            min="-180"
+            max="180"
+          />
+          <mat-hint align="start">Entre -180 y 180</mat-hint>
+        </mat-form-field>
+      </div>
+      <div class="coordinates-display" aria-live="polite">
+        <span class="coordinates-text">{{ getCoordinatesString() }}</span>
+        <span
+          [class.valid-position]="isWithinDominicanRepublic()"
+          [class.invalid-position]="!isWithinDominicanRepublic()"
+          [attr.aria-label]="getStatusText()"
+        >
+          <mat-icon>{{ isWithinDominicanRepublic() ? 'check_circle' : 'error' }}</mat-icon>
+          {{ isWithinDominicanRepublic() ? 'Posición válida' : 'Fuera de límites' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Información adicional -->
+    <div *ngIf="isValidPosition" class="position-info" aria-live="polite">
+      <div class="info-item">
+        <mat-icon>location_on</mat-icon>
+        <span>Coordenadas: {{ getCoordinatesString() }}</span>
+      </div>
+      <div class="info-item">
+        <mat-icon>check_circle</mat-icon>
+        <span>Dentro de República Dominicana</span>
+      </div>
+    </div>
+
+    <!-- Instrucciones -->
+    <div class="instructions" role="note" aria-label="Instrucciones de uso">
+      <mat-icon>info</mat-icon>
+      <span>Haga clic en el mapa o arrastre el marcador para seleccionar una ubicación</span>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button 
+      mat-button 
+      (click)="onCancel()" 
+      aria-label="Cancelar y cerrar diálogo"
+      class="cancel-button"
+    >
+      <mat-icon>close</mat-icon>
+      Cancelar
+    </button>
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="!isValidPosition"
+      (click)="onConfirm()"
+      aria-label="Confirmar selección de posición"
+      class="confirm-button"
+    >
+      <mat-icon>check</mat-icon>
+      Confirmar
+    </button>
+  </mat-dialog-actions>
+</div>

@@ -1,0 +1,55 @@
+// Estilos específicos para el selector de posición en el mapa
+
+.map-card {
+  & {
+    margin-bottom: 20px;
+  }
+}
+
+.coordinates-display {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  background: #f9f9f9;
+}
+
+.coordinate {
+  flex: 1 1 calc(50% - 8px);
+  min-width: 150px;
+  margin: 4px;
+  
+  .label {
+    font-weight: 500;
+    margin-right: 8px;
+    color: rgba(0, 0, 0, 0.6);
+  }
+  
+  .value {
+    font-family: monospace;
+    font-size: 1.1em;
+  }
+}
+
+.map-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  
+  button {
+    flex: 1;
+  }
+}
+
+// Estilos responsivos específicos para el selector de posición
+@media screen and (max-width: 600px) {
+  .coordinate {
+    flex: 1 1 100%;
+  }
+  
+  .map-actions {
+    flex-direction: column;
+  }
+} 

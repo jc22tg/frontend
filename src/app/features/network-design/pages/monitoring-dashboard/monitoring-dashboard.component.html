@@ -1,0 +1,108 @@
+<div class="monitoring-dashboard-container">
+  <h1 class="dashboard-title">Panel de Monitoreo de Red</h1>
+  
+  <!-- Container de widgets con layout flexible -->
+  <div class="widgets-container">
+    <!-- Widget de Salud de la Red -->
+    <div class="widget-item">
+      <app-network-health-widget></app-network-health-widget>
+    </div>
+    
+    <!-- Widget de Mini-Mapa -->
+    <div class="widget-item">
+      <app-mini-map-widget *ngIf="elements.length > 0"></app-mini-map-widget>
+    </div>
+    
+    <!-- Widget de Métricas -->
+    <div class="widget-item" *ngIf="selectedElement">
+      <app-metrics-widget 
+        [selectedElementId]="selectedElement?.id || ''"
+        [showElementSelector]="false">
+      </app-metrics-widget>
+    </div>
+    
+    <!-- Widget de Alertas -->
+    <div class="widget-item" *ngIf="selectedElement">
+      <app-system-alerts-widget [maxAlerts]="3"></app-system-alerts-widget>
+    </div>
+  </div>
+  
+  <!-- Sección de Filtros -->
+  <div class="filters-section">
+    <mat-card class="filter-card">
+      <mat-card-content>
+        <div class="filter-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo de Métrica</mat-label>
+            <mat-select [(value)]="selectedMetricType" (selectionChange)="onMetricTypeChange($event.value)">
+              <mat-option value="bandwidth">Ancho de Banda</mat-option>
+              <mat-option value="latency">Latencia</mat-option>
+              <mat-option value="packetLoss">Pérdida de Paquetes</mat-option>
+              <mat-option value="temperature">Temperatura</mat-option>
+              <mat-option value="power">Potencia</mat-option>
+              <mat-option value="signal">Señal</mat-option>
+            </mat-select>
+          </mat-form-field>
+          
+          <div class="actions">
+            <button mat-raised-button color="primary" (click)="elements.forEach(element => loadMetrics(element.id))">
+              <mat-icon>refresh</mat-icon>
+              Actualizar
+            </button>
+            <button mat-raised-button color="accent" (click)="selectedElement && onExportMetrics(selectedElement.id)">
+              <mat-icon>save_alt</mat-icon>
+              Exportar
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  
+  <!-- Listado de Elementos -->
+  <div class="elements-section">
+    <mat-card class="elements-card">
+      <mat-card-header>
+        <mat-card-title>Elementos de Red</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="elements-list">
+          <mat-card 
+            *ngFor="let element of elements" 
+            class="element-card" 
+            [ngClass]="{'selected': selectedElement?.id === element.id}"
+            (click)="onSelectElement(element)"
+            matRipple>
+            <div class="element-info">
+              <mat-icon>{{ element.type === 'OLT' ? 'router' : 
+                          element.type === 'ONT' ? 'device_hub' : 
+                          element.type === 'SPLITTER' ? 'call_split' : 'settings_input_component' }}</mat-icon>
+              <div class="element-details">
+                <h3>{{ element.name || 'Elemento sin nombre' }}</h3>
+                <p>{{ element.type }} - ID: {{ element.id }}</p>
+              </div>
+              <div class="element-status" 
+                   [ngClass]="{'active': element.status === 'ACTIVE', 
+                               'warning': element.status === 'MAINTENANCE', 
+                               'error': element.status === 'INACTIVE' || element.status === 'FAULT'}">
+                <mat-icon>{{ element.status === 'ACTIVE' ? 'check_circle' : 
+                            element.status === 'MAINTENANCE' ? 'build' : 
+                            element.status === 'PLANNED' ? 'schedule' : 'error' }}</mat-icon>
+              </div>
+            </div>
+          </mat-card>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+  
+  <!-- Mensaje cuando no hay elemento seleccionado -->
+  <mat-card *ngIf="!selectedElement" class="no-selection-card">
+    <mat-card-content>
+      <div class="no-selection-message">
+        <mat-icon>info</mat-icon>
+        <span>Seleccione un elemento de la red para ver sus métricas detalladas</span>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div> 

@@ -1,0 +1,188 @@
+<div class="network-map" [ngClass]="{'dark-mode': isDarkMode}">
+  <!-- Contenedor principal del mapa -->
+  <div class="network-map-container">
+    <!-- Barra de herramientas del mapa -->
+    <div class="map-toolbar" *ngIf="showMapToolbar">
+      <!-- Herramientas de navegación -->
+      <div class="toolbar-section navigation-tools">
+        <button mat-icon-button (click)="setTool('pan')" [class.active]="currentTool === 'pan'" title="Mover mapa">
+          <mat-icon>pan_tool</mat-icon>
+        </button>
+        <button mat-icon-button (click)="setTool('zoom')" [class.active]="currentTool === 'zoom'" title="Zoom">
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+      </div>
+      
+      <!-- Control de capas base -->
+      <div class="toolbar-section base-layers" *ngIf="baseLayerOptions.length > 0">
+        <mat-form-field appearance="outline" class="base-layer-select">
+          <mat-label>Capa base</mat-label>
+          <mat-select [value]="currentBaseLayer" (selectionChange)="updateBaseLayer($event.value)">
+            <mat-option *ngFor="let layer of baseLayerOptions" [value]="layer.id">{{ layer.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+    
+    <!-- Contenedor principal del mapa con referencia al elemento nativo -->
+    <div #mapContainer class="map-wrapper">
+      <!-- Overlay de carga -->
+      <div *ngIf="loading" class="loading-overlay">
+        <mat-spinner diameter="48"></mat-spinner>
+        <span class="loading-text">Cargando mapa de red...</span>
+      </div>
+      
+      <!-- Mensaje de error -->
+      <div *ngIf="error" class="error-overlay">
+        <mat-icon color="warn">error</mat-icon>
+        <span class="error-text">{{ error }}</span>
+        <button mat-raised-button color="primary" (click)="reloadMap()">
+          <mat-icon>refresh</mat-icon> Reintentar
+        </button>
+      </div>
+
+      <!-- Barra de búsqueda y filtros superior -->
+      <div class="map-top-controls">
+        <div class="search-container">
+          <mat-form-field appearance="outline" class="search-field">
+            <mat-label>Buscar elementos</mat-label>
+            <input matInput [formControl]="searchControl" placeholder="Nombre, ID, descripción...">
+            <mat-icon matPrefix>search</mat-icon>
+            <button *ngIf="searchControl.value" 
+                    matSuffix mat-icon-button 
+                    aria-label="Limpiar" 
+                    (click)="searchControl.setValue('')">
+              <mat-icon>close</mat-icon>
+            </button>
+          </mat-form-field>
+          
+          <button mat-icon-button 
+                  class="filter-toggle-btn" 
+                  matTooltip="Filtros"
+                  (click)="toggleFilters()">
+            <mat-icon>filter_list</mat-icon>
+          </button>
+          
+          <button mat-icon-button 
+                  class="layers-toggle-btn" 
+                  matTooltip="Capas"
+                  (click)="toggleLayers()">
+            <mat-icon>layers</mat-icon>
+          </button>
+        </div>
+        
+        <!-- Panel de filtros (colapsable) -->
+        <div *ngIf="showFilters" class="filters-panel" @slideIn>
+          <div class="panel-header">
+            <h3>Filtros</h3>
+            <button mat-icon-button (click)="toggleFilters()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          
+          <div class="filter-group">
+            <h4>Tipos de elementos</h4>
+            <div class="element-type-filters">
+              <mat-chip-listbox multiple>
+                <mat-chip-option *ngFor="let type of ElementType | keyvalue" 
+                          [selected]="isElementTypeVisible(type.value)"
+                          (selectionChange)="toggleElementType(type.value)">
+                  {{ type.value }}
+                </mat-chip-option>
+              </mat-chip-listbox>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Panel de capas (colapsable) -->
+        <div *ngIf="showLayers" class="layers-panel" @slideIn>
+          <div class="panel-header">
+            <h3>Capas</h3>
+            <button mat-icon-button (click)="toggleLayers()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          
+          <div class="layers-list">
+            <mat-selection-list>
+              <mat-list-option *ngFor="let type of ElementType | keyvalue"
+                             [selected]="isElementTypeVisible(type.value)"
+                             (click)="toggleElementType(type.value)">
+                <mat-icon matListItemIcon>{{ getElementTypeIcon(type.value) || 'fiber_manual_record' }}</mat-icon>
+                <span matListItemTitle>{{ type.value }}</span>
+              </mat-list-option>
+            </mat-selection-list>
+            
+            <button mat-raised-button color="primary" class="add-layer-btn" (click)="handleCreateLayer()">
+              <mat-icon>add</mat-icon> Nueva capa
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Controles inferiores -->
+      <div class="map-bottom-controls">
+        <!-- Estadísticas del mapa -->
+        <div class="map-statistics">
+          <span class="stat-item">
+            <mat-icon>hub</mat-icon>
+            {{ mapStatistics.visibleElements }}/{{ mapStatistics.totalElements }} elementos
+          </span>
+          <span class="stat-item">
+            <mat-icon>timeline</mat-icon>
+            {{ mapStatistics.visibleConnections }}/{{ mapStatistics.totalConnections }} conexiones
+          </span>
+        </div>
+        
+        <!-- Métricas de rendimiento -->
+        <div class="performance-metrics">
+          <span class="metric-fps">{{ performanceMetrics.fps }} FPS</span>
+          <span class="metric-elements">{{ performanceMetrics.rendered }} elementos renderizados</span>
+        </div>
+        
+        <!-- Opciones de rendimiento -->
+        <div class="rendering-options">
+          <button mat-icon-button [matTooltip]="mapRenderer.getUseWebGL() ? 'Usando WebGL' : 'Usando Canvas'" (click)="toggleWebGLRendering()">
+            <mat-icon>{{ mapRenderer.getUseWebGL() ? 'layers' : 'filter' }}</mat-icon>
+          </button>
+          <button mat-icon-button [matTooltip]="mapRenderer.getProgressiveLoading() ? 'Carga progresiva activa' : 'Carga completa'" (click)="toggleProgressiveLoading()">
+            <mat-icon>{{ mapRenderer.getProgressiveLoading() ? 'speed' : 'hourglass_full' }}</mat-icon>
+          </button>
+          <button mat-icon-button [matTooltip]="mapRenderer.getClusteringEnabled() ? 'Clustering activo' : 'Sin clustering'" (click)="toggleClustering()">
+            <mat-icon>{{ mapRenderer.getClusteringEnabled() ? 'grain' : 'scatter_plot' }}</mat-icon>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Selector de herramientas flotante (se puede mover a toolbar si es mejor) -->
+      <div class="floating-tools">
+        <div class="tool-group">
+          <button mat-mini-fab [color]="currentTool === 'pan' ? 'primary' : ''" matTooltip="Mover mapa" (click)="setTool('pan')">
+            <mat-icon>pan_tool</mat-icon>
+          </button>
+          <button mat-mini-fab [color]="currentTool === 'select' ? 'primary' : ''" matTooltip="Seleccionar" (click)="setTool('select')">
+            <mat-icon>touch_app</mat-icon>
+          </button>
+          <button mat-mini-fab [color]="currentTool === 'measure' ? 'primary' : ''" matTooltip="Medir" (click)="setTool('measure')">
+            <mat-icon>straighten</mat-icon>
+          </button>
+          <button mat-mini-fab [color]="currentTool === 'connect' ? 'primary' : ''" matTooltip="Conectar" (click)="setTool('connect')">
+            <mat-icon>timeline</mat-icon>
+          </button>
+        </div>
+        
+        <div class="tool-group">
+          <button mat-mini-fab matTooltip="Zoom in" (click)="zoomIn()">
+            <mat-icon>add</mat-icon>
+          </button>
+          <button mat-mini-fab matTooltip="Zoom out" (click)="zoomOut()">
+            <mat-icon>remove</mat-icon>
+          </button>
+          <button mat-mini-fab matTooltip="Ajustar pantalla" (click)="fitToScreen()">
+            <mat-icon>fit_screen</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

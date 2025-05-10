@@ -1,1 +1,220 @@
 /* You can add global styles to this file, and also import other style files */
+@use './app/shared/styles/variables' as variables;
+@use './app/shared/styles/mixins' as mixins;
+
+/* Importar fuentes de Google si se necesitan */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+/* Importar estilos de Material Icons */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+/* Variables CSS globales */
+:root {
+  /* Colores primarios */
+  --primary: #3f51b5;
+  --primary-light: #757de8;
+  --primary-dark: #002984;
+  
+  /* Colores secundarios/acento */
+  --accent: #ff4081;
+  --accent-light: #ff79b0;
+  --accent-dark: #c60055;
+  
+  /* Colores de estado */
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+  --info: #2196f3;
+  
+  /* Colores de texto */
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-hint: #9e9e9e;
+  --text-disabled: #c7c7c7;
+  
+  /* Colores de fondo */
+  --background: #f5f5f5;
+  --surface: #ffffff;
+  --divider: #e0e0e0;
+  
+  /* Tamaños y espaciados */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Sombras */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-2: 0 3px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.12);
+  --shadow-3: 0 10px 20px rgba(0, 0, 0, 0.15), 0 3px 6px rgba(0, 0, 0, 0.10);
+  
+  /* Animaciones */
+  --animation-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-medium: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Bordes */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 24px;
+  
+  /* Fuentes */
+  --font-family: 'Roboto', sans-serif;
+}
+
+/* Variables CSS para modo oscuro */
+.dark-theme {
+  /* Colores primarios */
+  --primary: #5c6bc0;
+  --primary-light: #8e99f3;
+  --primary-dark: #26418f;
+  
+  /* Colores de estado */
+  --success: #66bb6a;
+  --warning: #ffa726;
+  --error: #ef5350;
+  --info: #42a5f5;
+  
+  /* Colores de texto */
+  --text-primary: #ffffff;
+  --text-secondary: #b0bec5;
+  --text-hint: #78909c;
+  --text-disabled: #546e7a;
+  
+  /* Colores de fondo */
+  --background: #121212;
+  --surface: #1e1e1e;
+  --divider: #424242;
+}
+
+/* Estilos base globales */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-family);
+  background-color: var(--background);
+  color: var(--text-primary);
+}
+
+/* Clases de utilidad para estados */
+.status-active {
+  color: var(--success);
+}
+
+.status-inactive {
+  color: var(--text-hint);
+}
+
+.status-fault, .status-error {
+  color: var(--error);
+}
+
+.status-maintenance, .status-warning {
+  color: var(--warning);
+}
+
+.status-planned, .status-info {
+  color: var(--info);
+  }
+  
+/* Clases para snackbars */
+.success-snackbar {
+  background-color: var(--success);
+  color: white;
+}
+
+.error-snackbar {
+  background-color: var(--error);
+  color: white;
+}
+
+.warning-snackbar {
+  background-color: var(--warning);
+  color: black;
+  }
+  
+.info-snackbar {
+  background-color: var(--info);
+  color: white;
+}
+
+// Material Design overrides
+.mat-mdc-card {
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.mat-mdc-form-field {
+  width: 100%;
+}
+
+.mat-mdc-button {
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .projects-content {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .project-form {
+    position: static !important;
+    margin-top: 24px;
+  }
+}
+
+/* Estilos específicos para Leaflet */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background: #f8f8f8 !important; /* Usar un fondo más claro que el predeterminado */
+}
+
+/* Asegurar que tiles dañados sean perceptibles */
+.leaflet-tile-container img.leaflet-tile-loading {
+  visibility: hidden;
+}
+
+/* Estilos para el contenedor de mapa de emergencia */
+.emergency-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: #f5f5f5 !important;
+  border: 1px dashed #ccc;
+}
+
+.emergency-container::before {
+  content: "⚠️ Error al cargar el mapa";
+  display: block;
+  font-size: 1.2em;
+  margin-bottom: 1em;
+  color: #d32f2f;
+}
+
+/* Mejorar renderizado de capas */
+.leaflet-layer {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Mejorar renderizado de tiles */
+.leaflet-tile {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Optimizaciones para compatibilidad con dispositivos móviles */
+@media (max-width: 768px) {
+  .leaflet-container {
+    height: calc(100vh - 120px);
+    min-height: 300px;
+  }
+}

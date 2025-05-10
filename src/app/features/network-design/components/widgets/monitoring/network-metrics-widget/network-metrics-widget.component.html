@@ -1,0 +1,62 @@
+<div class="metrics-widget">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>
+        <div class="title-container">
+          <mat-icon>bar_chart</mat-icon>
+          <span>Métricas de Red</span>
+        </div>
+      </mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="metrics-summary">
+        <div class="metrics-group">
+          <h3>Elementos</h3>
+          <div class="metrics-row">
+            <div class="metric-item">
+              <span class="metric-label">Total:</span>
+              <span class="metric-value">{{ elementStats.total }}</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Activos:</span>
+              <span class="metric-value">{{ elementStats.active }}</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Alertas:</span>
+              <span class="metric-value">{{ elementStats.warning }}</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Errores:</span>
+              <span class="metric-value">{{ elementStats.error }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <mat-divider></mat-divider>
+        
+        <div class="metrics-group">
+          <h3>Conexiones</h3>
+          <div class="metrics-row">
+            <div class="metric-item">
+              <span class="metric-label">Total:</span>
+              <span class="metric-value">{{ connectionStats.total }}</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Activas:</span>
+              <span class="metric-value">{{ connectionStats.active }}</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Alertas:</span>
+              <span class="metric-value">{{ connectionStats.warning }}</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">Errores:</span>
+              <span class="metric-value">{{ connectionStats.error }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div> 

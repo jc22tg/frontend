@@ -1,0 +1,133 @@
+@use "../../../app/features/network-design/network-design.styles.scss";
+
+.network-design {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  
+  .network-design-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    
+    .network-design-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      
+      &.map-hidden {
+        background-color: rgba(0, 0, 0, 0.03);
+      }
+      
+      .router-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+    }
+    
+    .search-widget-container {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      width: 350px;
+      max-height: 70%;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: var(--shadow-lg);
+      border-radius: var(--border-radius-lg);
+      transition: transform 0.3s ease-in-out;
+      
+      &.draggable {
+        cursor: move;
+      }
+    }
+    
+    app-element-quick-view {
+      position: absolute;
+      bottom: 80px;
+      right: 20px;
+      width: 350px;
+      max-height: 45vh;
+      z-index: 900;
+      box-shadow: var(--shadow-lg);
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+    }
+  }
+  
+  .editor-visible {
+    .map-container {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+  
+  .floating-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    
+    .mat-fab {
+      box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 
+                  0 6px 10px 0 rgba(0,0,0,.14), 
+                  0 1px 18px 0 rgba(0,0,0,.12);
+    }
+  }
+}
+
+:host-context(.dark-theme) {
+  .network-design {
+    background-color: var(--dark-background);
+    color: var(--dark-text-color);
+  }
+}
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .network-design {
+    .network-design-content {
+      .search-widget-container,
+      app-element-quick-view {
+        width: 90%;
+        right: 5%;
+      }
+      
+      .search-widget-container {
+        top: 75px;
+      }
+      
+      app-element-quick-view {
+        bottom: 70px;
+      }
+    }
+  }
+}
+
+.element-details-panel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  max-width: 350px;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 100;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+} 

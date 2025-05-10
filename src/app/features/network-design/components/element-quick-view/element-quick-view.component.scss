@@ -1,0 +1,230 @@
+@use '../../network-design.styles.scss' as network;
+@use '../../../../shared/styles/variables' as vars;
+@use '../../../../shared/styles/mixins' as mixins;
+
+// Variables locales específicas
+:root {
+  --animation-duration: 300ms;
+  --skeleton-bg: #f0f2f5;
+  --skeleton-highlight: #ffffff;
+}
+
+// Animaciones
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.element-quick-view-container {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 380px;
+  z-index: 100;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+
+// Usar el mixin network-element-card
+.element-card {
+  @include mixins.network-element-card;
+  animation: fadeIn var(--animation-duration) ease-out;
+  
+  .card-header {
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      // Usar el mixin network-element-icon
+      .element-icon-container {
+        @include mixins.network-element-icon(48px);
+        
+        .element-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+          line-height: 18px;
+          color: vars.$text-primary;
+          
+          &.status-active { color: vars.$color-success; }
+          &.status-inactive { color: vars.$text-hint; }
+          &.status-fault { color: vars.$color-error; }
+          &.status-maintenance { color: vars.$color-warning; }
+          &.status-planned { color: vars.$color-info; }
+        }
+      }
+      
+      .element-info {
+        flex: 1;
+        min-width: 0;
+        
+        .element-name {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 500;
+          color: vars.$text-primary;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .element-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 2px;
+          
+          .element-type {
+            font-size: 12px;
+            color: vars.$text-primary;
+            background-color: rgba(0,0,0,0.03);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+          }
+          
+          .element-id {
+            font-size: 12px;
+            color: vars.$text-secondary;
+            font-family: monospace;
+          }
+        }
+        
+        // Usar el mixin network-element-status-indicator
+        .element-status {
+          @include mixins.network-element-status-indicator;
+          margin-top: 4px;
+          
+          // Animaciones específicas
+          &.status-active .status-indicator {
+            animation: pulse 2s infinite ease-in-out;
+          }
+          
+          &.status-fault .status-indicator {
+            animation: pulse 0.6s infinite ease-in-out;
+          }
+        }
+      }
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      
+      button {
+        min-width: 32px;
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        padding: 0;
+        
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          line-height: 16px;
+        }
+      }
+    }
+  }
+}
+
+// Resto del CSS que no puede ser optimizado con mixins
+// Mantener solo las clases específicas que no encajan en los mixins
+// Código reducido...
+
+// Estilos para skeleton loading
+.skeleton-loading {
+  .skeleton-header {
+    display: flex;
+    gap: 12px;
+    padding: 16px 16px 12px;
+    
+    .skeleton-icon {
+      min-width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: var(--skeleton-bg);
+    }
+    
+    .skeleton-info {
+      flex: 1;
+      
+      .skeleton-title {
+        height: 20px;
+        width: 70%;
+        background: var(--skeleton-bg);
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+      
+      .skeleton-subtitle {
+        height: 14px;
+        width: 40%;
+        background: var(--skeleton-bg);
+        border-radius: 4px;
+      }
+    }
+  }
+  
+  .skeleton-content {
+    padding: 0 16px 16px;
+    
+    .skeleton-row {
+      display: flex;
+      margin-bottom: 12px;
+      
+      .skeleton-label {
+        min-width: 90px;
+        height: 14px;
+        background: var(--skeleton-bg);
+        border-radius: 4px;
+        margin-right: 12px;
+      }
+      
+      .skeleton-value {
+        flex: 1;
+        height: 14px;
+        background: var(--skeleton-bg);
+        border-radius: 4px;
+      }
+    }
+  }
+  
+  .skeleton-bg {
+    background: linear-gradient(90deg, var(--skeleton-bg) 25%, var(--skeleton-highlight) 50%, var(--skeleton-bg) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+// Animaciones y transiciones
+.slide-up-animation {
+  animation: slideUp 300ms ease-out;
+}
+
+:host {
+  display: block;
+} 

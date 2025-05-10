@@ -1,0 +1,806 @@
+/**
+ * Estilos para el componente de estado de conexiones
+ * 
+ * Este componente muestra información sobre las conexiones de un elemento de red,
+ * permitiendo filtrar por estado y realizar acciones sobre ellas.
+ */
+
+.connection-widget-container {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  height: 100%;
+  transition: all var(--transition-normal);
+}
+
+/**
+ * Encabezado del widget
+ */
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: rgba(var(--primary-color-rgb), 0.05);
+  border-bottom: 1px solid rgba(var(--text-color-rgb), 0.05);
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  flex: 1;
+  
+  h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    color: var(--primary-color);
+    font-weight: 500;
+    
+    mat-icon {
+      margin-right: var(--spacing-sm);
+      color: var(--primary-color);
+      transition: transform var(--transition-fast);
+    }
+  }
+}
+
+/**
+ * Información del elemento seleccionado
+ */
+.element-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.element-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+  }
+  
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--primary-color);
+  }
+}
+
+.element-details {
+  display: flex;
+  flex-direction: column;
+  
+  .element-name {
+    font-weight: 500;
+    font-size: var(--font-size-md);
+    color: var(--text-color);
+  }
+  
+  .element-type {
+    font-size: var(--font-size-xs);
+    color: rgba(var(--text-color-rgb), 0.7);
+  }
+}
+
+/**
+ * Acciones del encabezado
+ */
+.header-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  
+  button {
+    transition: all var(--transition-fast);
+    
+    mat-icon {
+      color: var(--primary-color);
+      transition: color var(--transition-fast), transform var(--transition-fast);
+    }
+    
+    &:hover {
+      background-color: rgba(var(--primary-color-rgb), 0.1);
+      transform: translateY(-2px);
+      
+      mat-icon {
+        color: var(--primary-color);
+        transform: rotate(15deg);
+      }
+    }
+  }
+}
+
+.spin {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/**
+ * Estado sin elemento seleccionado
+ */
+.no-element-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  color: rgba(var(--text-color-rgb), 0.7);
+  
+  .select-icon {
+    font-size: 56px;
+    height: 56px;
+    width: 56px;
+    margin-bottom: var(--spacing-md);
+    color: rgba(var(--primary-color-rgb), 0.3);
+    animation: pulse 2s infinite;
+  }
+  
+  p {
+    margin: 0;
+    font-size: var(--font-size-md);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/**
+ * Tarjetas de estadísticas de conexiones
+ */
+.connection-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  flex: 1;
+  min-width: 100px;
+  transition: all var(--transition-normal);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  &.empty {
+    opacity: 0.5;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+  
+  // Estado: Activo
+  &.active {
+    background-color: rgba(var(--color-success-rgb), 0.12);
+    border-left: 3px solid var(--status-active);
+    
+    .stat-icon {
+      background-color: rgba(var(--color-success-rgb), 0.24);
+      
+      mat-icon {
+        color: var(--status-active);
+      }
+    }
+    
+    .stat-count {
+      color: var(--status-active);
+    }
+  }
+  
+  // Estado: Advertencia
+  &.warning {
+    background-color: rgba(var(--color-warning-rgb), 0.12);
+    border-left: 3px solid var(--color-warning);
+    
+    .stat-icon {
+      background-color: rgba(var(--color-warning-rgb), 0.24);
+      
+      mat-icon {
+        color: var(--color-warning);
+      }
+    }
+    
+    .stat-count {
+      color: var(--color-warning);
+    }
+  }
+  
+  // Estado: Falla
+  &.fault {
+    background-color: rgba(var(--color-danger-rgb), 0.12);
+    border-left: 3px solid var(--color-danger);
+    
+    .stat-icon {
+      background-color: rgba(var(--color-danger-rgb), 0.24);
+      
+      mat-icon {
+        color: var(--color-danger);
+      }
+    }
+    
+    .stat-count {
+      color: var(--color-danger);
+    }
+  }
+  
+  // Estado: Mantenimiento
+  &.maintenance {
+    background-color: rgba(var(--color-info-rgb), 0.12);
+    border-left: 3px solid var(--color-info);
+    
+    .stat-icon {
+      background-color: rgba(var(--color-info-rgb), 0.24);
+      
+      mat-icon {
+        color: var(--color-info);
+      }
+    }
+    
+    .stat-count {
+      color: var(--color-info);
+    }
+  }
+  
+  // Estado: Inactivo
+  &.inactive {
+    background-color: rgba(var(--text-secondary-rgb), 0.12);
+    border-left: 3px solid var(--status-inactive);
+    
+    .stat-icon {
+      background-color: rgba(var(--text-secondary-rgb), 0.24);
+      
+      mat-icon {
+        color: var(--status-inactive);
+      }
+    }
+    
+    .stat-count {
+      color: var(--status-inactive);
+    }
+  }
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin-right: var(--spacing-sm);
+  transition: transform var(--transition-fast);
+  
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    transition: transform var(--transition-fast);
+  }
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  
+  .stat-count {
+    font-size: 22px;
+    font-weight: 600;
+    transition: transform var(--transition-fast);
+  }
+  
+  .stat-label {
+    font-size: var(--font-size-xs);
+    color: rgba(var(--text-color-rgb), 0.7);
+  }
+}
+
+.stat-card:hover {
+  .stat-icon {
+    transform: scale(1.1);
+    
+    mat-icon {
+      transform: rotate(10deg);
+    }
+  }
+  
+  .stat-content .stat-count {
+    transform: scale(1.05);
+  }
+}
+
+/**
+ * Filtros de conexiones
+ */
+.connection-filters {
+  padding: var(--spacing-md);
+  padding-top: 0;
+  
+  mat-button-toggle-group {
+    width: 100%;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  mat-button-toggle {
+    flex: 1;
+    transition: all var(--transition-fast);
+    
+    &:hover {
+      background-color: rgba(var(--text-color-rgb), 0.04);
+    }
+    
+    &.mat-button-toggle-checked {
+      background-color: rgba(var(--primary-color-rgb), 0.1);
+      
+      mat-icon {
+        transform: scale(1.2);
+      }
+    }
+  }
+}
+
+/**
+ * Iconos de estado en filtros
+ */
+.status-active {
+  color: var(--status-active);
+}
+
+.status-warning {
+  color: var(--color-warning);
+}
+
+.status-fault {
+  color: var(--color-danger);
+}
+
+.status-maintenance {
+  color: var(--color-info);
+}
+
+.status-inactive {
+  color: var(--status-inactive);
+}
+
+/**
+ * Indicador de carga
+ */
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) 0;
+  gap: var(--spacing-md);
+  
+  span {
+    color: rgba(var(--text-color-rgb), 0.7);
+    font-size: var(--font-size-sm);
+  }
+}
+
+/**
+ * Lista de conexiones
+ */
+.connection-list {
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  overflow-y: auto;
+  max-height: 400px;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--text-color-rgb), 0.1);
+    border-radius: 3px;
+  }
+}
+
+/**
+ * Tarjetas de conexiones
+ */
+.connection-card {
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  // Estados de conexión
+  &.status-active {
+    border-left: 4px solid var(--status-active);
+    
+    .connection-status-icon mat-icon {
+      color: var(--status-active);
+    }
+  }
+  
+  &.status-warning {
+    border-left: 4px solid var(--color-warning);
+    
+    .connection-status-icon mat-icon {
+      color: var(--color-warning);
+    }
+  }
+  
+  &.status-fault {
+    border-left: 4px solid var(--color-danger);
+    
+    .connection-status-icon mat-icon {
+      color: var(--color-danger);
+    }
+  }
+  
+  &.status-maintenance {
+    border-left: 4px solid var(--color-info);
+    
+    .connection-status-icon mat-icon {
+      color: var(--color-info);
+    }
+  }
+  
+  &.status-inactive {
+    border-left: 4px solid var(--status-inactive);
+    
+    .connection-status-icon mat-icon {
+      color: var(--status-inactive);
+    }
+  }
+}
+
+.connection-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  background-color: white;
+}
+
+.connection-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(var(--text-color-rgb), 0.04);
+  margin-right: var(--spacing-md);
+  
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    transition: transform var(--transition-fast);
+  }
+}
+
+.connection-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.connection-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  .connection-id {
+    font-weight: 500;
+    font-size: var(--font-size-md);
+    color: var(--text-color);
+  }
+  
+  .connection-capacity {
+    font-size: var(--font-size-xs);
+    color: rgba(var(--text-color-rgb), 0.7);
+    padding: 2px var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    background-color: rgba(var(--text-color-rgb), 0.04);
+  }
+}
+
+.connection-endpoint {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  color: rgba(var(--text-color-rgb), 0.7);
+  
+  .endpoint-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: var(--spacing-xs);
+    color: var(--primary-color);
+  }
+}
+
+.connection-metadata {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xs);
+  
+  span {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-xs);
+    color: rgba(var(--text-color-rgb), 0.7);
+    
+    .metadata-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      margin-right: var(--spacing-xs);
+      color: rgba(var(--text-color-rgb), 0.7);
+    }
+  }
+}
+
+.connection-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  
+  button mat-icon {
+    transition: transform var(--transition-fast);
+  }
+  
+  button:hover mat-icon {
+    transform: scale(1.2);
+  }
+}
+
+.connection-item:hover .connection-actions {
+  opacity: 1;
+}
+
+.connection-item:hover .connection-status-icon mat-icon {
+  transform: scale(1.1);
+}
+
+/**
+ * Estados vacíos de conexiones
+ */
+.no-connections-message,
+.filtered-empty-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  color: rgba(var(--text-color-rgb), 0.7);
+  flex: 1;
+  
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+    margin-bottom: var(--spacing-md);
+    color: rgba(var(--primary-color-rgb), 0.3);
+  }
+  
+  p {
+    margin: 0 0 var(--spacing-md);
+    font-size: var(--font-size-md);
+  }
+  
+  button {
+    mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+      margin: 0 var(--spacing-xs) 0 0;
+      color: var(--primary-color);
+    }
+  }
+}
+
+/**
+ * Soporte para tema oscuro
+ */
+:host-context(.dark-theme) {
+  .connection-widget-container {
+    background-color: var(--dark-bg-primary);
+  }
+  
+  .widget-header {
+    background-color: rgba(var(--primary-color-rgb), 0.15);
+    border-bottom-color: var(--dark-border-color);
+    
+    .header-content h3, 
+    .header-content mat-icon,
+    .header-actions button mat-icon {
+      color: var(--dark-text-primary);
+    }
+  }
+  
+  .element-details {
+    .element-name {
+      color: var(--dark-text-primary);
+    }
+    
+    .element-type {
+      color: var(--dark-text-secondary);
+    }
+  }
+  
+  .no-element-message p {
+    color: var(--dark-text-secondary);
+  }
+  
+  .connection-item, 
+  .stat-card {
+    background-color: var(--dark-bg-secondary) !important;
+  }
+  
+  .connection-title .connection-id {
+    color: var(--dark-text-primary);
+  }
+  
+  .connection-endpoint, 
+  .connection-metadata span, 
+  .stat-label,
+  .loading-indicator span {
+    color: var(--dark-text-secondary);
+  }
+  
+  .no-connections-message p, 
+  .filtered-empty-message p {
+    color: var(--dark-text-secondary);
+  }
+  
+  .connection-capacity {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .connection-status-icon {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .connection-list::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  mat-button-toggle {
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    &.mat-button-toggle-checked {
+      background-color: rgba(var(--primary-color-rgb), 0.3);
+    }
+  }
+}
+
+/**
+ * Responsividad
+ */
+@media (max-width: 768px) {
+  .connection-stats {
+    .stat-card {
+      min-width: calc(50% - var(--spacing-sm));
+    }
+  }
+  
+  .connection-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 600px) {
+  .widget-header {
+    padding: var(--spacing-sm) var(--spacing-md);
+    flex-direction: column;
+    align-items: flex-start;
+    
+    .header-actions {
+      margin-top: var(--spacing-sm);
+      align-self: flex-end;
+    }
+  }
+  
+  .connection-stats {
+    .stat-card {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      
+      .stat-content .stat-count {
+        font-size: 18px;
+      }
+    }
+  }
+  
+  .connection-filters mat-button-toggle-group {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .connection-stats {
+    .stat-card {
+      min-width: 100%;
+    }
+  }
+  
+  .connection-card {
+    .connection-item {
+      flex-direction: column;
+      align-items: flex-start;
+      
+      .connection-status-icon {
+        margin-right: 0;
+        margin-bottom: var(--spacing-sm);
+      }
+      
+      .connection-details {
+        width: 100%;
+      }
+      
+      .connection-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: var(--spacing-sm);
+        visibility: visible;
+        opacity: 1;
+      }
+    }
+  }
+} 

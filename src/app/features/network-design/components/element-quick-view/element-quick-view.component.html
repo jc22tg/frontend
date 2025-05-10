@@ -1,0 +1,298 @@
+<!-- Vista rápida de elemento de red con diseño mejorado -->
+<div class="element-quick-view-container" *ngIf="element" @slideInOut>
+  <mat-card class="element-card">
+    <div class="card-header">
+      <div class="header-content">
+        <div class="element-icon-container" [ngClass]="getElementStatusClass(element.status)">
+          <mat-icon class="element-icon">{{
+            element.type === 'OLT' ? 'router' :
+            element.type === 'ONT' ? 'device_hub' :
+            element.type === 'SPLITTER' ? 'call_split' :
+            element.type === 'ODF' ? 'grid_view' :
+            element.type === 'TERMINAL_BOX' ? 'inbox' :
+            element.type === 'FIBER_THREAD' ? 'timeline' :
+            element.type === 'MANGA' ? 'category' :
+            'settings_input_component'
+          }}</mat-icon>
+        </div>
+        <div class="element-info">
+          <h2 class="element-name">{{ element.name || 'Sin nombre' }}</h2>
+          <div class="element-meta">
+            <span class="element-type">{{ getElementTypeName(element.type) }}</span>
+            <span class="element-id">ID: {{ element.id | slice:0:8 }}...</span>
+          </div>
+          <div class="element-status" [ngClass]="getElementStatusClass(element.status)">
+            <span class="status-indicator"></span>
+            {{ element.status }}
+          </div>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button mat-icon-button class="action-button edit-button" (click)="onEdit()" matTooltip="Editar elemento" aria-label="Editar">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button class="action-button history-button" (click)="onViewHistory()" matTooltip="Ver historial" aria-label="Ver historial">
+          <mat-icon>history</mat-icon>
+        </button>
+        <button mat-icon-button class="close-button" (click)="onClose()" matTooltip="Cerrar" aria-label="Cerrar">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <mat-card-content>
+      <!-- Skeleton loader -->
+      <div class="skeleton-loader" *ngIf="loading">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line" style="width: 70%"></div>
+        <div class="skeleton-section">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+        </div>
+      </div>
+
+      <div class="content-section" *ngIf="!loading">
+        <div class="info-row">
+          <span class="info-label">Código:</span>
+          <span class="info-value">{{ element.code || 'No disponible' }}</span>
+        </div>
+        
+        <div class="info-row" *ngIf="element.description">
+          <span class="info-label">Descripción:</span>
+          <span class="info-value description">{{ element.description }}</span>
+        </div>
+
+        <div class="location-info" *ngIf="element.position?.coordinates">
+          <div class="section-title">
+            <mat-icon>location_on</mat-icon>
+            <span>Ubicación</span>
+          </div>
+          <div class="coordinates">
+            <span>Lat: {{ element.position.coordinates[1] | number:'1.6-6' }}</span>
+            <span>Lon: {{ element.position.coordinates[0] | number:'1.6-6' }}</span>
+            <span *ngIf="element.position.altitude">Alt: {{ element.position.altitude }}m</span>
+            <button mat-icon-button class="map-button" matTooltip="Ver en mapa" aria-label="Ver en mapa">
+              <mat-icon>map</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Información específica según el tipo de elemento -->
+        <ng-container [ngSwitch]="element.type">
+          <!-- OLT -->
+          <div class="specific-info" *ngSwitchCase="'OLT'">
+            <div class="section-title">
+              <mat-icon>memory</mat-icon>
+              <span>Información OLT</span>
+            </div>
+            <div class="info-row" *ngIf="element.manufacturer">
+              <span class="info-label">Fabricante:</span>
+              <span class="info-value">{{ element.manufacturer }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.model">
+              <span class="info-label">Modelo:</span>
+              <span class="info-value">{{ element.model }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.portCount">
+              <span class="info-label">Total puertos:</span>
+              <span class="info-value">{{ element.portCount }}</span>
+            </div>
+            <div class="port-summary" *ngIf="element.ponPorts || element.distributionPorts || element.uplinkPorts">
+              <div class="port-item" [class.active]="isPonPortActive(element)">
+                <span class="port-label">PON</span>
+                <span class="port-value">{{ element.ponPorts || 0 }}</span>
+              </div>
+              <div class="port-item" [class.active]="isDistributionPortActive(element)">
+                <span class="port-label">Distribución</span>
+                <span class="port-value">{{ element.distributionPorts || 0 }}</span>
+              </div>
+              <div class="port-item" [class.active]="isUplinkPortActive(element)">
+                <span class="port-label">Uplink</span>
+                <span class="port-value">{{ element.uplinkPorts || 0 }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ONT -->
+          <div class="specific-info" *ngSwitchCase="'ONT'">
+            <div class="section-title">
+              <mat-icon>router</mat-icon>
+              <span>Información ONT</span>
+            </div>
+            <div class="info-row" *ngIf="element.manufacturer">
+              <span class="info-label">Fabricante:</span>
+              <span class="info-value">{{ element.manufacturer }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.model">
+              <span class="info-label">Modelo:</span>
+              <span class="info-value">{{ element.model }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.serialNumber">
+              <span class="info-label">N° Serie:</span>
+              <span class="info-value">{{ element.serialNumber }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.ponStandard">
+              <span class="info-label">Estándar PON:</span>
+              <span class="info-value">{{ element.ponStandard }}</span>
+            </div>
+            <div class="signal-strength animated" *ngIf="element.signalStrength !== undefined">
+              <span class="info-label">Señal:</span>
+              <div class="signal-meter">
+                <div class="signal-bar" 
+                  [ngStyle]="{'width': (element.signalStrength >= -25 ? '100%' : 
+                               element.signalStrength >= -28 ? '80%' : 
+                               element.signalStrength >= -32 ? '60%' : 
+                               element.signalStrength >= -35 ? '40%' : '20%')}"
+                  [ngClass]="element.signalStrength >= -28 ? 'excellent' : 
+                             element.signalStrength >= -32 ? 'good' : 
+                             element.signalStrength >= -35 ? 'fair' : 'poor'">
+                </div>
+              </div>
+              <span class="signal-value">{{ element.signalStrength }} dBm</span>
+            </div>
+          </div>
+
+          <!-- SPLITTER -->
+          <div class="specific-info" *ngSwitchCase="'SPLITTER'">
+            <div class="section-title">
+              <mat-icon>device_hub</mat-icon>
+              <span>Información Splitter</span>
+            </div>
+            <div class="info-row" *ngIf="element.splitRatio">
+              <span class="info-label">Relación:</span>
+              <span class="info-value">{{ element.splitRatio }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.outputPorts">
+              <span class="info-label">Puertos de salida:</span>
+              <span class="info-value">{{ element.outputPorts }}</span>
+            </div>
+            <div class="split-ratio-visual" *ngIf="element.splitRatio">
+              <div class="split-input"></div>
+              <div class="split-outputs">
+                <div class="split-output" *ngFor="let i of [].constructor(getOutputPortCount(element.splitRatio))"></div>
+              </div>
+            </div>
+            <div class="info-row" *ngIf="element.installationDate">
+              <span class="info-label">Instalación:</span>
+              <span class="info-value">{{ element.installationDate | date:'dd/MM/yyyy' }}</span>
+            </div>
+          </div>
+
+          <!-- ODF/FDP -->
+          <div class="specific-info" *ngSwitchCase="'ODF'">
+            <div class="section-title">
+              <mat-icon>grid_on</mat-icon>
+              <span>Información ODF</span>
+            </div>
+            <div class="info-row" *ngIf="element.manufacturer">
+              <span class="info-label">Fabricante:</span>
+              <span class="info-value">{{ element.manufacturer }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.model">
+              <span class="info-label">Modelo:</span>
+              <span class="info-value">{{ element.model }}</span>
+            </div>
+            <div class="capacity-meter" *ngIf="element.totalPortCapacity">
+              <span class="info-label">Capacidad de puertos:</span>
+              <div class="progress-container">
+                <div class="progress-bar" 
+                     [ngStyle]="{'width': getPortUsagePercentage(element) + '%'}"
+                     [ngClass]="isPortUsageCritical(element) ? 'critical' : 
+                                isPortUsageWarning(element) ? 'warning' : 'normal'">
+                </div>
+              </div>
+              <span class="capacity-text">{{ element.usedPorts || 0 }} de {{ element.totalPortCapacity }}</span>
+            </div>
+          </div>
+
+          <!-- Información por defecto para otros tipos -->
+          <div class="specific-info" *ngSwitchDefault>
+            <div class="section-title">
+              <mat-icon>info</mat-icon>
+              <span>Información adicional</span>
+            </div>
+            <div class="info-row" *ngIf="element.lastMaintenance">
+              <span class="info-label">Último mantenimiento:</span>
+              <span class="info-value">{{ element.lastMaintenance | date:'dd/MM/yyyy' }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.nextMaintenance">
+              <span class="info-label">Próximo mantenimiento:</span>
+              <span class="info-value">{{ element.nextMaintenance | date:'dd/MM/yyyy' }}</span>
+            </div>
+            <div class="info-row" *ngIf="element.createdAt">
+              <span class="info-label">Creado:</span>
+              <span class="info-value">{{ element.createdAt | date:'dd/MM/yyyy' }}</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Elementos relacionados -->
+        <div class="related-elements" *ngIf="hasRelatedElements">
+          <div class="section-title">
+            <mat-icon>link</mat-icon>
+            <span>Elementos relacionados</span>
+          </div>
+          
+          <!-- Elementos conectados -->
+          <div class="related-elements-list">
+            <ng-container *ngIf="element.connections?.length">
+              <div class="related-element-item" *ngFor="let connection of element.connections">
+                <button mat-stroked-button class="related-element-button" (click)="navigateToElement(connection.targetId)">
+                  <mat-icon class="element-type-icon" [ngClass]="getElementStatusClass(getConnectionTargetStatus(connection))">
+                    {{ getElementTypeIcon(getConnectionTargetType(connection)) }}
+                  </mat-icon>
+                  <div class="related-element-info">
+                    <span class="related-element-name">{{ getConnectionTargetName(connection) }}</span>
+                    <span class="related-element-type">{{ getElementTypeName(getConnectionTargetType(connection)) }}</span>
+                  </div>
+                  <div class="connection-status" *ngIf="hasConnectionStatus(connection)">
+                    <span class="connection-indicator" [ngClass]="getConnectionStatus(connection)"></span>
+                    <span class="connection-label">{{ getConnectionStatus(connection) }}</span>
+                  </div>
+                  <mat-icon class="navigate-icon">chevron_right</mat-icon>
+                </button>
+              </div>
+            </ng-container>
+            
+            <!-- Específicos por tipo -->
+            <ng-container *ngIf="element.type === 'OLT' && element.odfIds?.length">
+              <div class="related-element-item" *ngFor="let odfId of element.odfIds">
+                <button mat-stroked-button class="related-element-button" (click)="navigateToElement(odfId)">
+                  <mat-icon class="element-type-icon">grid_view</mat-icon>
+                  <div class="related-element-info">
+                    <span class="related-element-name">ODF conectado</span>
+                    <span class="related-element-type">Marco de Distribución Óptica</span>
+                  </div>
+                  <mat-icon class="navigate-icon">chevron_right</mat-icon>
+                </button>
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="element.type === 'ONT' && element.oltId">
+              <div class="related-element-item">
+                <button mat-stroked-button class="related-element-button" (click)="navigateToElement(element.oltId)">
+                  <mat-icon class="element-type-icon">router</mat-icon>
+                  <div class="related-element-info">
+                    <span class="related-element-name">OLT conectado</span>
+                    <span class="related-element-type">Terminal de Línea Óptica</span>
+                  </div>
+                  <mat-icon class="navigate-icon">chevron_right</mat-icon>
+                </button>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Botón de acción flotante -->
+  <div class="floating-action-menu">
+    <button mat-fab extended color="warn" class="delete-fab" (click)="onDelete()" matTooltip="Eliminar elemento">
+      <mat-icon>delete</mat-icon>
+      <span>Eliminar</span>
+    </button>
+  </div>
+</div> 

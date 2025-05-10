@@ -1,0 +1,970 @@
+/**
+ * Estilos globales para el módulo de diseño de red
+ * 
+ * Este archivo contiene los estilos globales y variables de tema para el módulo de diseño de red.
+ * Utiliza el sistema de diseño de Material y define variables CSS reutilizables.
+ * 
+ * @example
+ * ```scss
+ * // Uso de variables
+ * .element {
+ *   padding: var(--spacing-md);
+ *   background-color: var(--primary-color);
+ * }
+ * ```
+ */
+
+@use "@angular/material" as mat;
+
+// Variables de tema
+$primary-color: #3F51B5; // Indigo 500
+$accent-color: #FF4081; // Pink A200
+$warn-color: #F44336; // Red 500
+$background-color: #F5F5F5; // Grey 100
+$text-color: #212121; // Grey 900
+
+// Variables de espaciado
+$spacing-xs: 4px; // Espaciado extra pequeño
+$spacing-sm: 8px; // Espaciado pequeño
+$spacing-md: 16px; // Espaciado medio
+$spacing-lg: 24px; // Espaciado grande
+$spacing-xl: 32px; // Espaciado extra grande
+
+// Variables de sombras
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1); // Sombra pequeña
+$shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1); // Sombra media
+$shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1); // Sombra grande
+
+// Variables de bordes
+$border-radius-sm: 2px; // Radio de borde pequeño
+$border-radius-md: 4px; // Radio de borde medio
+$border-radius-lg: 8px; // Radio de borde grande
+
+// Colores específicos para tipos de elementos
+$olt-color: #4CAF50;
+$ont-color: #2196F3;
+$odf-color: #FFC107;
+$edfa-color: #9C27B0;
+$splitter-color: #FF5722;
+$manga-color: #607D8B;
+$terminal-box-color: #FF9800;
+
+/**
+ * Define las variables CSS globales
+ */
+:root {
+  // Colores
+  --primary-color: #{$primary-color};
+  --accent-color: #{$accent-color};
+  --warn-color: #{$warn-color};
+  --background-color: #{$background-color};
+  --text-color: #{$text-color};
+
+  // Colores de elementos
+  --olt-color: #{$olt-color};
+  --ont-color: #{$ont-color};
+  --odf-color: #{$odf-color};
+  --edfa-color: #{$edfa-color};
+  --splitter-color: #{$splitter-color};
+  --manga-color: #{$manga-color};
+  --terminal-box-color: #{$terminal-box-color};
+
+  // Espaciado
+  --spacing-xs: #{$spacing-xs};
+  --spacing-sm: #{$spacing-sm};
+  --spacing-md: #{$spacing-md};
+  --spacing-lg: #{$spacing-lg};
+  --spacing-xl: #{$spacing-xl};
+
+  // Sombras
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+
+  // Bordes
+  --border-radius-sm: #{$border-radius-sm};
+  --border-radius-md: #{$border-radius-md};
+  --border-radius-lg: #{$border-radius-lg};
+
+  // Colores de estados
+  --color-success: #4caf50;
+  --color-warning: #ff9800;
+  --color-danger: #f44336;
+  --color-info: #2196f3;
+
+  // Tipografía
+  --font-family: 'Roboto', sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+
+  // Transiciones
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 300ms ease-in-out;
+  --transition-slow: 500ms ease-in-out;
+
+  // Colores de estado para elementos
+  --status-active: #4caf50;
+  --status-inactive: #f44336;
+  --status-maintenance: #ff9800;
+  --status-planning: #2196f3;
+  --status-unknown: #9e9e9e;
+
+  // Variables para modo oscuro
+  --dark-bg-primary: #262626;
+  --dark-bg-secondary: #333333;
+  --dark-border-color: #444444;
+  --dark-text-primary: #e0e0e0;
+  --dark-text-secondary: #b0b0b0;
+}
+
+/**
+ * Mixins para patrones de UI reutilizables
+ */
+
+// Mixin para paneles de información
+@mixin info-panel {
+  position: absolute;
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
+  
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    
+    h3 {
+      margin: 0;
+      font-size: var(--font-size-md);
+      font-weight: 500;
+      color: var(--text-color);
+    }
+  }
+  
+  .panel-content {
+    padding: var(--spacing-md);
+  }
+  
+  .panel-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid #e0e0e0;
+  }
+  
+  .info-row {
+    display: flex;
+    margin-bottom: var(--spacing-sm);
+    
+    .info-label {
+      width: 100px;
+      font-weight: 500;
+      color: #666;
+    }
+    
+    .info-value {
+      flex: 1;
+    }
+  }
+}
+
+// Mixin para acciones del mapa (botones de herramientas)
+@mixin map-action-button {
+  background-color: white;
+  color: var(--text-color);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  transition: all var(--transition-fast);
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+  
+  &.active-tool {
+    background-color: rgba(63, 81, 181, 0.15);
+    color: var(--primary-color);
+  }
+  
+  .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+  }
+}
+
+// Mixin para leyenda del mapa
+@mixin map-legend {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  
+  .legend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    
+    h4 {
+      margin: 0;
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+    }
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-xs) 0;
+    font-size: var(--font-size-xs);
+    
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      margin-right: var(--spacing-sm);
+    }
+    
+    .legend-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+// Mixin para controles de zoom
+@mixin zoom-controls {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  z-index: 10;
+  
+  button {
+    box-shadow: var(--shadow-md);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+    
+    .mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+      line-height: 18px;
+    }
+  }
+}
+
+/**
+ * Clases generales reutilizables
+ */
+
+// Clase general para paneles de componentes
+.component-panel {
+  position: absolute;
+  z-index: 100;
+  max-width: 350px;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  background: white;
+  
+  .panel-close-btn {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    z-index: 10;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    padding: 0;
+    min-width: auto;
+    
+    .mat-icon {
+      font-size: var(--font-size-md);
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+    }
+  }
+}
+
+// Elemento de información con etiqueta
+.info-item {
+  display: flex;
+  margin-bottom: var(--spacing-sm);
+  
+  .info-label {
+    width: 100px;
+    font-weight: 500;
+    color: #666;
+  }
+  
+  .info-value {
+    flex: 1;
+  }
+}
+
+// Estilo base para el contenedor de mapa
+.map-base-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--background-color);
+  transition: background-color var(--transition-normal);
+}
+
+// Soporte para modo oscuro en los componentes
+.dark-mode {
+  background-color: var(--dark-bg-primary);
+  color: var(--dark-text-primary);
+  
+  .component-panel {
+    background-color: var(--dark-bg-secondary);
+    color: var(--dark-text-primary);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .info-panel {
+    background-color: var(--dark-bg-secondary);
+    
+    .panel-header {
+      background-color: var(--dark-bg-primary);
+      border-bottom-color: var(--dark-border-color);
+      
+      h3 {
+        color: var(--dark-text-primary);
+      }
+    }
+    
+    .panel-content {
+      .info-row {
+        .info-label {
+          color: var(--dark-text-secondary);
+        }
+        
+        .info-value {
+          color: var(--dark-text-primary);
+        }
+      }
+    }
+    
+    .panel-actions {
+      border-top-color: var(--dark-border-color);
+    }
+  }
+  
+  .map-action-button {
+    background-color: var(--dark-bg-secondary);
+    color: var(--dark-text-primary);
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+    
+    &.active-tool {
+      background-color: rgba(63, 81, 181, 0.3);
+      color: var(--accent-color);
+    }
+  }
+  
+  .map-legend {
+    background-color: rgba(40, 40, 40, 0.9);
+    
+    .legend-header {
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+      
+      h4 {
+        color: var(--dark-text-primary);
+      }
+    }
+    
+    .legend-item {
+      color: var(--dark-text-secondary);
+    }
+  }
+  
+  .zoom-controls button {
+    background-color: var(--dark-bg-secondary);
+    color: var(--dark-text-primary);
+  }
+  
+  .panel-close-btn {
+    background-color: rgba(51, 51, 51, 0.7);
+    color: var(--dark-text-primary);
+  }
+}
+
+/**
+ * Estilos para el contenedor principal del diseño de red
+ */
+.network-design {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: var(--background-color);
+  color: var(--text-color);
+
+  /**
+   * Estilos para el contenedor principal
+   */
+  &__container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #fff;
+    padding: 20px;
+  }
+
+  /**
+   * Estilos para la barra de herramientas
+   */
+  &__toolbar {
+    padding: 0 var(--spacing-md);
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: var(--shadow-md);
+  }
+
+  /**
+   * Estilos para el encabezado
+   */
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    background-color: var(--primary-color);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+
+    h1 {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: 500;
+    }
+  }
+
+  /**
+   * Estilos para el contenido principal
+   */
+  &__content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    padding: var(--spacing-md);
+  }
+
+  /**
+   * Estilos para el contenedor del mapa
+   */
+  &__map {
+    flex: 1;
+    position: relative;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  /**
+   * Estilos para la barra lateral
+   */
+  &__sidebar {
+    width: 300px;
+    padding: var(--spacing-md);
+    background-color: white;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-md);
+    margin-left: var(--spacing-md);
+    overflow-y: auto;
+    border-right: 1px solid #e0e0e0;
+
+    @media (max-width: 768px) {
+      width: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      z-index: 1000;
+      transform: translateX(-100%);
+      transition: transform var(--transition-normal);
+
+      &--open {
+        transform: translateX(0);
+      }
+    }
+  }
+
+  /**
+   * Estilos para el área principal
+   */
+  &__main {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+
+    @media (max-width: 768px) {
+      margin-left: 0;
+    }
+  }
+
+  /**
+   * Estilos para el pie de página
+   */
+  &__footer {
+    padding: var(--spacing-md);
+    background-color: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+  }
+
+  /**
+   * Estilos para los elementos de la red
+   */
+  &__element {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    background-color: white;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-fast);
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    &--selected {
+      border-left: 4px solid var(--primary-color);
+    }
+  }
+}
+
+/**
+ * Estilos para los elementos del mapa
+ */
+.map-element {
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+/**
+ * Estilos para las conexiones del mapa
+ */
+.map-connection {
+  stroke-width: 2;
+  transition: stroke-width 0.2s ease-in-out;
+
+  &:hover {
+    stroke-width: 3;
+  }
+}
+
+/**
+ * Estilos para el inspector de elementos
+ */
+.element-inspector {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  width: 300px;
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  padding: var(--spacing-md);
+}
+
+/**
+ * Componentes comunes - elemento de red
+ */
+.network-element {
+  /**
+   * Elemento de red
+   */
+  &__container {
+    padding: var(--spacing-md);
+    background-color: #fff;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-fast);
+
+    &:hover {
+      box-shadow: var(--shadow-md);
+    }
+  }
+
+  /**
+   * Encabezado del elemento
+   */
+  &__header {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+
+    h3 {
+      margin: 0;
+      font-size: var(--font-size-lg);
+      color: var(--primary-color);
+    }
+  }
+
+  /**
+   * Contenido del elemento
+   */
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  /**
+   * Acciones del elemento
+   */
+  &__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+  }
+}
+
+/**
+ * Clases para diálogos y componentes flotantes
+ */
+.dialog-container {
+  padding: var(--spacing-md);
+  max-width: 800px;
+  max-height: 80vh;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.dialog-content {
+  overflow-y: auto;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+/**
+ * Utilidades para la red
+ */
+.network-utils {
+  /**
+   * Badge de estado
+   */
+  &__status-badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+
+    &--active {
+      background-color: var(--color-success);
+      color: #fff;
+    }
+
+    &--inactive {
+      background-color: var(--color-danger);
+      color: #fff;
+    }
+
+    &--maintenance {
+      background-color: var(--color-warning);
+      color: #fff;
+    }
+  }
+
+  /**
+   * Indicador de carga
+   */
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-lg);
+    color: var(--text-color);
+  }
+
+  /**
+   * Mensaje de error
+   */
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background-color: #ffebee;
+    color: var(--color-danger);
+    border-radius: var(--border-radius-md);
+  }
+}
+
+// Variables de colores para la aplicación de diseño de red
+$primary-color: #2196f3;
+$secondary-color: #ff9800;
+$success-color: #4caf50;
+$warning-color: #ff9800;
+$error-color: #f44336;
+$info-color: #2196f3;
+
+// Variables para estados
+$status-active-color: #4caf50;
+$status-active-bg: #e8f5e9;
+$status-inactive-color: #757575;
+$status-inactive-bg: #f5f5f5;
+$status-fault-color: #c62828;
+$status-fault-bg: #ffebee;
+$status-warning-color: #ff8f00;
+$status-warning-bg: #fff8e1;
+$status-maintenance-color: #1565c0;
+$status-maintenance-bg: #e3f2fd;
+
+// Variables para sombreados
+$shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
+$shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.1);
+
+// Variables para tipografía
+$font-family-base: 'Roboto', 'Segoe UI', sans-serif;
+$font-size-xs: 10px;
+$font-size-sm: 12px;
+$font-size-md: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 18px;
+$font-size-xxl: 24px;
+
+// Variables para bordes
+$border-radius-sm: 4px;
+$border-radius-md: 8px;
+$border-radius-lg: 12px;
+$border-color: #e0e0e0;
+
+// Variables para el mapa
+$map-background-color: #f5f5f5;
+$map-grid-color: rgba(0, 0, 0, 0.05);
+$map-element-highlight-color: rgba(33, 150, 243, 0.5);
+
+// Mixins para estilos comunes
+@mixin widget-container {
+  background-color: white;
+  border-radius: $border-radius-md;
+  box-shadow: $shadow-light;
+  margin-bottom: $spacing-md;
+  overflow: hidden;
+}
+
+@mixin widget-header {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid $border-color;
+  
+  h3 {
+    margin: 0 0 0 $spacing-sm;
+    flex-grow: 1;
+    font-size: $font-size-md;
+    font-weight: 500;
+  }
+}
+
+@mixin widget-content {
+  padding: $spacing-md;
+}
+
+@mixin status-badge($color, $bg-color) {
+  background-color: $bg-color;
+  color: $color;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-sm;
+  font-weight: 500;
+}
+
+// Clases para estados de elementos
+.status-active {
+  @include status-badge($status-active-color, $status-active-bg);
+}
+
+.status-inactive {
+  @include status-badge($status-inactive-color, $status-inactive-bg);
+}
+
+.status-fault {
+  @include status-badge($status-fault-color, $status-fault-bg);
+}
+
+.status-warning {
+  @include status-badge($status-warning-color, $status-warning-bg);
+}
+
+.status-maintenance {
+  @include status-badge($status-maintenance-color, $status-maintenance-bg);
+}
+
+// Estilos para el contenedor de tarjetas
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: $spacing-md;
+  margin: $spacing-md 0;
+}
+
+// Estilos para botones de acción
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  
+  mat-icon {
+    font-size: $font-size-md;
+    width: $font-size-md;
+    height: $font-size-md;
+  }
+}
+
+// Clases de utilidad
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.gap-sm {
+  gap: $spacing-sm;
+}
+
+.gap-md {
+  gap: $spacing-md;
+}
+
+.mt-1 {
+  margin-top: $spacing-sm;
+}
+
+.mt-2 {
+  margin-top: $spacing-md;
+}
+
+.mb-1 {
+  margin-bottom: $spacing-sm;
+}
+
+.mb-2 {
+  margin-bottom: $spacing-md;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.fw-bold {
+  font-weight: 500;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+// Estilos para el modo oscuro
+@mixin dark-theme {
+  --bg-color: #303030;
+  --text-color: #ffffff;
+  --border-color: #424242;
+  --card-bg-color: #424242;
+  --hover-color: rgba(255, 255, 255, 0.1);
+  
+  // Redefine los estados para modo oscuro
+  .status-active {
+    background-color: rgba(76, 175, 80, 0.2);
+  }
+  
+  .status-inactive {
+    background-color: rgba(117, 117, 117, 0.2);
+  }
+  
+  .status-fault {
+    background-color: rgba(244, 67, 54, 0.2);
+  }
+  
+  .status-warning {
+    background-color: rgba(255, 152, 0, 0.2);
+  }
+  
+  .status-maintenance {
+    background-color: rgba(33, 150, 243, 0.2);
+  }
+  
+  // Ajusta el fondo de los contenedores de widgets
+  .widget-container {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+  }
+  
+  .widget-header {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border-color);
+  }
+}
+
+// Aplicar el tema oscuro cuando esté activo
+.dark-theme {
+  @include dark-theme;
+}

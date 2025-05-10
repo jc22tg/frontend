@@ -1,0 +1,163 @@
+@use 'variables' as vars;
+
+// Mixins útiles
+@mixin card-base {
+  border-radius: vars.$border-radius;
+  box-shadow: vars.$shadow-sm;
+  background-color: white;
+  overflow: hidden;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin grid-responsive($columns: 2, $gap: 20px) {
+  display: grid;
+  grid-template-columns: repeat($columns, 1fr);
+  gap: $gap;
+  
+  @media (max-width: vars.$breakpoint-medium) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Clases de estado
+@mixin status-colors {
+  &.active, &.success, &.good {
+    color: vars.$color-success;
+  }
+  
+  &.warning, &.medium {
+    color: vars.$color-warning;
+  }
+  
+  &.error, &.critical, &.bad {
+    color: vars.$color-error;
+  }
+  
+  &.info {
+    color: vars.$color-info;
+  }
+}
+
+// Mixins para elementos de red (NUEVOS)
+@mixin network-element-icon($size: 48px) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: $size;
+  height: $size;
+  border-radius: vars.$border-radius;
+  transition: all vars.$transition-fast;
+  
+  &.status-active {
+    background-color: rgba(76, 175, 80, 0.15);
+    box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.3);
+  }
+  
+  &.status-inactive {
+    background-color: rgba(158, 158, 158, 0.15);
+    box-shadow: 0 0 0 1px rgba(158, 158, 158, 0.3);
+  }
+  
+  &.status-fault, &.status-error {
+    background-color: rgba(244, 67, 54, 0.15);
+    box-shadow: 0 0 0 1px rgba(244, 67, 54, 0.3);
+  }
+  
+  &.status-maintenance, &.status-warning {
+    background-color: rgba(255, 152, 0, 0.15);
+    box-shadow: 0 0 0 1px rgba(255, 152, 0, 0.3);
+  }
+  
+  &.status-planned {
+    background-color: rgba(33, 150, 243, 0.15);
+    box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.3);
+  }
+}
+
+@mixin network-element-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: vars.$font-size-xs;
+  font-weight: 500;
+  text-transform: capitalize;
+  
+  .status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: all vars.$transition-fast;
+  }
+  
+  &.status-active {
+    color: vars.$color-success;
+    
+    .status-indicator {
+      background-color: vars.$color-success;
+      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+  }
+  
+  &.status-inactive {
+    color: vars.$text-secondary;
+    
+    .status-indicator {
+      background-color: vars.$text-hint;
+    }
+  }
+  
+  &.status-fault, &.status-error {
+    color: vars.$color-error;
+    
+    .status-indicator {
+      background-color: vars.$color-error;
+      box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+    }
+  }
+  
+  &.status-maintenance, &.status-warning {
+    color: vars.$color-warning;
+    
+    .status-indicator {
+      background-color: vars.$color-warning;
+      box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
+    }
+  }
+}
+
+@mixin network-element-card {
+  border-radius: vars.$border-radius;
+  overflow: hidden;
+  box-shadow: vars.$shadow-md;
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  
+  .card-content {
+    padding: 12px 16px;
+    overflow-y: auto;
+  }
+  
+  .card-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px 16px;
+    gap: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+  }
+} 

@@ -1,0 +1,920 @@
+/* Importación de estilos compartidos utilizando la sintaxis moderna @use */
+@use '../../../../../app/shared/styles/editor-base.scss' as editor-base;
+
+// Variables de tema
+:host {
+  --editor-bg: var(--surface-card, #ffffff);
+  --editor-text: var(--text-primary, rgba(0, 0, 0, 0.87));
+  --editor-border: var(--border-color, rgba(0, 0, 0, 0.12));
+  --editor-shadow: var(--shadow-elevation-2, 0 2px 4px rgba(0, 0, 0, 0.1));
+  
+  // Espaciado
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  // Bordes
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  display: block;
+  height: 100%;
+  overflow: auto;
+}
+
+.element-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
+  background-color: var(--background-color, #fafafa);
+  
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 500;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 1rem;
+      
+      button {
+        display: flex;
+        align-items: center;
+        
+        mat-icon {
+          margin-right: 0.5rem;
+        }
+        
+        mat-spinner {
+          margin-right: 0.5rem;
+        }
+      }
+    }
+  }
+  
+  .element-stepper {
+    flex: 1;
+    overflow: auto;
+    
+    ::ng-deep .mat-horizontal-stepper-header-container {
+      margin-bottom: 1rem;
+    }
+  }
+  
+  .step-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem 0;
+    
+    .form-card {
+      margin-bottom: 1rem;
+    }
+    
+    .form-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      
+      @media (max-width: 768px) {
+        flex-direction: column;
+      }
+      
+      mat-form-field {
+        flex: 1;
+      }
+      
+      &.full-width {
+        width: 100%;
+      }
+    }
+    
+    .step-actions {
+      display: flex;
+      margin-top: 1rem;
+      
+      .spacer {
+        flex: 1;
+      }
+    }
+  }
+  
+  .status-container {
+    margin-top: 1rem;
+    
+    .loading-progress {
+      margin-bottom: 0.5rem;
+    }
+    
+    .error-message {
+      display: flex;
+      align-items: center;
+      color: var(--error-color, #f44336);
+      padding: 0.5rem;
+      border-radius: 4px;
+      background-color: var(--error-bg-color, rgba(244, 67, 54, 0.1));
+      
+      mat-icon {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+  
+  .keyboard-shortcuts-hint {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 12px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 1000;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+    
+    &:hover {
+      opacity: 1;
+    }
+    
+    .kbd {
+      display: inline-block;
+      padding: 2px 4px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      margin: 0 2px;
+    }
+  }
+  
+  .placeholder-message {
+    color: var(--muted-text-color, #757575);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
+  }
+}
+
+// Media queries
+@media screen and (max-width: 768px) {
+  .element-editor-container {
+    padding: var(--spacing-sm);
+    
+    .editor-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+      
+      .actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+    
+    .form-row {
+      flex-direction: column;
+      
+      mat-form-field {
+        flex: 1 1 100%;
+      }
+    }
+    
+    ::ng-deep {
+      .mat-horizontal-stepper-header-container {
+        display: none !important;
+      }
+    }
+  }
+}
+
+// Tema oscuro
+:host-context(.dark-theme) {
+  --editor-bg: var(--surface-card-dark, #2d2d2d);
+  --editor-text: var(--text-primary-dark, rgba(255, 255, 255, 0.87));
+  --editor-border: var(--border-color-dark, rgba(255, 255, 255, 0.12));
+  --editor-shadow: var(--shadow-elevation-2-dark, 0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+// Estilos para el editor de elementos
+.element-editor {
+  padding: var(--spacing-lg);
+  
+  mat-card {
+    max-width: 900px;
+    margin: 0 auto;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    
+    mat-card-header {
+      background-color: #f5f7fa;
+      padding: var(--spacing-md);
+      border-bottom: 1px solid #edf1f7;
+      border-top-left-radius: var(--border-radius-lg);
+      border-top-right-radius: var(--border-radius-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      
+      mat-card-title {
+        font-size: var(--font-size-lg);
+        margin: 0;
+        color: var(--text-color);
+      }
+      
+      .card-actions {
+        display: flex;
+      }
+    }
+    
+    mat-card-content {
+      padding: var(--spacing-lg);
+    }
+  }
+  
+  // Indicador de progreso/stepper
+  .progress-stepper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all var(--transition-normal);
+      
+      &.active {
+        .step-icon {
+          background-color: var(--primary-color);
+          color: white;
+          transform: scale(1.1);
+        }
+        
+        .step-label {
+          color: var(--primary-color);
+          font-weight: 500;
+        }
+      }
+      
+      .step-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: var(--spacing-sm);
+        transition: all var(--transition-normal);
+        
+        mat-icon {
+          font-size: var(--font-size-lg);
+        }
+      }
+      
+      .step-label {
+        font-size: var(--font-size-sm);
+        color: var(--text-color);
+      }
+      
+      &:hover {
+        .step-icon {
+          background-color: #d1d7f0;
+        }
+      }
+    }
+    
+    .step-connector {
+      height: 2px;
+      background-color: #e0e0e0;
+      flex-grow: 1;
+      margin: 0 var(--spacing-sm);
+    }
+  }
+  
+  // Pantalla de carga
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl) 0;
+    
+    p {
+      margin-top: var(--spacing-md);
+      color: var(--text-color);
+      font-size: var(--font-size-md);
+    }
+  }
+  
+  .editor-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+  
+  .form-section {
+    background-color: #f9f9f9;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-normal);
+    border: 1px solid transparent;
+    
+    &.active-section {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(63, 81, 181, 0.15);
+    }
+    
+    h3 {
+      margin-top: 0;
+      margin-bottom: var(--spacing-lg);
+      font-weight: 500;
+      color: var(--primary-color);
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: var(--spacing-sm);
+      font-size: var(--font-size-lg);
+    }
+  }
+  
+  .form-row {
+    display: flex;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-md);
+    
+    mat-form-field {
+      flex: 1;
+      min-width: 200px;
+      
+      &.full-width {
+        flex-basis: 100%;
+      }
+    }
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  .full-width {
+    width: 100%;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid #eee;
+    
+    .left-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+    
+    .right-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+    
+    button {
+      min-width: 120px;
+      
+      &.primary-action {
+        box-shadow: var(--shadow-sm);
+      }
+    }
+  }
+  
+  // Botón de mapa mejorado
+  .map-button {
+    margin: var(--spacing-sm) 0 var(--spacing-md);
+    background-color: var(--color-success);
+    color: white;
+    
+    &:hover {
+      background-color: #45a049;
+    }
+    
+    mat-icon {
+      margin-right: var(--spacing-sm);
+    }
+  }
+  
+  // Estilos para el mini mapa
+  .mini-map-container {
+    margin-top: var(--spacing-md);
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    
+    .mini-map {
+      height: 240px;
+      width: 100%;
+    }
+    
+    .mini-map-info {
+      padding: var(--spacing-sm);
+      background-color: #f5f5f5;
+      border-top: 1px solid #ccc;
+      font-size: var(--font-size-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      
+      .coordinates {
+        font-family: monospace;
+        font-weight: 500;
+      }
+    }
+  }
+  
+  // Estilos para las conexiones
+  .connections-container {
+    .connections-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      
+      .connection-item {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-md);
+        transition: all var(--transition-fast);
+        
+        &:hover {
+          box-shadow: var(--shadow-sm);
+        }
+        
+        .connection-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: var(--spacing-sm);
+          
+          h4 {
+            margin: 0;
+            font-weight: 500;
+            color: var(--text-color);
+          }
+        }
+      }
+      
+      .no-connections {
+        padding: var(--spacing-lg);
+        text-align: center;
+        color: #757575;
+        font-style: italic;
+        background-color: #f9f9f9;
+        border-radius: var(--border-radius-md);
+        border: 1px dashed #ccc;
+      }
+      
+      .add-connection-btn {
+        align-self: flex-start;
+        margin-top: var(--spacing-md);
+      }
+    }
+  }
+  
+  // Estilos para documentos
+  .documents-container {
+    .documents-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+      
+      .document-item {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: var(--border-radius-md);
+        padding: var(--spacing-md);
+        transition: all var(--transition-fast);
+        
+        &:hover {
+          box-shadow: var(--shadow-sm);
+        }
+        
+        .form-row {
+          align-items: center;
+          margin-bottom: 0;
+        }
+        
+        .file-name {
+          flex: 1;
+          font-size: var(--font-size-sm);
+          color: var(--text-color);
+          margin: 0 var(--spacing-md);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .document-actions {
+          display: flex;
+          gap: var(--spacing-sm);
+        }
+      }
+      
+      .no-documents {
+        padding: var(--spacing-lg);
+        text-align: center;
+        color: #757575;
+        font-style: italic;
+        background-color: #f9f9f9;
+        border-radius: var(--border-radius-md);
+        border: 1px dashed #ccc;
+      }
+    }
+    
+    .upload-document {
+      display: flex;
+      justify-content: center;
+      
+      .upload-btn {
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+    }
+  }
+  
+  // Estilos para visualización de ocupación de puertos
+  .port-usage-container {
+    background-color: #fff;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+    box-shadow: var(--shadow-sm);
+    
+    h4 {
+      margin-top: 0;
+      margin-bottom: var(--spacing-md);
+      font-weight: 500;
+      color: var(--text-color);
+      font-size: var(--font-size-md);
+    }
+    
+    .port-usage-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+      
+      .port-count {
+        font-size: var(--font-size-md);
+        
+        .used {
+          font-weight: 600;
+          color: var(--primary-color);
+        }
+        
+        .separator {
+          margin: 0 4px;
+          color: #757575;
+        }
+        
+        .total {
+          font-weight: 600;
+        }
+        
+        .label {
+          margin-left: 6px;
+          color: #757575;
+        }
+      }
+    }
+    
+    .port-usage-bar {
+      height: 8px;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      
+      .usage-fill {
+        height: 100%;
+        transition: width var(--transition-normal);
+      }
+    }
+    
+    .port-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-md);
+      
+      .port {
+        aspect-ratio: 1;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        font-size: var(--font-size-xs);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        
+        &.unused {
+          background-color: #e8f5e9;
+          color: var(--color-success);
+          border: 1px solid #c8e6c9;
+          
+          &:hover {
+            background-color: #c8e6c9;
+          }
+        }
+        
+        &.used {
+          background-color: #e8eaf6;
+          color: var(--primary-color);
+          border: 1px solid #c5cae9;
+          
+          &:hover {
+            background-color: #c5cae9;
+          }
+        }
+      }
+    }
+  }
+  
+  // Estilo para botones con iconos
+  .icon-button {
+    display: flex;
+    align-items: center;
+    
+    mat-icon {
+      margin-right: var(--spacing-sm);
+    }
+  }
+  
+  // Animaciones y transiciones
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .fade-in {
+    animation: fadeIn var(--transition-normal);
+  }
+}
+
+// Responsive styling
+@media (max-width: 768px) {
+  .element-editor {
+    padding: var(--spacing-sm);
+    
+    .progress-stepper {
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: var(--spacing-md);
+      
+      .step-connector {
+        display: none;
+      }
+      
+      .step {
+        flex-basis: 45%;
+      }
+    }
+    
+    .form-row {
+      flex-direction: column;
+      gap: 0;
+      
+      mat-form-field {
+        width: 100%;
+      }
+    }
+    
+    .form-actions {
+      flex-direction: column-reverse;
+      
+      .left-actions, .right-actions {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .right-actions {
+        margin-bottom: var(--spacing-md);
+      }
+    }
+  }
+}
+
+.loading-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.error-message {
+  background-color: #fff4f4;
+  border-left: 4px solid var(--color-danger);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-danger);
+}
+
+.position-fields {
+  display: flex;
+  gap: var(--spacing-lg);
+
+  .form-field {
+    flex: 1;
+  }
+}
+
+.type-selector {
+  margin-bottom: var(--spacing-lg);
+}
+
+.buttons-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xl);
+}
+
+// Estilos para la información de atajos de teclado
+.shortcuts-info {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  background-color: #f5f5f5;
+  
+  h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+  }
+  
+  .shortcuts-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    
+    .shortcut-item {
+      display: flex;
+      align-items: center;
+      background-color: #fff;
+      padding: var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      box-shadow: var(--shadow-sm);
+      
+      kbd {
+        display: inline-block;
+        padding: 3px 5px;
+        font-family: monospace;
+        font-size: var(--font-size-xs);
+        line-height: 1;
+        color: var(--text-color);
+        background-color: #f7f7f7;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+        margin: 0 2px;
+      }
+      
+      .shortcut-desc {
+        margin-left: var(--spacing-sm);
+        font-size: var(--font-size-xs);
+        color: var(--text-color);
+      }
+    }
+  }
+}
+
+// Tema oscuro
+:host-context(.dark-theme) {
+  .shortcuts-info {
+    background-color: var(--dark-bg-primary);
+    
+    h4 {
+      color: var(--dark-text-primary);
+    }
+    
+    .shortcuts-list {
+      .shortcut-item {
+        background-color: var(--dark-bg-secondary);
+        
+        kbd {
+          color: var(--dark-text-primary);
+          background-color: var(--dark-bg-secondary);
+          border-color: var(--dark-border-color);
+          box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .shortcut-desc {
+          color: var(--dark-text-secondary);
+        }
+      }
+    }
+  }
+}
+
+// Indicador de cambios sin guardar
+.unsaved-changes-indicator {
+  display: flex;
+  align-items: center;
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  border-left: 4px solid #ffc107;
+  animation: pulse 2s infinite;
+  
+  mat-icon {
+    margin-right: 0.5rem;
+    color: #ffc107;
+  }
+  
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 8px rgba(255, 193, 7, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+  }
+}
+
+// Tip de sincronización con el mapa
+.map-sync-tip {
+  display: flex;
+  align-items: center;
+  background-color: var(--info-bg-color, rgba(33, 150, 243, 0.1));
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--info-color, #2196f3);
+  
+  mat-icon {
+    margin-right: 0.5rem;
+  }
+}
+
+// Media queries para modo oscuro
+:host-context(.dark-theme) {
+  .unsaved-changes-indicator {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ffe082;
+    border-left-color: #ffc107;
+    
+    mat-icon {
+      color: #ffc107;
+    }
+  }
+  
+  .map-sync-tip {
+    background-color: rgba(0, 188, 212, 0.15);
+    color: #80deea;
+    border-left-color: #00bcd4;
+    
+    mat-icon {
+      color: #00bcd4;
+    }
+  }
+}
+
+// Animaciones específicas
+.editor-container {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// Reemplazar .element-editor-container por .editor-container en la plantilla HTML

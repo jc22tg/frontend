@@ -1,0 +1,182 @@
+<div class="connection-widget-container">
+  <div class="widget-header">
+    <div class="header-content">
+      <h3>
+        <mat-icon>settings_ethernet</mat-icon>
+        <span>Estado de Conexiones</span>
+      </h3>
+      <div class="element-info" *ngIf="selectedElement" @fadeAnimation>
+        <div class="element-icon">
+          <mat-icon>{{ getElementTypeIcon(selectedElement.type) }}</mat-icon>
+        </div>
+        <div class="element-details">
+          <span class="element-name">{{ selectedElement.name }}</span>
+          <span class="element-type">{{ getElementTypeName(selectedElement.type) }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions" *ngIf="selectedElement && connections.length > 0">
+      <button mat-icon-button matTooltip="Actualizar conexiones" (click)="refreshConnections()" [disabled]="isLoading">
+        <mat-icon [class.spin]="isLoading">refresh</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="Exportar conexiones" (click)="onExportConnections()">
+        <mat-icon>download</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <mat-divider *ngIf="selectedElement"></mat-divider>
+
+  <div *ngIf="!selectedElement" class="no-element-message" @fadeAnimation>
+    <mat-icon class="select-icon">touch_app</mat-icon>
+    <p>Seleccione un elemento para ver sus conexiones</p>
+  </div>
+
+  <ng-container *ngIf="selectedElement">
+    <div class="connection-stats" @fadeAnimation>
+      <div class="stat-card active" [class.empty]="activeConnections === 0" 
+           matTooltip="Conexiones activas" (click)="statusFilter = 'active'; applyFilters()">
+        <div class="stat-icon">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-count">{{ activeConnections }}</span>
+          <span class="stat-label">Activas</span>
+        </div>
+      </div>
+      <div class="stat-card warning" [class.empty]="warningConnections === 0" 
+           matTooltip="Conexiones con advertencia" (click)="statusFilter = 'warning'; applyFilters()">
+        <div class="stat-icon">
+          <mat-icon>warning</mat-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-count">{{ warningConnections }}</span>
+          <span class="stat-label">Advertencia</span>
+        </div>
+      </div>
+      <div class="stat-card fault" [class.empty]="faultConnections === 0" 
+           matTooltip="Conexiones con falla" (click)="statusFilter = 'fault'; applyFilters()">
+        <div class="stat-icon">
+          <mat-icon>error</mat-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-count">{{ faultConnections }}</span>
+          <span class="stat-label">Falla</span>
+        </div>
+      </div>
+      <div class="stat-card maintenance" [class.empty]="maintenanceConnections === 0" 
+           matTooltip="Conexiones en mantenimiento" (click)="statusFilter = 'maintenance'; applyFilters()">
+        <div class="stat-icon">
+          <mat-icon>build</mat-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-count">{{ maintenanceConnections }}</span>
+          <span class="stat-label">Mant.</span>
+        </div>
+      </div>
+      <div class="stat-card inactive" [class.empty]="inactiveConnections === 0" 
+           matTooltip="Conexiones inactivas" (click)="statusFilter = 'inactive'; applyFilters()">
+        <div class="stat-icon">
+          <mat-icon>cancel</mat-icon>
+        </div>
+        <div class="stat-content">
+          <span class="stat-count">{{ inactiveConnections }}</span>
+          <span class="stat-label">Inactivas</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="connection-filters" *ngIf="connections.length > 0" @fadeAnimation>
+      <mat-button-toggle-group [(ngModel)]="statusFilter" (change)="applyFilters()">
+        <mat-button-toggle value="all" matTooltip="Mostrar todas las conexiones">
+          Todas
+        </mat-button-toggle>
+        <mat-button-toggle value="active" matTooltip="Solo conexiones activas">
+          <mat-icon class="status-active">check_circle</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="warning" matTooltip="Solo conexiones con advertencia">
+          <mat-icon class="status-warning">warning</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="fault" matTooltip="Solo conexiones con falla">
+          <mat-icon class="status-fault">error</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="maintenance" matTooltip="Solo conexiones en mantenimiento">
+          <mat-icon class="status-maintenance">build</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="inactive" matTooltip="Solo conexiones inactivas">
+          <mat-icon class="status-inactive">cancel</mat-icon>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    <!-- Indicador de carga -->
+    <div class="loading-indicator" *ngIf="isLoading" @fadeAnimation>
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Cargando conexiones...</span>
+    </div>
+
+    <div class="connection-list" 
+         *ngIf="filteredConnections.length > 0 && !isLoading" 
+         @listAnimation>
+      <div class="connection-card" 
+           *ngFor="let connection of filteredConnections" 
+           [ngClass]="getConnectionStatusClass(connection.status)"
+           (click)="onConnectionClick(connection)"
+           @scaleAnimation>
+        <div class="connection-item">
+          <div class="connection-status-icon">
+            <mat-icon>{{ getConnectionStatusIcon(connection.status) }}</mat-icon>
+          </div>
+          <div class="connection-details">
+            <div class="connection-title">
+              <span class="connection-id">{{ getConnectionLabel(connection) }}</span>
+              <span class="connection-capacity">{{ connection.capacity }} Gbps</span>
+            </div>
+            <div class="connection-endpoint">
+              <mat-icon class="endpoint-icon">{{ getEndpointIcon(connection) }}</mat-icon>
+              <span>{{ connection.sourceId === selectedElement.id ? 
+                       'Hacia: ' + getTargetName(connection) : 
+                       'Desde: ' + getSourceName(connection) }}</span>
+            </div>
+            <div class="connection-metadata">
+              <span class="connection-length" *ngIf="connection.length">
+                <mat-icon class="metadata-icon">straighten</mat-icon>
+                {{ connection.length }}m
+              </span>
+              <span class="connection-type" *ngIf="connection.fiberType">
+                <mat-icon class="metadata-icon">category</mat-icon>
+                {{ getFiberTypeName(connection.fiberType) }}
+              </span>
+            </div>
+          </div>
+          <div class="connection-actions">
+            <button mat-icon-button matTooltip="Editar conexión" (click)="onConnectionEdit(connection); $event.stopPropagation()">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Eliminar conexión" color="warn" (click)="onConnectionDelete(connection); $event.stopPropagation()">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="no-connections-message" *ngIf="connections.length === 0 && !isLoading" @fadeAnimation>
+      <mat-icon>link_off</mat-icon>
+      <p>No hay conexiones para este elemento</p>
+      <button mat-stroked-button color="primary" (click)="onCreateConnection()">
+        <mat-icon>add_link</mat-icon>
+        Crear Conexión
+      </button>
+    </div>
+
+    <div class="filtered-empty-message" *ngIf="connections.length > 0 && filteredConnections.length === 0 && !isLoading" @fadeAnimation>
+      <mat-icon>filter_alt</mat-icon>
+      <p>No hay conexiones que coincidan con el filtro</p>
+      <button mat-stroked-button color="primary" (click)="resetFilters()">
+        <mat-icon>clear</mat-icon>
+        Limpiar filtros
+      </button>
+    </div>
+  </ng-container>
+</div> 

@@ -1,0 +1,396 @@
+/**
+ * Estilos para el componente editor de conexiones
+ * 
+ * Este componente permite crear y editar conexiones entre elementos de red,
+ * siguiendo los estándares de diseño del módulo network-design.
+ */
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.dialog-container {
+  max-width: 600px;
+  max-height: 80vh;
+}
+
+/* ===== ENCABEZADO DEL DIÁLOGO ===== */
+.dialog-header {
+  display: flex;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--background-color);
+  
+  &.create {
+    background-color: rgba(var(--color-success-rgb), 0.1);
+    
+    .header-icon {
+      background-color: var(--color-success);
+    }
+  }
+  
+  &.edit {
+    background-color: rgba(var(--primary-color-rgb), 0.1);
+    
+    .header-icon {
+      background-color: var(--primary-color);
+    }
+  }
+  
+  .header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: var(--spacing-md);
+    
+    mat-icon {
+      color: white;
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
+  }
+  
+  .header-content {
+    h2 {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: 500;
+      color: var(--text-color);
+    }
+    
+    .subtitle {
+      margin: var(--spacing-xs) 0 0 0;
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+    }
+  }
+}
+
+/* ===== CONTENIDO DEL DIÁLOGO ===== */
+.dialog-content {
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  max-height: 65vh;
+}
+
+/* ===== SECCIONES DEL FORMULARIO ===== */
+.form-section {
+  margin-bottom: var(--spacing-lg);
+  
+  .section-title {
+    display: flex;
+    align-items: center;
+    color: var(--primary-color);
+    font-size: var(--font-size-md);
+    font-weight: 500;
+    margin-bottom: var(--spacing-md);
+    
+    mat-icon {
+      margin-right: var(--spacing-sm);
+      color: var(--primary-color);
+    }
+  }
+}
+
+/* ===== ESTRUCTURA DEL FORMULARIO ===== */
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+  
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* ===== COMPONENTES DE CONEXIÓN ===== */
+.connection-icon-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-sm) 0;
+  
+  .connection-icon {
+    color: var(--primary-color);
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ===== ELEMENTOS DEL SELECTOR ===== */
+.element-option {
+  display: flex;
+  align-items: center;
+  
+  .element-icon {
+    margin-right: var(--spacing-sm);
+    color: var(--primary-color);
+  }
+  
+  .element-type {
+    margin-left: auto;
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* ===== OPCIONES DE ESTADO ===== */
+.status-option {
+  display: flex;
+  align-items: center;
+  
+  .status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: var(--spacing-sm);
+    
+    &.active {
+      background-color: var(--status-active);
+    }
+    
+    &.inactive {
+      background-color: var(--status-inactive);
+    }
+    
+    &.warning {
+      background-color: var(--color-warning);
+    }
+    
+    &.maintenance {
+      background-color: var(--color-info);
+    }
+    
+    &.fault {
+      background-color: var(--color-danger);
+    }
+
+    &.planned {
+      background-color: var(--status-planning);
+    }
+
+    &.building {
+      background-color: var(--color-warning);
+    }
+
+    &.reserved {
+      background-color: var(--color-success);
+    }
+
+    &.decommissioned {
+      background-color: var(--text-secondary);
+    }
+  }
+}
+
+/* ===== RESUMEN DE LA CONEXIÓN ===== */
+.connection-summary {
+  background-color: var(--background-color);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  
+  .summary-content {
+    padding: var(--spacing-sm);
+  }
+  
+  .connection-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    .preview-element {
+      display: flex;
+      align-items: center;
+      background-color: white;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: 24px;
+      box-shadow: var(--shadow-sm);
+      
+      mat-icon {
+        margin-right: var(--spacing-sm);
+        color: var(--primary-color);
+      }
+    }
+    
+    .connection-line {
+      height: 80px;
+      width: 100%;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      
+      .line {
+        width: 4px;
+        height: 100%;
+        background-color: var(--status-active);
+        
+        &.active {
+          background-color: var(--status-active);
+        }
+        
+        &.inactive {
+          background-color: var(--status-inactive);
+        }
+        
+        &.warning {
+          background-color: var(--color-warning);
+        }
+        
+        &.maintenance {
+          background-color: var(--color-info);
+        }
+        
+        &.fault {
+          background-color: var(--color-danger);
+        }
+
+        &.planned {
+          background-color: var(--status-planning);
+        }
+
+        &.building {
+          background-color: var(--color-warning);
+        }
+
+        &.reserved {
+          background-color: var(--color-success);
+        }
+
+        &.decommissioned {
+          background-color: var(--text-secondary);
+        }
+      }
+      
+      .connection-details {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        border-radius: var(--border-radius-sm);
+        padding: var(--spacing-xs);
+        white-space: nowrap;
+        box-shadow: var(--shadow-sm);
+      }
+    }
+  }
+}
+
+/* ===== ACCIONES DEL DIÁLOGO ===== */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  
+  .save-button,
+  .cancel-button {
+    min-width: 120px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    transition: all var(--transition-fast);
+    
+    &:not([disabled]):hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    mat-icon {
+      margin-right: var(--spacing-sm);
+    }
+  }
+  
+  .button-spinner {
+    display: inline-block;
+    margin-left: var(--spacing-sm);
+  }
+}
+
+/* ===== ELEMENTOS DEL FORMULARIO ===== */
+mat-form-field {
+  margin-bottom: var(--spacing-md);
+}
+
+textarea {
+  min-height: 80px;
+}
+
+/* ===== MEDIA QUERIES PARA RESPONSIVIDAD ===== */
+@media (max-width: 600px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .dialog-header {
+    padding: var(--spacing-md);
+    
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+    
+    .header-content {
+      h2 {
+        font-size: var(--font-size-lg);
+      }
+    }
+  }
+}
+
+/* ===== SOPORTE PARA TEMA OSCURO ===== */
+:host-context(.dark-theme) {
+  .dialog-header {
+    background-color: var(--dark-bg-primary);
+    
+    &.create {
+      background-color: rgba(var(--color-success-rgb), 0.2);
+    }
+    
+    &.edit {
+      background-color: rgba(var(--primary-color-rgb), 0.2);
+    }
+    
+    .header-content h2 {
+      color: var(--dark-text-primary);
+    }
+    
+    .subtitle {
+      color: var(--dark-text-secondary);
+    }
+  }
+  
+  .connection-summary {
+    background-color: var(--dark-bg-primary);
+    
+    .preview-element {
+      background-color: var(--dark-bg-secondary);
+      color: var(--dark-text-primary);
+    }
+    
+    .connection-details {
+      background-color: var(--dark-bg-secondary);
+      color: var(--dark-text-primary);
+    }
+  }
+  
+  .element-option .element-type,
+  .section-title {
+    color: var(--dark-text-secondary);
+  }
+  
+  mat-form-field {
+    color: var(--dark-text-primary);
+  }
+} 

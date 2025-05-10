@@ -1,0 +1,394 @@
+/**
+ * Estilos para el componente de lista de compatibilidad de elementos
+ * 
+ * Este componente muestra la compatibilidad entre diferentes tipos de elementos de red,
+ * agrupándolos en listas de compatibles e incompatibles.
+ */
+
+.compatibility-container {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-md);
+  background-color: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 400px;
+  transition: all var(--transition-normal);
+  
+  &:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  @media screen and (max-width: 480px) {
+    max-width: 100%;
+    margin: 0 auto;
+  }
+}
+
+/**
+ * Encabezado del componente
+ */
+.compatibility-title {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  color: var(--primary-color);
+  
+  .title-icon {
+    margin-right: var(--spacing-sm);
+    color: var(--primary-color);
+  }
+}
+
+/**
+ * Mensaje informativo sobre compatibilidad
+ */
+.compatibility-info {
+  background-color: rgba(var(--info-color-rgb), 0.05);
+  border-left: 4px solid rgba(var(--info-color-rgb), 0.7);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  
+  p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: rgba(var(--text-color-rgb), 0.8);
+    line-height: 1.4;
+  }
+}
+
+/**
+ * Estados de UI - Reutilizamos estilos para estados vacíos y de selección
+ */
+.selection-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  
+  .info-icon,
+  .empty-icon {
+    font-size: 32px;
+    height: 32px;
+    width: 32px;
+    margin-bottom: var(--spacing-md);
+    color: rgba(var(--text-color-rgb), 0.7);
+  }
+  
+  p {
+    color: rgba(var(--text-color-rgb), 0.7);
+    font-style: italic;
+    text-align: center;
+  }
+}
+
+.selection-state {
+  background-color: rgba(var(--background-color-rgb), 0.8);
+  border-radius: var(--border-radius-lg);
+  border: 1px dashed rgba(var(--text-color-rgb), 0.2);
+}
+
+/**
+ * Estado de carga con skeleton UI
+ */
+.loading-state {
+  .skeleton-card {
+    background: white;
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+    
+    .skeleton-header {
+      height: 24px;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--border-radius-sm);
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .skeleton-item {
+      height: 16px;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--border-radius-sm);
+      margin-bottom: var(--spacing-md);
+      
+      &:last-child {
+        width: 70%;
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/**
+ * Contenedor de listas de compatibilidad
+ */
+.compatibility-lists {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/**
+ * Contenedor de desplazamiento para listas largas
+ */
+.compatibility-scroll-container {
+  max-height: 250px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--text-color-rgb), 0.2) transparent;
+  
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--text-color-rgb), 0.2);
+    border-radius: var(--border-radius-sm);
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/**
+ * Tarjetas de compatibilidad
+ */
+.compatibility-card {
+  margin-bottom: 0;
+  overflow: hidden;
+  border-radius: var(--border-radius-lg);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  &.compatible {
+    border-left: 4px solid var(--color-success);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.15);
+  }
+
+  &.incompatible {
+    border-left: 4px solid var(--color-danger);
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.15);
+  }
+
+  mat-card-header {
+    padding: var(--spacing-sm) var(--spacing-md);
+    position: relative;
+    
+    mat-card-title {
+      font-size: var(--font-size-md);
+      display: flex;
+      align-items: center;
+      
+      span {
+        margin-left: var(--spacing-xs);
+      }
+    }
+    
+    .count-badge {
+      position: absolute;
+      right: var(--spacing-md);
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: rgba(var(--text-color-rgb), 0.08);
+      color: rgba(var(--text-color-rgb), 0.6);
+      font-size: var(--font-size-xs);
+      border-radius: 12px;
+      padding: 2px var(--spacing-sm);
+      min-width: 24px;
+      text-align: center;
+      font-weight: 500;
+    }
+  }
+
+  mat-card-content {
+    padding: 0;
+  }
+}
+
+/**
+ * Iconos de estado
+ */
+.compatible-icon {
+  color: var(--color-success);
+}
+
+.incompatible-icon {
+  color: var(--color-danger);
+}
+
+.element-icon {
+  color: rgba(var(--text-color-rgb), 0.7);
+  margin-right: var(--spacing-md);
+  font-size: 20px;
+}
+
+.element-type-name {
+  font-size: var(--font-size-sm);
+}
+
+/**
+ * Elementos de la lista con efectos hover
+ */
+.compatible-item, .incompatible-item {
+  position: relative;
+  overflow: hidden;
+  
+  &:hover {
+    background-color: rgba(var(--text-color-rgb), 0.04);
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 4px;
+    }
+  }
+}
+
+.compatible-item {
+  &:hover::after {
+    background-color: var(--color-success);
+  }
+}
+
+.incompatible-item {
+  &:hover::after {
+    background-color: var(--color-danger);
+  }
+}
+
+/**
+ * Soporte para tema oscuro
+ */
+:host-context(.dark-theme) {
+  .compatibility-container {
+    background-color: var(--dark-bg-primary);
+    color: var(--dark-text-primary);
+  }
+  
+  .compatibility-title {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .compatibility-info {
+    background-color: rgba(var(--info-color-rgb), 0.15);
+    
+    p {
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
+  
+  .selection-state {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .empty-state .empty-icon,
+  .selection-state .info-icon {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  .empty-state p,
+  .selection-state p {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  .compatibility-card {
+    background-color: var(--dark-bg-secondary);
+    
+    &.compatible {
+      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+    }
+    
+    &.incompatible {
+      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.2);
+    }
+  }
+  
+  .element-icon {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  .count-badge {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  .compatible-item:hover,
+  .incompatible-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .compatibility-scroll-container {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+/**
+ * Soporte para dispositivos móviles
+ */
+@media screen and (max-width: 480px) {
+  .compatibility-container {
+    padding: var(--spacing-sm);
+  }
+  
+  .compatibility-title {
+    font-size: var(--font-size-md);
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
+  }
+  
+  .compatibility-lists {
+    gap: var(--spacing-md);
+  }
+  
+  .compatibility-scroll-container {
+    max-height: 200px;
+  }
+  
+  .element-type-name {
+    font-size: 12px;
+  }
+  
+  .element-icon {
+    font-size: 18px;
+    margin-right: var(--spacing-sm);
+  }
+  
+  .compatibility-card {
+    mat-card-header {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      
+      mat-card-title {
+        font-size: 14px;
+      }
+    }
+  }
+} 
