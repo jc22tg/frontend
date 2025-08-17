@@ -28,7 +28,7 @@ import { MatListModule } from '@angular/material/list';
 import { Subject, fromEvent } from 'rxjs';
 import { takeUntil, debounceTime, filter } from 'rxjs/operators';
 
-import { GeographicPosition, createPosition } from '../../../../shared/types/network.types';
+import { GeographicPosition, createPosition } from '../../../../shared/types/geo-position';
 import { MapPositionService } from '../../services/map-position.service';
 import { NetworkDesignService } from '../../services/network-design.service';
 import { NetworkStateService } from '../../services/network-state.service';
@@ -165,10 +165,11 @@ export class MapPositionDialogComponent implements OnInit, AfterViewInit, OnDest
   }
 
   private convertToExtendedPosition(position: GeographicPosition): ExtendedPosition {
+    const coords = position.coordinates ?? [this.defaultPosition.lng, this.defaultPosition.lat];
     return {
       ...position,
-      lng: position.coordinates[0],
-      lat: position.coordinates[1]
+      lng: coords[0],
+      lat: coords[1]
     };
   }
 
@@ -402,7 +403,7 @@ export class MapPositionDialogComponent implements OnInit, AfterViewInit, OnDest
       // Usar la función utilitaria para crear la posición geográfica
       const result = createPosition(
         [this.position.lng, this.position.lat],
-        { type: 'Point' }
+        { altitude: this.position.altitude }
       );
 
       // Notificar la selección de posición antes de cerrar

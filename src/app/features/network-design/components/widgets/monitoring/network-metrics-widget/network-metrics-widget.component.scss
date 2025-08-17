@@ -1,56 +1,53 @@
-@use 'sass:map';
-@use '@angular/material' as mat;
-
 // Variables y mixins
-$primary-color: #1976d2;
-$accent-color: #ff4081;
-$success-color: #4caf50;
-$warning-color: #ff9800;
-$error-color: #f44336;
-$text-primary: rgba(0, 0, 0, 0.87);
-$text-secondary: rgba(0, 0, 0, 0.6);
-$text-hint: rgba(0, 0, 0, 0.38);
-$border-color: rgba(0, 0, 0, 0.12);
-$card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-$hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
-$anim-timing: cubic-bezier(0.4, 0, 0.2, 1);
+// $primary-color: #1976d2; // ELIMINADO
+// $accent-color: #ff4081; // ELIMINADO
+// $success-color: #4caf50; // ELIMINADO
+// $warning-color: #ff9800; // ELIMINADO
+// $error-color: #f44336; // ELIMINADO
+// $text-primary: rgba(0, 0, 0, 0.87); // ELIMINADO
+// $text-secondary: rgba(0, 0, 0, 0.6); // ELIMINADO
+// $text-hint: rgba(0, 0, 0, 0.38); // ELIMINADO
+// $border-color: rgba(0, 0, 0, 0.12); // ELIMINADO
+// $card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); // ELIMINADO
+// $hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.16); // ELIMINADO
+// $anim-timing: cubic-bezier(0.4, 0, 0.2, 1); // ELIMINADO
 
 // Definir paleta de colores para estados
-$status-colors: (
-  good: $success-color,
-  warning: $warning-color,
-  bad: $error-color
-);
+// $status-colors: ( // ELIMINADO
+//   good: $success-color,
+//   warning: $warning-color,
+//   bad: $error-color
+// );
 
 // Mixin para animaciones
-@mixin animate($property, $duration: 0.2s, $timing: $anim-timing) {
+@mixin animate($property, $duration: var(--transition-normal, 0.2s), $timing: var(--animation-timing-function, cubic-bezier(0.4, 0, 0.2, 1))) {
   transition: $property $duration $timing;
 }
 
 // Mixin para efectos de hover
 @mixin hover-effect {
-  @include animate(transform, 0.3s);
-  @include animate(box-shadow, 0.3s);
+  @include animate(transform, var(--transition-fast, 0.3s)); // Ajustar duración si es necesario
+  @include animate(box-shadow, var(--transition-fast, 0.3s));
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: $hover-shadow;
+    box-shadow: var(--shadow-lg);
   }
 }
 
 .metrics-widget-container {
   display: flex;
   flex-direction: column;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: $card-shadow;
-  padding: 20px;
+  background-color: var(--surface-color);
+  border-radius: var(--widget-border-radius, 12px);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
   height: 100%;
   overflow: hidden;
   @include animate(box-shadow);
   
   &:hover {
-    box-shadow: $hover-shadow;
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -58,37 +55,37 @@ $status-colors: (
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid $border-color;
-  padding-bottom: 12px;
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--spacing-md);
   
   .metrics-title {
     margin: 0;
-    font-size: 1.3rem;
+    font-size: var(--font-size-xl);
     font-weight: 500;
-    color: $text-primary;
+    color: var(--text-color);
     letter-spacing: 0.01em;
   }
   
   .metrics-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-sm, 8px);
     
     .action-button {
       @include animate(all);
       
       &:hover {
-        background-color: rgba(0, 0, 0, 0.04);
+        background-color: var(--surface-hover, rgba(0, 0, 0, 0.04));
       }
       
       &.refresh-button {
         &:active mat-icon {
-          animation: spin 0.6s $anim-timing;
+          animation: spin 0.6s var(--animation-timing-function, cubic-bezier(0.4, 0, 0.2, 1));
         }
       }
       
       mat-icon {
-        color: $text-secondary;
+        color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
       }
     }
   }
@@ -114,22 +111,22 @@ $status-colors: (
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: var(--spacing-xl, 32px);
   text-align: center;
   height: 100%;
   
   mat-icon {
-    font-size: 48px;
-    height: 48px;
-    width: 48px;
-    margin-bottom: 16px;
+    font-size: var(--icon-size-xl, 48px);
+    height: var(--icon-size-xl, 48px);
+    width: var(--icon-size-xl, 48px);
+    margin-bottom: var(--spacing-md, 16px);
     opacity: 0.6;
   }
   
   p {
-    color: $text-secondary;
-    margin: 8px 0 24px;
-    font-size: 1.1rem;
+    color: var(--text-secondary-color);
+    margin: var(--spacing-sm) 0 var(--spacing-lg);
+    font-size: var(--font-size-lg);
   }
   
   button {
@@ -139,11 +136,11 @@ $status-colors: (
 
 .error-container {
   mat-icon {
-    color: map.get($status-colors, bad);
+    color: var(--color-danger);
   }
   
   .error-message {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-lg, 20px);
     font-weight: 500;
   }
 }
@@ -151,7 +148,7 @@ $status-colors: (
 .metrics-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--spacing-lg, 24px);
   flex: 1;
   overflow-y: auto;
   
@@ -161,16 +158,16 @@ $status-colors: (
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.03);
+    background: var(--scrollbar-track-color);
     border-radius: 3px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--scrollbar-thumb-color);
     border-radius: 3px;
     
     &:hover {
-      background: rgba(0, 0, 0, 0.25);
+      background: var(--scrollbar-thumb-hover-color);
     }
   }
 }
@@ -179,10 +176,10 @@ $status-colors: (
 .selected-element-info {
   display: flex;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 8px;
+  background-color: var(--surface-lighter);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
   
   .element-badge {
     display: flex;
@@ -191,20 +188,21 @@ $status-colors: (
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    margin-right: 12px;
-    background-color: $primary-color;
-    color: white;
+    margin-right: var(--spacing-sm);
+    background-color: var(--primary-color);
+    color: var(--primary-contrast-color);
     
-    &.element-type-router { background-color: #5e35b1; }
+    // Colores específicos de tipo de elemento se mantienen por ahora
+    &.element-type-router { background-color: #5e35b1; } 
     &.element-type-switch { background-color: #0288d1; }
     &.element-type-node { background-color: #00897b; }
     &.element-type-hub { background-color: #689f38; }
     &.element-type-server { background-color: #d81b60; }
     
     mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
+      font-size: var(--icon-size-md, 20px);
+      width: var(--icon-size-md, 20px);
+      height: var(--icon-size-md, 20px);
     }
   }
   
@@ -213,28 +211,28 @@ $status-colors: (
     
     .element-name {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: var(--font-size-lg);
       font-weight: 500;
     }
     
     .element-type {
       margin: 0;
-      color: $text-secondary;
-      font-size: 0.85rem;
+      color: var(--text-secondary-color);
+      font-size: var(--font-size-sm);
     }
   }
   
   .last-update-info {
     display: flex;
     align-items: center;
-    color: $text-hint;
-    font-size: 0.8rem;
+    color: var(--text-hint-color);
+    font-size: var(--font-size-xs);
     
     mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
-      margin-right: 4px;
+      font-size: var(--icon-size-sm, 16px);
+      height: var(--icon-size-sm, 16px);
+      width: var(--icon-size-sm, 16px);
+      margin-right: var(--spacing-xs, 4px);
     }
   }
 }
@@ -243,11 +241,12 @@ $status-colors: (
 .metrics-summary {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 16px;
+  gap: var(--spacing-md, 16px);
   
   .metric-card {
-    padding: 16px;
-    border-radius: 8px;
+    padding: var(--spacing-md, 16px);
+    border-radius: var(--border-radius-lg, 8px);
+    // El background-color se hereda de .metrics-widget-container o es gestionado por variables CSS de tema
     @include hover-effect;
     
     @for $i from 0 through 5 {
@@ -259,17 +258,17 @@ $status-colors: (
     &.metric-empty {
       opacity: 0.7;
     }
+    
+    mat-icon {
+      color: var(--primary-color, #1976d2);
+    }
   }
   
   .metric-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    
-    mat-icon {
-      color: $primary-color;
-    }
+    gap: var(--spacing-sm, 8px);
+    margin-bottom: var(--spacing-sm, 12px);
     
     .metric-name {
       font-weight: 500;
@@ -284,21 +283,21 @@ $status-colors: (
     flex-direction: column;
     
     .metric-value {
-      font-size: 1.6rem;
+      font-size: var(--font-size-xxl);
       font-weight: 700;
       text-align: center;
-      margin: 8px 0;
+      margin: var(--spacing-sm) 0;
       
       &.value-good {
-        color: map.get($status-colors, good);
+        color: var(--color-success);
       }
       
       &.value-warning {
-        color: map.get($status-colors, warning);
+        color: var(--color-warning);
       }
       
       &.value-bad {
-        color: map.get($status-colors, bad);
+        color: var(--color-danger);
       }
     }
     
@@ -306,17 +305,17 @@ $status-colors: (
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 4px;
-      margin-bottom: 12px;
+      gap: var(--spacing-xs, 4px);
+      margin-bottom: var(--spacing-sm, 12px);
       
       .trend-percentage {
-        font-size: 0.85rem;
+        font-size: var(--font-size-sm, 0.85rem);
         font-weight: 500;
       }
     }
     
     .metric-chart {
-      margin: 8px 0 12px;
+      margin: var(--spacing-sm, 8px) 0 var(--spacing-sm, 12px);
       
       .mini-chart-container {
         height: 50px;
@@ -325,17 +324,17 @@ $status-colors: (
     }
     
     .metric-details {
-      border-top: 1px solid rgba(0, 0, 0, 0.12);
-      padding-top: 12px;
+      border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+      padding-top: var(--spacing-sm, 12px);
       
       .metric-detail {
         display: flex;
         justify-content: space-between;
-        font-size: 0.85rem;
-        margin-bottom: 6px;
+        font-size: var(--font-size-sm);
+        margin-bottom: var(--spacing-xs);
         
         .detail-label {
-          color: $text-secondary;
+          color: var(--text-secondary-color);
         }
         
         .detail-value {
@@ -351,10 +350,10 @@ $status-colors: (
     justify-content: center;
     align-items: center;
     height: 100px;
-    color: $text-hint;
+    color: var(--text-hint-color, rgba(0,0,0,0.38));
     
     mat-icon {
-      margin-bottom: 8px;
+      margin-bottom: var(--spacing-sm, 8px);
       opacity: 0.5;
     }
     
@@ -367,19 +366,19 @@ $status-colors: (
 
 // Estilos para la tabla de historial
 .metrics-history {
-  background-color: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
-  padding: 16px;
+  background-color: var(--surface-lighter);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-md);
   
   .history-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: var(--spacing-md, 16px);
     
     h3 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: var(--font-size-lg);
       font-weight: 500;
     }
   }
@@ -389,29 +388,29 @@ $status-colors: (
     border-collapse: collapse;
     
     th, td {
-      padding: 10px 12px;
+      padding: var(--spacing-sm) var(--spacing-sm);
       text-align: left;
-      border-bottom: 1px solid $border-color;
-      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border-color);
+      font-size: var(--font-size-sm);
     }
     
     th {
       font-weight: 500;
-      color: $text-secondary;
+      color: var(--text-secondary-color);
       white-space: nowrap;
     }
     
     td {
       &.value-good {
-        color: map.get($status-colors, good);
+        color: var(--color-success);
       }
       
       &.value-warning {
-        color: map.get($status-colors, warning);
+        color: var(--color-warning);
       }
       
       &.value-bad {
-        color: map.get($status-colors, bad);
+        color: var(--color-danger);
       }
     }
     
@@ -423,7 +422,7 @@ $status-colors: (
       @include animate(background-color);
       
       &:hover {
-        background-color: rgba(0, 0, 0, 0.04);
+        background-color: var(--surface-hover, rgba(0, 0, 0, 0.04));
       }
       
       @for $i from 0 through 9 {
@@ -438,36 +437,21 @@ $status-colors: (
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 12px;
+    margin-top: var(--spacing-sm, 12px);
     
     .metrics-note {
       display: flex;
       align-items: center;
-      gap: 8px;
-      color: $text-secondary;
-      font-size: 0.85rem;
+      gap: var(--spacing-sm);
+      color: var(--text-secondary-color);
+      font-size: var(--font-size-sm);
       
       mat-icon {
-        font-size: 16px;
-        height: 16px;
-        width: 16px;
+        font-size: var(--icon-size-sm, 16px);
+        height: var(--icon-size-sm, 16px);
+        width: var(--icon-size-sm, 16px);
       }
     }
-  }
-}
-
-// Animaciones
-:host ::ng-deep {
-  .fade-animation {
-    animation: fadeIn 0.3s $anim-timing;
-  }
-  
-  .card-animation {
-    animation: fadeIn 0.4s $anim-timing forwards;
-  }
-  
-  .table-row-animation {
-    animation: slideIn 0.3s $anim-timing forwards;
   }
 }
 
@@ -482,15 +466,15 @@ $status-colors: (
     overflow-x: auto;
     
     th, td {
-      padding: 8px;
-      font-size: 0.8rem;
+      padding: var(--spacing-sm);
+      font-size: var(--font-size-xs);
     }
   }
   
   .history-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--spacing-sm, 12px);
   }
   
   .selected-element-info {
@@ -499,13 +483,13 @@ $status-colors: (
     text-align: center;
     
     .element-badge {
-      margin: 0 auto 12px;
+      margin: 0 auto var(--spacing-sm, 12px);
     }
     
     .element-details {
       width: 100%;
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: var(--spacing-sm, 8px);
     }
     
     .last-update-info {
@@ -515,96 +499,6 @@ $status-colors: (
   }
 }
 
-.metrics-widget {
-  width: 100%;
-  
-  .title-container {
-    display: flex;
-    align-items: center;
-    
-    mat-icon {
-      margin-right: 8px;
-    }
-  }
-  
-  mat-card {
-    border-radius: 6px;
-    margin-bottom: 16px;
-    
-    mat-card-header {
-      margin-bottom: 8px;
-    }
-  }
-  
-  .metrics-summary {
-    padding: 8px 0;
-    
-    .metrics-group {
-      margin-bottom: 16px;
-      
-      h3 {
-        font-size: 14px;
-        font-weight: 500;
-        margin-bottom: 8px;
-        color: #555;
-      }
-      
-      .metrics-row {
-        display: flex;
-        flex-wrap: wrap;
-        
-        .metric-item {
-          display: flex;
-          flex-direction: column;
-          margin-right: 24px;
-          margin-bottom: 12px;
-          
-          .metric-label {
-            font-size: 12px;
-            color: #777;
-            margin-bottom: 4px;
-          }
-          
-          .metric-value {
-            font-size: 18px;
-            font-weight: 500;
-          }
-        }
-      }
-    }
-    
-    mat-divider {
-      margin: 16px 0;
-    }
-  }
-}
-
-// Tema oscuro
-:host-context(.dark-theme) {
-  .metrics-widget {
-    mat-card {
-      background-color: #333;
-      color: #e0e0e0;
-    }
-    
-    .metrics-summary {
-      .metrics-group {
-        h3 {
-          color: #aaa;
-        }
-        
-        .metrics-row {
-          .metric-item {
-            .metric-label {
-              color: #999;
-            }
-            
-            .metric-value {
-              color: #fff;
-            }
-          }
-        }
-      }
-    }
-  }
-} 
+// Tema oscuro y bloque ::ng-deep (si existe) serán eliminados o refactorizados después
+// El bloque :host-context(.dark-theme) comentado al final será eliminado.
+ 

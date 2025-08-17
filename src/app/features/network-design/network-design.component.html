@@ -7,17 +7,44 @@
   ></app-network-toolbar>
   -->
   
-  <div class="network-design-content">
-    <div class="network-design-container" [ngClass]="{'map-hidden': !mapVisible}">
+  <div class="network-design__content">
+    <!-- Sidebar Opcional -->
+    <!-- <aside class="network-design__sidebar">
+      Contenido de la Sidebar...
+    </aside> -->
+
+    <main class="network-design__main" [ngClass]="{'map-view-active': mapVisible, 'editor-view-active': !mapVisible}">
+      <!-- La clase ngClass es un ejemplo, ajustar según cómo se determine la vista activa para estilos -->
+      <!-- Si map-hidden era para el contenedor del mapa, se puede aplicar aquí o al router-container -->
       <div [@routeAnimations]="prepareRoute(outlet)" class="router-container">
         <router-outlet #outlet="outlet"></router-outlet>
       </div>
-    </div>
-    
-    <!-- Botón flotante para mostrar/ocultar el buscador -->
-    <!-- Eliminado botón search-toggle-button por solicitud del usuario -->
-    
-    <!-- Componente de vista rápida cuando hay un elemento seleccionado -->
-    <app-element-quick-view *ngIf="selectedElement && showElementsPanel" class="element-details-panel"></app-element-quick-view>
+    </main>
   </div>
+  
+  <!-- Widgets Flotantes -->
+  <!-- Si el search-widget-container se necesita, iría aquí -->
+  <!-- <div class="search-widget-container" *ngIf="showSearchWidget">
+       <app-element-search-widget></app-element-search-widget> 
+  </div> -->
+
+  <!-- Si el element-details-panel es un widget flotante separado, iría aquí -->
+  <!-- <div class="element-details-panel" *ngIf="selectedElement">
+       <app-element-details [element]="selectedElement"></app-element-details>
+  </div> -->
+
+  <!-- app-element-quick-view ya tiene sus propios estilos para posicionarse como widget flotante -->
+  <app-element-quick-view *ngIf="selectedElement && showElementsPanel"></app-element-quick-view>
+
+  <!-- Controles Flotantes (Ejemplo) -->
+  <!-- <div class="floating-controls">
+    <button mat-fab color="primary" matTooltip="Añadir Nuevo Elemento" (click)="createNewElement()">
+      <mat-icon>add</mat-icon>
+    </button>
+  </div> -->
+
+  <!-- Footer Opcional -->
+  <!-- <footer class="network-design__footer">
+    <p>Estado: {{ mapViewMode }}</p>
+  </footer> -->
 </div> 

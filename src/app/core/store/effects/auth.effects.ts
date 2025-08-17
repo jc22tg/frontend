@@ -68,6 +68,8 @@ export class AuthEffects {
             localStorage.setItem(this.REFRESH_TOKEN_KEY, action.refreshToken);
             localStorage.setItem(this.USER_KEY, JSON.stringify(action.user));
             localStorage.setItem(this.EXPIRES_IN_KEY, action.expiresIn.toString());
+            // Restauramos la navegación al dashboard
+            console.log('Navegando al dashboard...');
             this.router.navigate(['/dashboard']);
           } catch (error) {
             console.error('Error storing auth data:', error);

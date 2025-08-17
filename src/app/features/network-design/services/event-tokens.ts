@@ -1,5 +1,6 @@
 import { InjectionToken } from '@angular/core';
-import { NetworkElement, ElementType, ElementStatus, NetworkConnection, GeographicPosition } from '../../../shared/types/network.types';
+import { NetworkElement, ElementType, ElementStatus, NetworkConnection } from '../../../shared/types/network.types';
+import { GeographicPosition } from '../../../shared/types/geo-position';
 import { Observable } from 'rxjs';
 
 // Tokens para servicios de mapa

@@ -1,8 +1,12 @@
-import { Injectable } from '@angular/core';
-import { MatDialog, MatDialogConfig, MatDialogRef } from '@angular/material/dialog';
-import { Observable } from 'rxjs';
-import { NetworkElement, ElementType, GeographicPosition, createPosition } from '../../../shared/types/network.types';
+import { Injectable, Component, Inject } from '@angular/core';
+import { MatDialog, MatDialogConfig, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { Observable, Subject } from 'rxjs';
+import { map, filter } from 'rxjs/operators';
+import { NetworkElement, ElementType } from '../../../shared/types/network.types';
+import { GeographicPosition, createPosition } from '../../../shared/types/geo-position';
 import { MapPositionDialogComponent } from '../components/map-position-dialog/map-position-dialog.component';
+// import { ConfirmDialogComponent } from '../components/confirm-dialog/confirm-dialog.component';
+import { MapPositionSelectorComponent } from '../components/map-position-selector/map-position-selector.component';
 
 // Las siguientes importaciones serían reemplazadas por componentes reales
 // Comentamos ya que estos archivos pueden no existir aún
@@ -14,6 +18,33 @@ import { ShortcutsHelpDialogComponent } from '../../../shared/components/shortcu
 import { HistoricalDataDialogComponent } from '../components/historical-data-dialog/historical-data-dialog.component';
 import { NetworkDialogService } from './network-dialog.service';
 */
+
+/**
+ * Opciones para el diálogo de confirmación
+ */
+export interface ConfirmDialogOptions {
+  title: string;
+  message: string;
+  confirmButtonText?: string;
+  cancelButtonText?: string;
+  confirmButtonColor?: 'primary' | 'accent' | 'warn';
+  width?: string;
+  height?: string;
+  disableClose?: boolean;
+}
+
+/**
+ * Opciones para el selector de posición en el mapa
+ */
+export interface MapPositionSelectorOptions {
+  initialPosition?: GeographicPosition;
+  title?: string;
+  description?: string;
+  elementType?: string;
+  width?: string;
+  height?: string;
+  disableClose?: boolean;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -106,26 +137,46 @@ export class NetworkMapDialogService {
 
   /**
    * Abre un diálogo de confirmación
+   * @param options Opciones del diálogo
+   * @returns Referencia al diálogo abierto
    */
-  openConfirmationDialog(
-    title: string,
-    message: string,
-    confirmCallback: () => void,
-    cancelCallback?: () => void
-  ): void {
-    // Esta es una implementación simulada
-    console.log(`Diálogo de confirmación: ${title} - ${message}`);
-    
-    // En una implementación real, se mostraría un diálogo Material
-    // y se manejarían las callbacks apropiadamente
-    
-    // Por ahora simularemos una confirmación
-    const confirmed = window.confirm(message);
-    if (confirmed) {
-      confirmCallback();
-    } else if (cancelCallback) {
-      cancelCallback();
-    }
+  openConfirmDialog(options: ConfirmDialogOptions) {
+    const dialogRef = this.dialog.open(/* ConfirmDialogComponent */ Object, {
+      width: options.width || '400px',
+      height: options.height,
+      disableClose: options.disableClose || false,
+      data: {
+        title: options.title,
+        message: options.message,
+        confirmButtonText: options.confirmButtonText || 'Confirmar',
+        cancelButtonText: options.cancelButtonText || 'Cancelar',
+        confirmButtonColor: options.confirmButtonColor || 'primary'
+      }
+    });
+
+    return dialogRef;
+  }
+
+  /**
+   * Abre un selector de posición en el mapa
+   * @param options Opciones del selector
+   * @returns Referencia al diálogo abierto
+   */
+  openMapPositionSelector(options: MapPositionSelectorOptions) {
+    const dialogRef = this.dialog.open(MapPositionSelectorComponent, {
+      width: options.width || '800px',
+      height: options.height || '600px',
+      disableClose: options.disableClose || false,
+      panelClass: 'map-position-dialog',
+      data: {
+        initialPosition: options.initialPosition,
+        title: options.title || 'Seleccionar ubicación',
+        description: options.description || 'Haga clic en el mapa para seleccionar la ubicación.',
+        elementType: options.elementType
+      }
+    });
+
+    return dialogRef;
   }
 
   /**

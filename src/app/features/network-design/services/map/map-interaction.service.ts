@@ -1,273 +1,197 @@
-import { Injectable } from '@angular/core';
-import { Observable, Subject, BehaviorSubject } from 'rxjs';
-import { NetworkElement, NetworkConnection } from '../../../../shared/types/network.types';
+import { Injectable, inject } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { LoggerService } from '../../../../core/services/logger.service';
-import { NetworkStateService } from '../network-state.service';
+import { MapStateService } from './state/map-state.service';
+import { MapService } from '../map.service';
+import { MapToolType } from './map-tools.service';
+import { NetworkElement, NetworkConnection } from '../../../../shared/types/network.types';
 
 /**
- * Interfaz para un resultado de medición entre elementos
- */
-export interface MeasurementResult {
-  sourceElement: NetworkElement;
-  targetElement: NetworkElement;
-  distance: number;
-  unit: string;
-  timestamp: number;
-}
-
-/**
- * Interfaz para una solicitud de conexión entre elementos
- */
-export interface ConnectionRequest {
-  sourceElement: NetworkElement;
-  targetElement: NetworkElement;
-  type?: string;
-  properties?: Record<string, any>;
-}
-
-/**
- * Servicio para gestionar las interacciones del usuario con el mapa
+ * Servicio para gestionar las interacciones con el mapa
  * 
- * Este servicio abstrae la lógica de selección de elementos, creación de 
- * conexiones, mediciones y otras interacciones entre el usuario y los
- * elementos del mapa.
+ * Este servicio actúa como intermediario entre el MapToolsService y el MapService,
+ * proporcionando métodos específicos para habilitar/deshabilitar distintos tipos de interacción.
  */
 @Injectable({
   providedIn: 'root'
 })
 export class MapInteractionService {
-  /** Subject para elemento seleccionado */
-  private selectedElement$ = new BehaviorSubject<NetworkElement | null>(null);
+  // Dependencias
+  private logger = inject(LoggerService);
+  private mapService = inject(MapService);
+  private mapStateService = inject(MapStateService);
   
-  /** Subject para conexión seleccionada */
-  private selectedConnection$ = new BehaviorSubject<NetworkConnection | null>(null);
+  // Estado interno
+  private isInteractionEnabledSubject = new BehaviorSubject<boolean>(true);
   
-  /** Subject para elementos seleccionados múltiples */
-  private selectedElements$ = new BehaviorSubject<NetworkElement[]>([]);
+  // Observables públicos
+  readonly isInteractionEnabled$ = this.isInteractionEnabledSubject.asObservable();
   
-  /** Subject para resultados de medición */
-  private measurement$ = new Subject<MeasurementResult>();
+  constructor() {
+    this.logger.debug('MapInteractionService inicializado');
+  }
   
-  /** Subject para solicitudes de creación de conexiones */
-  private connectionRequest$ = new Subject<ConnectionRequest>();
+  /**
+   * Deshabilita todas las interacciones con el mapa
+   */
+  disableInteraction(): void {
+    this.isInteractionEnabledSubject.next(false);
+    this.logger.debug('Interacciones del mapa deshabilitadas');
+    
+    // Desactivar interacciones específicas en el MapService
+    const map = this.mapService.getMap();
+    if (map) {
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+    }
+  }
   
-  /** Elemento origen para conexión */
-  private connectionSource: NetworkElement | null = null;
+  /**
+   * Habilita todas las interacciones con el mapa
+   */
+  enableInteraction(): void {
+    this.isInteractionEnabledSubject.next(true);
+    this.logger.debug('Interacciones del mapa habilitadas');
+    
+    // Activar interacciones específicas en el MapService
+    const map = this.mapService.getMap();
+    if (map) {
+      map.dragging.enable();
+      map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+    }
+  }
   
-  /** Cuenta de elementos seleccionados */
-  private selectedCount = 0;
+  /**
+   * Habilita el modo de navegación (pan) del mapa
+   */
+  enablePanning(): void {
+    this.enableInteraction();
+    this.mapStateService.setActiveTool('pan');
+    this.logger.debug('Modo de navegación habilitado');
+    
+    // Configuración específica para panning
+    const map = this.mapService.getMap();
+    if (map) {
+      map.dragging.enable();
+    }
+  }
   
-  constructor(
-    private networkStateService: NetworkStateService,
-    private logger: LoggerService
-  ) {}
+  /**
+   * Habilita el modo de selección de elementos
+   */
+  enableSelection(): void {
+    // Mantener ciertas interacciones pero entrar en modo selección
+    this.enableInteraction();
+    this.mapStateService.setActiveTool('select');
+    this.logger.debug('Modo de selección habilitado');
+    
+    // Configuración específica para modo selección
+    this.mapService.setTool('select');
+  }
+  
+  /**
+   * Habilita el modo de medición de distancias
+   */
+  enableMeasurement(): void {
+    this.disableInteraction();
+    this.mapStateService.setActiveTool('measure');
+    this.logger.debug('Modo de medición habilitado');
+    
+    // Activar modo específico para medición
+    this.mapService.setTool('measure');
+  }
+  
+  /**
+   * Habilita el modo de creación de conexiones
+   */
+  enableConnectionCreation(): void {
+    this.disableInteraction();
+    this.mapStateService.setActiveTool('connect');
+    this.logger.debug('Modo de creación de conexiones habilitado');
+    
+    // Activar modo específico para conexiones
+    this.mapService.setTool('connect');
+  }
+  
+  /**
+   * Habilita el modo de selección por área
+   */
+  enableAreaSelection(): void {
+    this.disableInteraction();
+    this.mapStateService.setActiveTool('area');
+    this.logger.debug('Modo de selección por área habilitado');
+    
+    // Activar modo específico para selección por área
+    this.mapService.setTool('area');
+  }
+  
+  /**
+   * Habilita el modo de edición de elementos
+   */
+  enableElementEditing(): void {
+    this.disableInteraction();
+    this.mapStateService.setActiveTool('edit');
+    this.logger.debug('Modo de edición de elementos habilitado');
+    
+    // Activar modo específico para edición
+    this.mapService.setTool('edit');
+  }
+  
+  /**
+   * Verifica si una herramienta específica está activa
+   * @param tool Tipo de herramienta a verificar
+   */
+  isToolActive(tool: MapToolType): boolean {
+    // Obtener el valor directamente del observable
+    let activeTool: MapToolType = 'pan';
+    this.mapStateService.activeTool$.subscribe(
+      tool => activeTool = tool
+    ).unsubscribe();
+    
+    return activeTool === tool;
+  }
+  
+  /**
+   * Obtiene la herramienta activa actualmente
+   */
+  getActiveTool(): Observable<MapToolType> {
+    return this.mapStateService.activeTool$;
+  }
   
   /**
    * Selecciona un elemento
-   * @param element Elemento a seleccionar o null para deseleccionar
-   * @param multiSelect Si es true, añade a la selección actual en lugar de reemplazarla
    */
-  selectElement(element: NetworkElement | null, multiSelect = false): void {
-    if (!multiSelect) {
-      // Modo selección única
-      this.selectedElement$.next(element);
-      
-      // Actualizar estado global
-      this.networkStateService.updateSelectedElement(element);
-      
-      // Limpiar selección múltiple
-      this.selectedElements$.next(element ? [element] : []);
-      this.selectedCount = element ? 1 : 0;
-    } else {
-      // Modo selección múltiple
-      const currentElements = this.selectedElements$.value;
-      
-      if (!element) {
-        // Deseleccionar todo
-        this.selectedElements$.next([]);
-        this.selectedElement$.next(null);
-        this.selectedCount = 0;
-        return;
-      }
-      
-      // Verificar si ya está seleccionado
-      const isSelected = currentElements.some(e => e.id === element.id);
-      
-      if (isSelected) {
-        // Quitar de la selección
-        const newElements = currentElements.filter(e => e.id !== element.id);
-        this.selectedElements$.next(newElements);
-        this.selectedCount = newElements.length;
-        
-        // Actualizar elemento seleccionado principal
-        this.selectedElement$.next(newElements.length > 0 ? newElements[0] : null);
+  selectElement(element: NetworkElement | null): void {
+    if (element) {
+      if (element.id) {
+        this.mapStateService.selectElements([element.id], true);
+        this.logger.debug(`Elemento seleccionado: ${element.id}`);
       } else {
-        // Añadir a la selección
-        const newElements = [...currentElements, element];
-        this.selectedElements$.next(newElements);
-        this.selectedCount = newElements.length;
-        
-        // Actualizar elemento seleccionado principal
-        this.selectedElement$.next(element);
+        this.logger.warn('Intento de seleccionar un elemento sin ID', element);
       }
-      
-      // Actualizar estado global
-      this.networkStateService.updateSelectedElement(this.selectedElement$.value);
+    } else {
+      this.mapStateService.setState({ selectedElementIds: [] });
+      this.logger.debug('Elemento deseleccionado');
     }
-    
-    this.logger.debug(`Elemento seleccionado: ${element?.id || 'ninguno'}. Total seleccionados: ${this.selectedCount}`);
   }
   
   /**
    * Selecciona una conexión
-   * @param connection Conexión a seleccionar o null para deseleccionar
    */
   selectConnection(connection: NetworkConnection | null): void {
-    this.selectedConnection$.next(connection);
-    
-    // Actualizar estado global
-    try {
-      // Verificar si existe el método en el servicio
-      if (typeof this.networkStateService['setSelectedConnection'] === 'function') {
-        (this.networkStateService['setSelectedConnection'] as Function)(connection);
-      } else {
-        // Fallback para compatibilidad
-        this.logger.debug('Método setSelectedConnection no disponible en NetworkStateService');
-      }
-    } catch (error) {
-      this.logger.warn('Error al actualizar conexión seleccionada en el estado global', error);
+    if (connection) {
+      this.logger.debug(`Conexión seleccionada: ${connection.id || 'sin ID'}`);
+      // Implementar la selección de conexión según la estructura del proyecto
+    } else {
+      this.logger.debug('Conexión deseleccionada');
     }
-    
-    this.logger.debug(`Conexión seleccionada: ${connection?.id || 'ninguna'}`);
-  }
-  
-  /**
-   * Inicia el proceso de creación de conexión
-   * @param source Elemento origen de la conexión
-   */
-  startConnection(source: NetworkElement): void {
-    this.connectionSource = source;
-    this.logger.debug(`Iniciando conexión desde: ${source.id}`);
-  }
-  
-  /**
-   * Completa la creación de conexión
-   * @param target Elemento destino de la conexión
-   * @param properties Propiedades adicionales para la conexión
-   * @returns true si la conexión se creó correctamente
-   */
-  completeConnection(target: NetworkElement, properties?: Record<string, any>): boolean {
-    if (!this.connectionSource) {
-      this.logger.warn('No hay elemento origen para la conexión');
-      return false;
-    }
-    
-    // Validar que los elementos son diferentes
-    if (this.connectionSource.id === target.id) {
-      this.logger.warn('No se puede conectar un elemento consigo mismo');
-      return false;
-    }
-    
-    // Crear solicitud de conexión
-    const request: ConnectionRequest = {
-      sourceElement: this.connectionSource,
-      targetElement: target,
-      properties
-    };
-    
-    // Notificar solicitud
-    this.connectionRequest$.next(request);
-    
-    // Limpiar estado
-    this.connectionSource = null;
-    
-    return true;
-  }
-  
-  /**
-   * Cancela la creación de conexión en curso
-   */
-  cancelConnection(): void {
-    this.connectionSource = null;
-    this.logger.debug('Creación de conexión cancelada');
-  }
-  
-  /**
-   * Registra una medición entre elementos
-   * @param source Elemento origen
-   * @param target Elemento destino
-   * @param distance Distancia calculada
-   * @param unit Unidad de medida (por defecto metros)
-   */
-  registerMeasurement(source: NetworkElement, target: NetworkElement, distance: number, unit = 'm'): void {
-    const measurement: MeasurementResult = {
-      sourceElement: source,
-      targetElement: target,
-      distance,
-      unit,
-      timestamp: Date.now()
-    };
-    
-    this.measurement$.next(measurement);
-    this.logger.debug(`Medición registrada: ${distance} ${unit} entre ${source.id} y ${target.id}`);
-  }
-  
-  /**
-   * Verifica si hay elementos seleccionados
-   * @returns true si hay al menos un elemento seleccionado
-   */
-  hasSelection(): boolean {
-    return this.selectedCount > 0;
-  }
-  
-  /**
-   * Verifica si se puede crear una conexión
-   * @returns true si hay un elemento origen seleccionado
-   */
-  canCreateConnection(): boolean {
-    return this.connectionSource !== null;
-  }
-  
-  /**
-   * Obtiene el número de elementos seleccionados
-   * @returns Número de elementos seleccionados
-   */
-  getSelectionCount(): number {
-    return this.selectedCount;
-  }
-  
-  /**
-   * Observable para el elemento seleccionado
-   */
-  get selectedElement(): Observable<NetworkElement | null> {
-    return this.selectedElement$.asObservable();
-  }
-  
-  /**
-   * Observable para la conexión seleccionada
-   */
-  get selectedConnection(): Observable<NetworkConnection | null> {
-    return this.selectedConnection$.asObservable();
-  }
-  
-  /**
-   * Observable para elementos seleccionados múltiples
-   */
-  get selectedElements(): Observable<NetworkElement[]> {
-    return this.selectedElements$.asObservable();
-  }
-  
-  /**
-   * Observable para mediciones
-   */
-  get measurements(): Observable<MeasurementResult> {
-    return this.measurement$.asObservable();
-  }
-  
-  /**
-   * Observable para solicitudes de conexión
-   */
-  get connectionRequests(): Observable<ConnectionRequest> {
-    return this.connectionRequest$.asObservable();
   }
 } 

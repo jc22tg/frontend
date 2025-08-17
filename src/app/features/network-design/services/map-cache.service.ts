@@ -40,7 +40,9 @@ export class MapCacheService {
    * Store element in cache
    */
   setElement(element: NetworkElement): void {
-    this.elementsCache.set(element.id, element);
+    if (element.id) {
+      this.elementsCache.set(element.id, element);
+    }
   }
   
   /**

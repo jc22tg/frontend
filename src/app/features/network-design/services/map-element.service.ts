@@ -1,15 +1,9 @@
 import { Injectable, Inject, Optional, inject } from '@angular/core';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
-import { take, map, catchError } from 'rxjs/operators';
-import { NetworkElement, ElementType, ElementStatus, GeographicPosition, createPosition } from '../../../shared/types/network.types';
-import { 
-  NetworkEventBusService, 
-  NetworkEventType,
-  ElementSelectedEvent,
-  ElementCreatedEvent,
-  ElementUpdatedEvent,
-  ElementDeletedEvent
-} from './network-event-bus.service';
+import { take, map, catchError, filter } from 'rxjs/operators';
+import { NetworkElement, ElementType, ElementStatus } from '../../../shared/types/network.types';
+import { GeographicPosition, createPosition } from '../../../shared/types/geo-position';
+import { NetworkEventBusService, NetworkEventType, NetworkEvent } from './network-event-bus.service';
 import { LoggerService } from '../../../core/services/logger.service';
 import { MAP_SERVICE_TOKEN, NETWORK_STATE_SERVICE_TOKEN, NETWORK_DESIGN_SERVICE_TOKEN, IMapService, INetworkStateService, INetworkDesignService, IMapElementService } from './event-tokens';
 
@@ -41,28 +35,36 @@ export class MapElementService implements IMapElementService {
    */
   private subscribeToEvents(): void {
     // Escuchar eventos de selección de elementos
-    this.eventBus.ofType<ElementSelectedEvent>(NetworkEventType.ELEMENT_SELECTED).subscribe((event: ElementSelectedEvent) => {
+    this.eventBus.on(NetworkEventType.ELEMENT_SELECTED).pipe(
+      filter(event => !!event.payload?.element)
+    ).subscribe((event: NetworkEvent) => {
       if (event.payload?.element) {
         this.updateSelectedElement(event.payload.element);
       }
     });
 
     // Escuchar eventos de creación de elementos
-    this.eventBus.ofType<ElementCreatedEvent>(NetworkEventType.ELEMENT_CREATED).subscribe((event: ElementCreatedEvent) => {
+    this.eventBus.on(NetworkEventType.ELEMENT_CREATED).pipe(
+      filter(event => !!event.payload?.element)
+    ).subscribe((event: NetworkEvent) => {
       if (event.payload?.element) {
         this.addElementToCollection(event.payload.element);
       }
     });
 
     // Escuchar eventos de actualización de elementos
-    this.eventBus.ofType<ElementUpdatedEvent>(NetworkEventType.ELEMENT_UPDATED).subscribe((event: ElementUpdatedEvent) => {
+    this.eventBus.on(NetworkEventType.ELEMENT_UPDATED).pipe(
+      filter(event => !!event.payload?.element && !!event.payload.element.id)
+    ).subscribe((event: NetworkEvent) => {
       if (event.payload?.element && event.payload.element.id) {
         this.updateElementInCollection(event.payload.element);
       }
     });
 
     // Escuchar eventos de eliminación de elementos
-    this.eventBus.ofType<ElementDeletedEvent>(NetworkEventType.ELEMENT_DELETED).subscribe((event: ElementDeletedEvent) => {
+    this.eventBus.on(NetworkEventType.ELEMENT_DELETED).pipe(
+      filter(event => !!event.payload?.element?.id)
+    ).subscribe((event: NetworkEvent) => {
       if (event.payload?.element?.id) {
         this.removeElementFromCollection(event.payload.element.id);
       }
@@ -129,8 +131,7 @@ export class MapElementService implements IMapElementService {
           coordinates: [-70.6845, 19.4546],
           type: 'Point'
         },
-        description: 'OLT principal del sistema',
-        selected: false
+        description: 'OLT principal del sistema'
       },
       {
         id: 'fdp-001',
@@ -144,8 +145,7 @@ export class MapElementService implements IMapElementService {
           coordinates: [-70.6740, 19.4650],
           type: 'Point'
         },
-        description: 'FDP de distribución zona norte',
-        selected: false
+        description: 'FDP de distribución zona norte'
       },
       {
         id: 'splitter-001',
@@ -159,8 +159,7 @@ export class MapElementService implements IMapElementService {
           coordinates: [-70.6640, 19.4600],
           type: 'Point'
         },
-        description: 'Splitter principal 1:8',
-        selected: false
+        description: 'Splitter principal 1:8'
       },
       {
         id: 'ont-001',
@@ -174,8 +173,7 @@ export class MapElementService implements IMapElementService {
           coordinates: [-70.6660, 19.4700],
           type: 'Point'
         },
-        description: 'ONT del cliente residencial 1',
-        selected: false
+        description: 'ONT del cliente residencial 1'
       },
       {
         id: 'edfa-001',
@@ -189,8 +187,7 @@ export class MapElementService implements IMapElementService {
           coordinates: [-70.6940, 19.4500],
           type: 'Point'
         },
-        description: 'Amplificador EDFA para zona extendida',
-        selected: false
+        description: 'Amplificador EDFA para zona extendida'
       }
     ];
     
@@ -230,7 +227,13 @@ export class MapElementService implements IMapElementService {
     this.selectedElementSubject.next(null);
     
     // Notificar a través del bus de eventos
-    this.eventBus.emitElementSelected(null);
+    if (this.eventBus) {
+      this.eventBus.emit({
+        type: NetworkEventType.ELEMENT_SELECTED,
+        timestamp: new Date(),
+        payload: { element: null }
+      });
+    }
     
     // Si existe el servicio de estado, actualizar también allí
     if (this.stateService) {
@@ -256,7 +259,14 @@ export class MapElementService implements IMapElementService {
     const elementToDelete: NetworkElement = { id: elementId } as NetworkElement;
     
     // Notificar a través del bus de eventos
-    this.eventBus.emitElementDeleted(elementToDelete);
+    if (this.eventBus) {
+      this.eventBus.emit({
+        type: NetworkEventType.ELEMENT_DELETED,
+        timestamp: new Date(),
+        payload: { element: elementToDelete },
+        source: elementId
+      });
+    }
     
     // Implementación simulada
     return of(true);
@@ -285,7 +295,7 @@ export class MapElementService implements IMapElementService {
     this.logger.debug(`Estableciendo visibilidad de ${layerType} a ${isVisible}`);
     
     // Notificar a través del bus de eventos
-    this.eventBus.emitLayerToggled(layerType, isVisible);
+    this.eventBus.emitLayerToggled(layerType.toString(), isVisible);
     
     // Si existe el servicio de estado, actualizar también allí
     if (this.stateService) {
@@ -394,7 +404,14 @@ export class MapElementService implements IMapElementService {
         this.refreshElementOnMap(updatedElement);
         
         // Notificar la actualización a través del bus de eventos
-        this.eventBus.emitElementUpdated(updatedElement);
+        if (this.eventBus) {
+          this.eventBus.emit({
+            type: NetworkEventType.ELEMENT_UPDATED,
+            timestamp: new Date(),
+            payload: { element: updatedElement },
+            source: updatedElement.id
+          });
+        }
       });
   }
   
@@ -521,7 +538,14 @@ export class MapElementService implements IMapElementService {
         this.addElementToCollection(createdElement);
         
         // Notificar a través del bus de eventos
-        this.eventBus.emitElementCreated(createdElement);
+        if (this.eventBus) {
+          this.eventBus.emit({
+            type: NetworkEventType.ELEMENT_CREATED,
+            timestamp: new Date(),
+            payload: { element: createdElement },
+            source: createdElement.id
+          });
+        }
         
         return createdElement;
       }),
@@ -582,7 +606,14 @@ export class MapElementService implements IMapElementService {
       this.elementsSubject.next(newElements);
       
       // Notificar la actualización a través del bus de eventos
-      this.eventBus.emitElementUpdated(updatedElement);
+      if (this.eventBus) {
+        this.eventBus.emit({
+          type: NetworkEventType.ELEMENT_UPDATED,
+          timestamp: new Date(),
+          payload: { element: updatedElement },
+          source: updatedElement.id
+        });
+      }
       
       return of(updatedElement);
     }
@@ -610,7 +641,14 @@ export class MapElementService implements IMapElementService {
         }
 
         // Notificar la actualización a través del bus de eventos
-        this.eventBus.emitElementUpdated(response);
+        if (this.eventBus) {
+          this.eventBus.emit({
+            type: NetworkEventType.ELEMENT_UPDATED,
+            timestamp: new Date(),
+            payload: { element: response },
+            source: response.id
+          });
+        }
 
         return response;
       }),

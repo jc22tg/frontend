@@ -289,4 +289,18 @@ export class MonitoringDashboardComponent implements OnInit, OnDestroy {
     // Limpiar recursos a través de la fachada
     this.dashboardFacade.destroy();
   }
+
+  // Métodos para eventos del mini-mapa widget
+  onFullMapRequested(event: {center?: any, zoom?: number} | null) {
+    // Navegar o mostrar el mapa principal, usando el estado recibido si es necesario
+    console.log('[MiniMapWidget] Solicitud de mapa completo:', event);
+  }
+  onMiniMapClicked(event: {lat: number, lng: number}) {
+    // Mostrar información, centrar el mapa principal, etc.
+    console.log('[MiniMapWidget] Clic en mini-mapa:', event);
+  }
+  onMiniMapError(error: any) {
+    // Mostrar notificación o loggear el error
+    console.error('[MiniMapWidget] Error:', error);
+  }
 } 

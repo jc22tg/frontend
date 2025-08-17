@@ -4,10 +4,10 @@ import { catchError, map, switchMap, tap, shareReplay } from 'rxjs/operators';
 
 import { ElementService } from '../services/element.service';
 import { ConnectionService } from '../services/connection.service';
-import { MonitoringService } from '@core/services/monitoring.service';
+import { MonitoringService } from '../services/monitoring.service';
 import { WidgetStateService } from '../services/widget-state.service';
 import { WidgetDataService } from '../services/widget-data.service';
-import { LoggerService } from '@core/services/logger.service';
+import { LoggerService } from '../../../core/services/logger.service';
 import { NetworkStateService } from '../services/network-state.service';
 import { MapEventsService } from '../services/map-events.service';
 import { NetworkElement, NetworkConnection, ElementStatus } from '../../../shared/types/network.types';
@@ -227,10 +227,10 @@ export class MonitoringDashboardFacade implements OnDestroy {
         case ElementStatus.ACTIVE:
           stats.active++;
           break;
-        case ElementStatus.WARNING:
+        case ElementStatus.MAINTENANCE:
           stats.warning++;
           break;
-        case ElementStatus.FAULT:
+        case ElementStatus.ERROR:
           stats.error++;
           break;
         case ElementStatus.INACTIVE:

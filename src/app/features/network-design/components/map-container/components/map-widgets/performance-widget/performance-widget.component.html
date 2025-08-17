@@ -1,0 +1,107 @@
+<div class="performance-widget" [ngClass]="position">
+  <div class="panel-header">
+    <h2 class="panel-title">
+      <i class="fa fa-tachometer-alt"></i>
+      <span *ngIf="isExpanded">Rendimiento</span>
+      <div class="performance-indicator" [ngClass]="getPerformanceClass()"></div>
+    </h2>
+    <div class="panel-actions">
+      <button mat-icon-button (click)="toggleExpand()">
+        <mat-icon>{{ isExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <div class="panel-content" *ngIf="isExpanded">
+    <div class="tabs">
+      <button class="tab-button" 
+              [ngClass]="{'active': activeTab === 'performance'}"
+              (click)="setActiveTab('performance')">
+        Métricas
+      </button>
+      <button class="tab-button" 
+              [ngClass]="{'active': activeTab === 'optimization'}"
+              (click)="setActiveTab('optimization')">
+        Optimización
+      </button>
+    </div>
+
+    <!-- Pestaña de métricas de rendimiento -->
+    <div class="tab-content" *ngIf="activeTab === 'performance' && metrics">
+      <div class="performance-score">
+        <div class="score-gauge" [ngClass]="getPerformanceClass()">
+          <span class="score-value">{{performanceScore}}</span>
+        </div>
+        <div class="score-label">Puntuación de rendimiento</div>
+      </div>
+      
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <div class="metric-value">{{formatFps(metrics.fps)}}</div>
+          <div class="metric-label">FPS</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-value">{{metrics.renderTime.toFixed(1)}}</div>
+          <div class="metric-label">ms</div>
+        </div>
+      </div>
+      
+      <div class="metrics-list" *ngIf="statistics">
+        <div class="metric-row">
+          <span class="metric-name">Elementos:</span>
+          <span class="metric-value">{{statistics.totalElements}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">Conexiones:</span>
+          <span class="metric-value">{{statistics.totalConnections}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">Conexiones visibles:</span>
+          <span class="metric-value">{{statistics.visibleConnections}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">Memoria:</span>
+          <span class="metric-value">{{statistics.memoryUsageFormatted}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-name">Nivel:</span>
+          <span class="metric-value">{{statistics.performanceLevel}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestaña de optimización -->
+    <div class="tab-content" *ngIf="activeTab === 'optimization'">
+      <div class="optimization-controls">
+        <div class="control-group">
+          <label>Optimización automática</label>
+          <div class="toggle-switch">
+            <input type="checkbox" [checked]="autoOptimizationEnabled" (change)="toggleAutoOptimization()">
+            <span class="slider"></span>
+          </div>
+        </div>
+        
+        <div class="control-group" *ngIf="!autoOptimizationEnabled">
+          <label>Nivel de optimización</label>
+          <div class="optimization-levels">
+            <button *ngFor="let level of [optLevels.LOW, optLevels.MEDIUM, optLevels.HIGH, optLevels.ULTRA]"
+                    class="level-button"
+                    [ngClass]="{'active': currentOptimizationLevel === level}"
+                    (click)="setOptimizationLevel(level)">
+              {{level}}
+            </button>
+          </div>
+        </div>
+
+        <div class="optimization-info">
+          <p *ngIf="autoOptimizationEnabled">
+            La optimización automática ajusta el rendimiento según las condiciones actuales.
+          </p>
+          <p *ngIf="!autoOptimizationEnabled">
+            Has seleccionado optimización manual. Selecciona el nivel adecuado para tu hardware.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

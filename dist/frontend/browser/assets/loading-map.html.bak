@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargando Mapa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .preloader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #3f51b5;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 16px;
+            color: #666;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="preloader">
+        <div class="spinner"></div>
+        <h1>Cargando Mapa de Red</h1>
+        <p>Preparando recursos para optimizar la experiencia de visualización...</p>
+    </div>
+    <script>
+        // Notificar a la ventana principal que los recursos se están cargando
+        window.onload = function() {
+            // Simular precarga de recursos
+            setTimeout(function() {
+                try {
+                    // Intentar cargar recursos JS básicos para network-design
+                    const script = document.createElement('script');
+                    script.src = '/network-design/main.js?preload=true';
+                    script.async = true;
+                    script.onerror = function() {
+                        // Incluso si falla, notificar que intentamos precarga
+                        notifyParent();
+                    };
+                    script.onload = function() {
+                        notifyParent();
+                    };
+                    document.body.appendChild(script);
+                    
+                    // Después de 2 segundos, notificar de todas formas
+                    setTimeout(function() {
+                        notifyParent();
+                    }, 2000);
+                } catch (e) {
+                    console.error('Error en precarga:', e);
+                    notifyParent();
+                }
+            }, 500);
+        };
+        
+        // Función para notificar a la ventana principal
+        function notifyParent() {
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage('map-assets-loaded', '*');
+                }
+            } catch (e) {
+                console.error('Error al notificar a ventana principal:', e);
+            }
+        }
+    </script>
+</body>
+</html> 

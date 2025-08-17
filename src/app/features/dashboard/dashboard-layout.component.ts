@@ -24,6 +24,10 @@ import {
 } from '../../shared/components/widgets';
 import { DashboardFacade } from './facades/dashboard.facade';
 import { NetworkWidgetComponent } from '../../features/network-design/network-widget/network-widget.component';
+import { QuickNavMenuComponent } from './components/quick-nav-menu/quick-nav-menu.component';
+import { StatCardsComponent } from './components/stat-cards/stat-cards.component';
+import { RecentActivitiesComponent } from './components/recent-activities/recent-activities.component';
+import { PerformanceMetricsComponent } from './components/performance-metrics/performance-metrics.component';
 
 @Component({
   selector: 'app-dashboard-layout',
@@ -46,7 +50,12 @@ import { NetworkWidgetComponent } from '../../features/network-design/network-wi
     MetricsWidgetComponent,
     SystemAlertsWidgetComponent,
     MiniMapWidgetComponent,
-    NetworkWidgetComponent
+    NetworkWidgetComponent,
+    QuickNavMenuComponent,
+    // Componentes específicos del dashboard
+    StatCardsComponent,
+    RecentActivitiesComponent,
+    PerformanceMetricsComponent
   ],
   templateUrl: './dashboard-layout.component.html',
   styleUrls: ['./dashboard-layout.component.scss']
@@ -91,26 +100,32 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
   private preconfigureNetworkDesignRoute(): void {
     let networkDesignRoute: Route | undefined;
     
-    // Buscar la ruta de network-design
+    // Buscar la ruta de network-design - búsqueda directa en el nivel correcto
     this.router.config.forEach(route => {
-      if (route.path === '' && route.children) {
-        networkDesignRoute = route.children.find(r => r.path === 'network-design');
-        if (networkDesignRoute) {
-          console.log('Encontrada ruta network-design para precarga');
-          
-          // Asegurar que tiene datos y preload=true
-          if (!networkDesignRoute.data) {
-            networkDesignRoute.data = {};
-          }
-          networkDesignRoute.data = { 
-            ...networkDesignRoute.data, 
-            preload: true,
-            priority: 'high'
-          };
-          
-          // Verificar que la ruta tenga loadChildren y no component para precargar correctamente
-          if (!networkDesignRoute.loadChildren && !networkDesignRoute.component) {
-            console.warn('La ruta network-design no tiene loadChildren o component configurado correctamente');
+      // La ruta principal tiene path '' y contiene AppInitializerComponent
+      if (route.path === '' && route.component && route.children) {
+        // Buscamos dentro de los hijos del AppInitializerComponent
+        const mainLayoutRoute = route.children.find(r => r.path === '' && r.component);
+        if (mainLayoutRoute && mainLayoutRoute.children) {
+          // Finalmente buscamos network-design que está en este nivel
+          networkDesignRoute = mainLayoutRoute.children.find(r => r.path === 'network-design');
+          if (networkDesignRoute) {
+            console.log('Encontrada ruta network-design para precarga');
+            
+            // Asegurar que tiene datos y preload=true
+            if (!networkDesignRoute.data) {
+              networkDesignRoute.data = {};
+            }
+            networkDesignRoute.data = { 
+              ...networkDesignRoute.data, 
+              preload: true,
+              priority: 'high'
+            };
+            
+            // Verificar que la ruta tenga configuración adecuada
+            if (!networkDesignRoute.component && !networkDesignRoute.loadChildren) {
+              console.warn('La ruta network-design no tiene loadChildren o component configurado correctamente');
+            }
           }
         }
       }
@@ -155,7 +170,7 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
     this.dashboardFacade.exportDashboard(format);
   }
   
-  navegarAMapaCompleto(): void {
+  navegarAMapaCompleto(mapState?: {center?: L.LatLng, zoom?: number} | null): void {
     if (this.isNavigating) {
       return; // Evitar múltiples navegaciones
     }
@@ -189,7 +204,20 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
       try { document.body.removeChild(iframe); } catch (e) {}
       
       // Navegación directa como fallback
-      this.router.navigate(['/network-design/map']).then(
+      const queryParams: any = { };
+      
+      // Añadir información de estado del mapa si está disponible
+      if (mapState) {
+        if (mapState.center) {
+          queryParams.lat = mapState.center.lat.toFixed(6);
+          queryParams.lng = mapState.center.lng.toFixed(6);
+        }
+        if (mapState.zoom) {
+          queryParams.zoom = mapState.zoom;
+        }
+      }
+      
+      this.router.navigate(['/network-design/map'], { queryParams }).then(
         () => this.completarNavegacion(navegacionSnack),
         () => {
           navegacionSnack.dismiss();
@@ -212,7 +240,7 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
         clearTimeout(seguridadTimer);
         window.removeEventListener('message', messageHandler);
         // Continuar con la navegación real
-        this.procederAMapaReal(iframe, navegacionSnack);
+        this.procederAMapaReal(iframe, navegacionSnack, mapState);
       }
     };
     window.addEventListener('message', messageHandler);
@@ -239,7 +267,7 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
           // Después de un breve retraso, procedemos con la navegación real
           // independientemente de si el iframe tuvo éxito o no
           setTimeout(() => {
-            this.procederAMapaReal(iframe, navegacionSnack);
+            this.procederAMapaReal(iframe, navegacionSnack, mapState);
           }, 1500);
         }, 1000);
       }
@@ -249,14 +277,23 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
       // Si falla el enfoque del iframe, usar navegación directa
       clearTimeout(seguridadTimer);
       document.body.removeChild(iframe);
-      this.router.navigate(['/network-design/map']).catch(() => this.isNavigating = false);
+      
+      const queryParams: any = {};
+      if (mapState && mapState.center) {
+        queryParams.lat = mapState.center.lat.toFixed(6);
+        queryParams.lng = mapState.center.lng.toFixed(6);
+        if (mapState.zoom) queryParams.zoom = mapState.zoom;
+      }
+      
+      this.router.navigate(['/network-design/map'], { queryParams })
+        .catch(() => this.isNavigating = false);
     }
   }
   
   /**
    * Procede a la navegación real después de la precarga
    */
-  private procederAMapaReal(iframe: HTMLIFrameElement, snackBar: any): void {
+  private procederAMapaReal(iframe: HTMLIFrameElement, snackBar: any, mapState?: {center?: L.LatLng, zoom?: number} | null): void {
     // Mostrar mensaje de progreso
     snackBar.dismiss();
     const loadingSnack = this.snackBar.open('Cargando mapa...', '', {
@@ -267,10 +304,24 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
     // Eliminar el iframe de precarga
     try { document.body.removeChild(iframe); } catch (e) {}
     
+    // Preparar parámetros de navegación
+    const queryParams: any = { preloaded: 'true' };
+    
+    // Añadir información de estado del mapa si está disponible
+    if (mapState) {
+      if (mapState.center) {
+        queryParams.lat = mapState.center.lat.toFixed(6);
+        queryParams.lng = mapState.center.lng.toFixed(6);
+      }
+      if (mapState.zoom) {
+        queryParams.zoom = mapState.zoom;
+      }
+    }
+    
     // Usar navigationExtras para indicar que venimos de una precarga
     // Esto podría ser detectado en el componente de destino para optimizar la carga
     this.router.navigate(['/network-design/map'], {
-      queryParams: { preloaded: 'true' }
+      queryParams
     }).then(
       () => {
         loadingSnack.dismiss();
@@ -316,5 +367,19 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.isNavigating = false;
     }, 1000); // Evitar múltiples navegaciones en 1 segundo
+  }
+
+  // Métodos para eventos del mini-mapa widget
+  onFullMapRequested(event: {center?: any, zoom?: number} | null) {
+    // Navegar o mostrar el mapa principal, usando el estado recibido si es necesario
+    console.log('[MiniMapWidget] Solicitud de mapa completo:', event);
+  }
+  onMiniMapClicked(event: {lat: number, lng: number}) {
+    // Mostrar información, centrar el mapa principal, etc.
+    console.log('[MiniMapWidget] Clic en mini-mapa:', event);
+  }
+  onMiniMapError(error: any) {
+    // Mostrar notificación o loggear el error
+    console.error('[MiniMapWidget] Error:', error);
   }
 } 

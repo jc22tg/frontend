@@ -1,0 +1,390 @@
+// Variables principales convertidas a CSS o eliminadas si son cubiertas por globales
+// $panel-width: 320px; // usar var(--elements-panel-width, 320px)
+// $panel-width-mobile: 100vw; // usar var(--elements-panel-width-mobile, 100vw)
+// $header-height: 44px; // usar var(--elements-panel-header-height, 44px)
+// $border-radius: 4px; // usar var(--border-radius-sm, 4px) o similar
+// $box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); // usar var(--shadow-sm, 0 2px 10px rgba(0,0,0,0.08))
+// $selection-color: rgba(25, 118, 210, 0.08); // usar var(--selection-bg-color, rgba(25, 118, 210, 0.08))
+// $border-color: #e0e0e0; // usar var(--border-color, #e0e0e0)
+// $hover-color: #f9f9f9; // usar var(--surface-hover, #f9f9f9)
+
+// Color principal de Material Design (usar variables CSS globales como --primary-color)
+// $primary: #1976d2;
+// $primary-light: #e3f2fd;
+// $accent: #ff4081;
+
+// Importar estilos compartidos y variables
+@use '../../../../network-design.styles.scss' as global-styles;
+@use 'src/app/features/network-design/components/elements/shared/styles/_floating-panel.scss' as panel-styles;
+
+// Estilos generales del panel
+.elements-panel-container {
+  @include panel-styles.floating-panel('default', 'default');
+  
+  // Aplicamos la estructura estandarizada
+  @include panel-styles.floating-panel-structure;
+  
+  // Tamaño y ubicación específicos para este panel
+  --floating-panel-width: var(--elements-panel-width, 320px);
+  height: auto;
+  max-height: calc(100vh - 80px);
+  
+  position: absolute;
+  top: var(--spacing-lg, 60px);
+  left: var(--spacing-md, 16px);
+  bottom: auto;
+  right: auto;
+  z-index: 1001;
+  transform: translateX(0);
+  overflow: hidden;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  
+  // Estilos específicos para el panel cuando es arrastrable
+  &.cdk-drag-disabled {
+    cursor: default;
+  }
+  
+  &:not(.cdk-drag-disabled) {
+    --floating-panel-shadow: 0 10px 30px rgba(0,0,0,0.25), 0 3px 10px rgba(0,0,0,0.22);
+    transition: box-shadow 0.3s ease;
+    
+    &:hover {
+      --floating-panel-shadow: 0 14px 35px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.24);
+    }
+  }
+  
+  // Cuando se está arrastrando
+  &.cdk-drag-dragging {
+    --floating-panel-shadow: 0 14px 35px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.24);
+    opacity: 0.9;
+  }
+  
+  // Ajustes para la estructura interna
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+    cursor: move;
+    flex-shrink: 0;
+    
+    .toggle-button {
+      position: absolute;
+      right: -16px;
+      top: 16px;
+      transform: none;
+      background-color: var(--surface-color);
+      box-shadow: var(--shadow-sm);
+      z-index: 2;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    
+    h3 {
+      margin: 0 0 0 var(--spacing-md, 16px);
+      font-weight: 500;
+      font-size: var(--font-size-md, 16px);
+    }
+
+    .panel-title {
+        margin: 0;
+        font-weight: var(--floating-panel-title-weight, 500);
+        font-size: var(--floating-panel-header-title-size, 16px);
+        color: var(--floating-panel-header-color, inherit);
+    }
+
+    .spacer {
+        flex-grow: 1;
+    }
+
+    button[mat-icon-button] {
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        color: var(--floating-panel-header-color, inherit);
+        mat-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+    }
+  }
+  
+  &.left {
+    --floating-panel-margin: var(--spacing-md, 16px);
+    right: auto;
+    left: 16px;
+    
+    .panel-header .toggle-button {
+      left: auto;
+      right: -16px;
+      transform: none;
+    }
+  }
+  
+  &.right {
+    --floating-panel-margin: var(--spacing-md, 16px);
+    left: auto;
+    right: 16px;
+    
+    .panel-header .toggle-button {
+      right: auto;
+      left: -16px;
+      transform: none;
+    }
+  }
+  
+  // Media query adaptativo para tablets
+  @media (max-width: global-styles.$breakpoint-tablet) {
+    --floating-panel-width: 280px;
+    max-height: calc(100vh - 100px);
+  }
+  
+  // Media query adaptativo para móviles
+  @media (max-width: global-styles.$breakpoint-mobile) {
+    --floating-panel-width: 100%;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 60vh;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    
+    .panel-header .toggle-button {
+      top: -16px;
+      right: 16px;
+      transform: rotate(180deg);
+    }
+    
+    &.left, &.right {
+      left: 0;
+      right: 0;
+    }
+  }
+  
+  // Contenido con scroll
+  .panel-content {
+    height: calc(100% - 44px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    flex-grow: 1;
+    min-height: 0;
+  }
+  
+  // Filtrado rápido
+  .quick-filter {
+    padding: var(--spacing-sm);
+    margin: 0;
+    
+    span {
+      font-weight: 500;
+      font-size: var(--font-size-xs);
+      margin-bottom: var(--spacing-xs);
+      color: var(--text-secondary-color);
+      display: block;
+    }
+  }
+
+  // Toggle group para filtrado por tipo
+  .type-toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  // Lista de elementos
+  .mat-list {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+
+  // Elementos de lista
+  .mat-list-item {
+    border-radius: 0;
+    min-height: 42px !important;
+    height: 42px !important; 
+    border-left: 3px solid transparent;
+    transition: background-color var(--transition-fast), border-left-color var(--transition-fast);
+    margin-bottom: 1px;
+    
+    &.selected {
+      background: var(--selection-bg-color);
+      border-left-color: var(--primary-color);
+    }
+    
+    &:hover {
+      background-color: var(--surface-hover);
+    }
+
+    // Líneas en elementos de lista
+    span[matLine] {
+      font-size: var(--font-size-sm);
+      
+      &:first-child {
+        font-weight: 500;
+        color: var(--text-color);
+      }
+      
+      &:nth-child(2) {
+        color: var(--text-secondary-color);
+        font-size: var(--font-size-xs);
+      }
+      
+      &:nth-child(3) {
+        color: var(--text-secondary-color);
+      }
+    }
+  }
+
+  // Mensajes de "no hay elementos"
+  .no-elements, .no-results, .search-hint {
+    text-align: center;
+    color: var(--text-hint-color);
+    padding: var(--spacing-lg) 0;
+    font-style: italic;
+    font-size: var(--font-size-sm);
+  }
+
+  // Acciones de filtro
+  .filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-sm) 0;
+    padding: 0 var(--spacing-sm);
+    
+    button {
+      flex: 0 0 auto;
+    }
+  }
+
+  // Filtros activos
+  .active-filters {
+    padding: 0 var(--spacing-sm);
+    margin-top: var(--spacing-xs);
+    .mat-chip {
+      margin-right: var(--spacing-xs);
+      opacity: 0.85;
+      
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+
+  // Formularios
+  .form-group, .date-range, .number-range {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+    width: 100%;
+  }
+
+  .date-range, .number-range {
+    .mat-form-field {
+      flex: 1;
+    }
+  }
+  
+  // Iconos más pequeños  
+  .mat-icon, mat-icon {
+    font-size: var(--icon-size-std) !important;
+    height: var(--icon-size-std) !important;
+    width: var(--icon-size-std) !important;
+    line-height: var(--icon-size-std) !important;
+  }
+
+  // Iconos en botones aún más pequeños
+  button[mat-icon-button] .mat-icon, 
+  button[mat-icon-button] mat-icon {
+    font-size: var(--icon-size-sm) !important;
+    height: var(--icon-size-sm) !important;
+    width: var(--icon-size-sm) !important;
+    line-height: var(--icon-size-sm) !important;
+  }
+
+  // Chips con iconos más pequeños
+  .mat-chip mat-icon {
+    font-size: var(--icon-size-sm) !important;
+    height: var(--icon-size-sm) !important;
+    width: var(--icon-size-sm) !important;
+    line-height: var(--icon-size-sm) !important;
+  }
+  
+  // Botón de chip remove
+  button[mat-icon-button][matChipRemove] {
+    padding: 0;
+    margin-left: 0;
+    opacity: 0.7;
+    
+    &:hover {
+      opacity: 1;
+    }
+  }
+  
+  // Animaciones suaves
+  .mat-button, .mat-stroked-button, .mat-raised-button, .mat-icon-button, .mat-list-item {
+    transition: var(--transition-button);
+  }
+  
+  .mat-checkbox-layout {
+    margin-bottom: 0;
+  }
+}
+
+// Integración con Material Design (::ng-deep ya acota al .elements-panel-container)
+::ng-deep .elements-panel-container {
+  .mat-tab-group {
+    width: 100%;
+  }
+  
+  .mat-tab-header {
+    border-bottom-color: var(--border-color);
+  }
+  
+  .mat-tab-label {
+    font-size: var(--font-size-xs) !important;
+    min-height: 36px !important;
+    padding: 0 var(--spacing-sm) !important;
+    opacity: 0.7;
+    
+    &.mat-tab-label-active {
+      opacity: 1;
+    }
+  }
+
+  .mat-paginator {
+    justify-content: center;
+    background: transparent;
+    padding: 0;
+  }
+  
+  .mat-form-field {
+    font-size: var(--font-size-sm);
+  }
+  
+  button.mat-stroked-button,
+  button.mat-raised-button,
+  button.mat-button {
+    min-height: var(--button-compact-height, 24px) !important;
+    height: var(--button-compact-height, 24px) !important;
+    font-size: var(--button-compact-font-size, 11px) !important;
+    padding: 0 var(--button-compact-padding-x, 8px) !important;
+    line-height: var(--button-compact-height, 24px) !important;
+    border-radius: var(--button-compact-border-radius, 4px) !important;
+    box-shadow: none !important;
+  }
+} 

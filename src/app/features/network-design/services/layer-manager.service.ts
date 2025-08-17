@@ -1,9 +1,8 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { map, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { map, distinctUntilChanged, takeUntil, filter, tap } from 'rxjs/operators';
 import { ElementType } from '../../../shared/types/network.types';
 import { LoggerService } from '../../../core/services/logger.service';
-import { NetworkEventBusService, NetworkEventType, LayerToggledEvent } from './network-event-bus.service';
 import { NetworkStateService } from './network-state.service';
 
 // Clave para almacenar configuración en localStorage
@@ -18,22 +17,16 @@ export interface LayerSettings {
 }
 
 /**
- * Servicio para gestionar las capas del mapa de forma centralizada
- * Proporciona métodos para activar/desactivar capas y consultar su estado
- * Modificado para usar el bus de eventos para reducir dependencias circulares
+ * Servicio para gestionar la persistencia y metadatos de las capas de ElementType.
+ * El estado de las capas activas es manejado por NetworkStateService.
  */
 @Injectable({
   providedIn: 'root'
 })
 export class LayerManagerService implements OnDestroy {
-  // Estado interno de las capas activas
-  private activeLayers$ = new BehaviorSubject<Set<ElementType>>(new Set());
-  
-  // Subject para controlar la finalización de suscripciones
   private destroy$ = new Subject<void>();
   
-  // Definiciones para los iconos de cada tipo de elemento
-  private readonly layerIcons: Record<ElementType, string> = {
+  private readonly layerIcons: Partial<Record<ElementType, string>> = {
     [ElementType.OLT]: 'router',
     [ElementType.ONT]: 'device_hub',
     [ElementType.FDP]: 'cable',
@@ -60,107 +53,73 @@ export class LayerManagerService implements OnDestroy {
     [ElementType.ROADM]: 'swap_calls',
     [ElementType.COHERENT_TRANSPONDER]: 'multiline_chart',
     [ElementType.WAVELENGTH_ROUTER]: 'waves',
-    [ElementType.OPTICAL_AMPLIFIER]: 'trending_up'
+    [ElementType.OPTICAL_AMPLIFIER]: 'trending_up',
+    [ElementType.SLACK_FIBER]: 'waves'
   };
 
   constructor(
     private logger: LoggerService,
-    private eventBus: NetworkEventBusService,
     private networkStateService: NetworkStateService
   ) {
-    // Inicializar desde la configuración guardada o el estado de la aplicación
-    this.initializeFromStoredSettings();
-    
-    // Suscribirse a eventos de cambio de capa
-    this.subscribeToLayerEvents();
+    this.initializeLayerPersistence();
+    this.subscribeToActiveLayerChangesForPersistence();
   }
 
   /**
-   * Inicializa el servicio con la configuración guardada o el estado actual de la aplicación
+   * Inicializa el estado de las capas activas en NetworkStateService
+   * desde localStorage si existe, o NetworkStateService usa sus defaults.
    */
-  private initializeFromStoredSettings(): void {
+  private initializeLayerPersistence(): void {
     try {
-      // Intentar recuperar la configuración guardada
       const savedSettings = this.loadUserSettings();
       
-      if (savedSettings) {
-        // Si hay configuración guardada, usarla
-        const layersSet = new Set(savedSettings.activeLayers);
-        this.activeLayers$.next(layersSet);
-        this.logger.debug('LayerManagerService inicializado desde configuración guardada con capas: ', 
-                      Array.from(layersSet).map(layer => this.getLayerName(layer)));
-                      
-        // Sincronizar con el estado global de la aplicación
-        savedSettings.activeLayers.forEach(layerType => {
-          this.networkStateService.toggleLayer(layerType);
-        });
+      if (savedSettings && savedSettings.activeLayers) {
+        const layersToActivate = new Set(savedSettings.activeLayers.filter(type => this.isValidElementType(type)));
+        this.networkStateService.updateActiveLayers(layersToActivate);
+        this.logger.debug('LayerManagerService: NetworkStateService.activeLayers inicializado desde localStorage con capas: ', 
+                      Array.from(layersToActivate).map(layer => this.getLayerName(layer)));
       } else {
-        // Si no hay configuración guardada, usar el estado actual
-        this.initializeFromState();
+        // NetworkStateService ya tiene sus valores predeterminados o se inicializará con un conjunto vacío.
+        // Simplemente guardamos el estado actual de NetworkStateService para asegurar consistencia en localStorage.
+        this.saveUserSettings(this.networkStateService.getCurrentState().activeLayers);
+        this.logger.debug('LayerManagerService: No hay configuración guardada o es inválida. Usando estado de NetworkStateService y persistiendo.');
       }
     } catch (error) {
-      this.logger.error('Error al inicializar las capas desde configuración guardada', error);
-      // En caso de error, inicializar desde el estado
-      this.initializeFromState();
+      this.logger.error('Error al inicializar la persistencia de capas', error);
+      // En caso de error, intentar persistir el estado actual de NetworkStateService
+      this.saveUserSettings(this.networkStateService.getCurrentState().activeLayers);
     }
   }
 
   /**
-   * Inicializa el servicio con el estado actual de la aplicación
+   * Se suscribe a los cambios en activeLayers de NetworkStateService para persistirlos.
    */
-  private initializeFromState(): void {
-    try {
-      const state = this.networkStateService.getCurrentState();
-      this.activeLayers$.next(new Set(state.activeLayers));
-      this.logger.debug('LayerManagerService inicializado con capas: ', 
-                    Array.from(state.activeLayers).map(layer => this.getLayerName(layer)));
-    } catch (error) {
-      this.logger.error('Error al inicializar las capas desde el estado', error);
-      // En caso de error, inicializar con capas predeterminadas
-      this.resetToDefaultLayers();
-    }
-  }
-
-  /**
-   * Se suscribe a eventos relacionados con capas
-   */
-  private subscribeToLayerEvents(): void {
-    this.eventBus.ofType<LayerToggledEvent>(NetworkEventType.LAYER_TOGGLED).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(event => {
+  private subscribeToActiveLayerChangesForPersistence(): void {
+    this.networkStateService.state$.pipe(
+      map(state => state.activeLayers),
+      distinctUntilChanged((prev, curr) => {
+        if (prev.size !== curr.size) return false;
+        for (const item of prev) if (!curr.has(item)) return false;
+        return true;
+      }),
+      takeUntil(this.destroy$),
+      // tap(activeLayersSet => this.logger.debug('LayerManagerService: Detectado cambio en activeLayers de NetworkStateService', Array.from(activeLayersSet))) // Para depuración
+    ).subscribe(activeLayersSet => {
       try {
-        const currentLayers = new Set(this.activeLayers$.getValue());
-        const layerType = event.payload.layer;
-        const active = event.payload.active;
-        
-        // Validar que el tipo de elemento existe
-        if (typeof layerType === 'string' && this.isValidElementType(layerType as ElementType)) {
-          if (active) {
-            currentLayers.add(layerType as ElementType);
-          } else {
-            currentLayers.delete(layerType as ElementType);
-          }
-          
-          this.activeLayers$.next(currentLayers);
-          this.logger.debug(`Capa ${this.getLayerName(layerType as ElementType)} ${active ? 'activada' : 'desactivada'}`);
-          
-          // Guardar la configuración actualizada
-          this.saveUserSettings();
-        } else {
-          this.logger.warn(`Tipo de elemento no válido: ${layerType}`);
-        }
+        this.saveUserSettings(activeLayersSet);
       } catch (error) {
-        this.logger.error('Error al procesar evento de cambio de capa', error);
+        this.logger.error('Error al persistir cambios de activeLayers desde NetworkStateService', error);
       }
     });
   }
 
+
   /**
-   * Obtiene todas las capas activas como Observable
+   * Obtiene todas las capas activas como Observable desde NetworkStateService
    */
   getActiveLayers(): Observable<ElementType[]> {
-    return this.activeLayers$.pipe(
-      map(layerSet => Array.from(layerSet)),
+    return this.networkStateService.state$.pipe(
+      map(state => Array.from(state.activeLayers)),
       distinctUntilChanged((prev, curr) => 
         prev.length === curr.length && 
         prev.every((layer, i) => layer === curr[i])
@@ -169,18 +128,18 @@ export class LayerManagerService implements OnDestroy {
   }
 
   /**
-   * Verifica si una capa está activa
+   * Verifica si una capa está activa consultando NetworkStateService
    * @param layerType Tipo de elemento de la capa
    */
   isLayerActive(layerType: ElementType): Observable<boolean> {
-    return this.activeLayers$.pipe(
-      map(layers => layers.has(layerType)),
+    return this.networkStateService.state$.pipe(
+      map(state => state.activeLayers.has(layerType)),
       distinctUntilChanged()
     );
   }
 
   /**
-   * Obtiene el valor actual sincrónico de si una capa está activa
+   * Obtiene el valor actual sincrónico de si una capa está activa desde NetworkStateService
    * @param layerType Tipo de elemento de la capa
    */
   isLayerActiveSync(layerType: ElementType): boolean {
@@ -189,7 +148,7 @@ export class LayerManagerService implements OnDestroy {
         this.logger.warn(`Verificación de capa activa para tipo no válido: ${layerType}`);
         return false;
       }
-      return this.activeLayers$.getValue().has(layerType);
+      return this.networkStateService.getCurrentState().activeLayers.has(layerType);
     } catch (error) {
       this.logger.error(`Error al verificar si la capa ${this.getLayerName(layerType)} está activa`, error);
       return false;
@@ -197,7 +156,8 @@ export class LayerManagerService implements OnDestroy {
   }
 
   /**
-   * Activa o desactiva una capa
+   * Activa o desactiva una capa a través de NetworkStateService.
+   * La persistencia se manejará por la suscripción.
    * @param layerType Tipo de elemento de la capa
    * @param active Estado de activación (opcional, si no se proporciona, alterna el estado actual)
    */
@@ -208,115 +168,80 @@ export class LayerManagerService implements OnDestroy {
         return;
       }
       
-      const currentLayers = new Set(this.activeLayers$.getValue());
-      const isCurrentlyActive = currentLayers.has(layerType);
-      
-      // Si no se proporciona un estado, alternar el actual
+      const isCurrentlyActive = this.networkStateService.getCurrentState().activeLayers.has(layerType);
       const shouldBeActive = active !== undefined ? active : !isCurrentlyActive;
       
-      // Si el estado no cambia, no hacer nada
       if (isCurrentlyActive === shouldBeActive) {
         return;
       }
       
-      // Actualizar el estado local
-      if (shouldBeActive) {
-        currentLayers.add(layerType);
-      } else {
-        currentLayers.delete(layerType);
-      }
+      this.networkStateService.toggleLayer(layerType); // NetworkStateService se encarga de la lógica de añadir/quitar
+      // El logger ya está en NetworkStateService.toggleLayer
+      // La persistencia la maneja la suscripción
       
-      this.activeLayers$.next(currentLayers);
-      
-      // Emitir evento de cambio de capa
-      this.eventBus.emitLayerToggled(layerType, shouldBeActive);
-      
-      // Guardar la configuración actualizada
-      this.saveUserSettings();
-      
-      this.logger.debug(`Capa ${this.getLayerName(layerType)} ${shouldBeActive ? 'activada' : 'desactivada'}`);
     } catch (error) {
-      this.logger.error(`Error al alternar la capa ${this.getLayerName(layerType)}`, error);
+      this.logger.error(`Error al alternar la capa ${this.getLayerName(layerType)} en LayerManagerService`, error);
     }
   }
 
   /**
-   * Activa múltiples capas a la vez
+   * Activa múltiples capas a la vez a través de NetworkStateService
    * @param layerTypes Tipos de elemento de las capas a activar
    */
   activateLayers(layerTypes: ElementType[]): void {
     try {
-      const currentLayers = new Set(this.activeLayers$.getValue());
-      let changed = false;
-      
-      // Filtrar tipos de elemento no válidos
       const validLayerTypes = layerTypes.filter(type => {
         const isValid = this.isValidElementType(type);
         if (!isValid) {
-          this.logger.warn(`Tipo de elemento no válido: ${type}`);
+          this.logger.warn(`Tipo de elemento no válido al activar: ${type}`);
         }
         return isValid;
       });
       
-      validLayerTypes.forEach(type => {
-        if (!currentLayers.has(type)) {
-          currentLayers.add(type);
-          changed = true;
-          // Emitir evento individual para cada capa
-          this.eventBus.emitLayerToggled(type, true);
-          // Sincronizar con el estado global
-          this.networkStateService.toggleLayer(type);
-        }
-      });
-      
-      if (changed) {
-        this.activeLayers$.next(currentLayers);
-        this.logger.debug('Múltiples capas activadas:', validLayerTypes.map(t => this.getLayerName(t)));
-        // Guardar la configuración actualizada
-        this.saveUserSettings();
+      if (validLayerTypes.length === 0) return;
+
+      const currentActiveLayers = this.networkStateService.getCurrentState().activeLayers;
+      const layersToActivate = validLayerTypes.filter(type => !currentActiveLayers.has(type));
+
+      if (layersToActivate.length > 0) {
+        const newActiveLayers = new Set([...currentActiveLayers, ...layersToActivate]);
+        this.networkStateService.updateActiveLayers(newActiveLayers);
+        this.logger.debug('LayerManagerService: Múltiples capas activadas vía NetworkStateService:', layersToActivate.map(t => this.getLayerName(t)));
+        // La persistencia la maneja la suscripción
       }
     } catch (error) {
-      this.logger.error('Error al activar múltiples capas', error);
+      this.logger.error('Error al activar múltiples capas en LayerManagerService', error);
     }
   }
 
   /**
-   * Desactiva múltiples capas a la vez
+   * Desactiva múltiples capas a la vez a través de NetworkStateService
    * @param layerTypes Tipos de elemento de las capas a desactivar
    */
   deactivateLayers(layerTypes: ElementType[]): void {
     try {
-      const currentLayers = new Set(this.activeLayers$.getValue());
-      let changed = false;
-      
-      // Filtrar tipos de elemento no válidos
       const validLayerTypes = layerTypes.filter(type => {
         const isValid = this.isValidElementType(type);
         if (!isValid) {
-          this.logger.warn(`Tipo de elemento no válido: ${type}`);
+          this.logger.warn(`Tipo de elemento no válido al desactivar: ${type}`);
         }
         return isValid;
       });
-      
-      validLayerTypes.forEach(type => {
-        if (currentLayers.has(type)) {
-          currentLayers.delete(type);
-          changed = true;
-          // Emitir evento individual para cada capa
-          this.eventBus.emitLayerToggled(type, false);
-          // Sincronizar con el estado global
-          this.networkStateService.toggleLayer(type);
-        }
-      });
-      
-      if (changed) {
-        this.activeLayers$.next(currentLayers);
-        this.logger.debug('Múltiples capas desactivadas:', validLayerTypes.map(t => this.getLayerName(t)));
-        // Guardar la configuración actualizada
-        this.saveUserSettings();
+
+      if (validLayerTypes.length === 0) return;
+
+      const currentActiveLayers = this.networkStateService.getCurrentState().activeLayers;
+      const layersToDeactivate = validLayerTypes.filter(type => currentActiveLayers.has(type));
+
+      if (layersToDeactivate.length > 0) {
+        const newActiveLayers = new Set(currentActiveLayers);
+        layersToDeactivate.forEach(type => newActiveLayers.delete(type));
+        this.networkStateService.updateActiveLayers(newActiveLayers);
+        this.logger.debug('LayerManagerService: Múltiples capas desactivadas vía NetworkStateService:', layersToDeactivate.map(t => this.getLayerName(t)));
+        // La persistencia la maneja la suscripción
       }
     } catch (error) {
-      this.logger.error('Error al desactivar múltiples capas', error);
+      this.logger.error('Error al desactivar múltiples capas en LayerManagerService', error);
     }
   }
 
@@ -328,17 +253,17 @@ export class LayerManagerService implements OnDestroy {
     try {
       if (!this.isValidElementType(type)) {
         this.logger.warn(`Solicitando icono para tipo no válido: ${type}`);
-        return 'warning';
+        return 'warning'; // Icono de advertencia genérico
       }
-      return this.layerIcons[type] || 'layers';
+      return this.layerIcons[type] || 'layers'; // Icono por defecto
     } catch (error) {
       this.logger.error(`Error al obtener icono para la capa ${this.getLayerName(type)}`, error);
-      return 'error';
+      return 'error'; // Icono de error genérico
     }
   }
 
   /**
-   * Restablece las capas a un conjunto predeterminado
+   * Restablece las capas a un conjunto predeterminado, actualizando NetworkStateService
    */
   resetToDefaultLayers(): void {
     try {
@@ -350,70 +275,62 @@ export class LayerManagerService implements OnDestroy {
         ElementType.ODF
       ]);
       
-      // Desactivar las capas que están activas pero no en las predeterminadas
-      const currentLayers = this.activeLayers$.getValue();
-      currentLayers.forEach(layer => {
-        if (!defaultLayers.has(layer)) {
-          this.eventBus.emitLayerToggled(layer, false);
-          this.networkStateService.toggleLayer(layer);
-        }
-      });
-      
-      // Activar las capas predeterminadas que no están activas
-      defaultLayers.forEach(layer => {
-        if (!currentLayers.has(layer)) {
-          this.eventBus.emitLayerToggled(layer, true);
-          this.networkStateService.toggleLayer(layer);
-        }
-      });
-      
-      this.activeLayers$.next(defaultLayers);
-      this.logger.debug('Capas restablecidas a valores predeterminados');
-      
-      // Guardar la configuración actualizada
-      this.saveUserSettings();
+      this.networkStateService.updateActiveLayers(defaultLayers);
+      this.logger.debug('LayerManagerService: Capas restablecidas a valores predeterminados en NetworkStateService');
+      // La persistencia la maneja la suscripción
     } catch (error) {
-      this.logger.error('Error al restablecer capas predeterminadas', error);
+      this.logger.error('Error al restablecer capas predeterminadas en LayerManagerService', error);
     }
   }
   
   /**
-   * Guarda la configuración actual de capas en localStorage
+   * Guarda la configuración de capas activas en localStorage
+   * @param activeLayersSet El conjunto de capas ElementType activas.
    */
-  private saveUserSettings(): void {
+  private saveUserSettings(activeLayersSet: Set<ElementType>): void {
     try {
       const settings: LayerSettings = {
-        activeLayers: Array.from(this.activeLayers$.getValue()),
+        activeLayers: Array.from(activeLayersSet),
         lastUpdated: Date.now()
       };
       
       localStorage.setItem(USER_LAYERS_STORAGE_KEY, JSON.stringify(settings));
-      this.logger.debug('Configuración de capas guardada');
+      this.logger.debug('LayerManagerService: Configuración de capas guardada en localStorage', settings.activeLayers);
     } catch (error) {
-      this.logger.error('Error al guardar configuración de capas', error);
+      this.logger.error('Error al guardar configuración de capas en localStorage', error);
     }
   }
   
   /**
    * Carga la configuración de capas desde localStorage
-   * @returns La configuración guardada o null si no existe
+   * @returns La configuración guardada o null si no existe o es inválida
    */
   private loadUserSettings(): LayerSettings | null {
     try {
       const storedSettings = localStorage.getItem(USER_LAYERS_STORAGE_KEY);
       
       if (!storedSettings) {
+        this.logger.debug('LayerManagerService: No hay configuración de capas guardada en localStorage.');
         return null;
       }
       
       const settings: LayerSettings = JSON.parse(storedSettings);
       
+      if (!settings || !Array.isArray(settings.activeLayers)) {
+        this.logger.warn('LayerManagerService: Configuración de capas en localStorage es inválida o corrupta.');
+        localStorage.removeItem(USER_LAYERS_STORAGE_KEY); // Limpiar configuración corrupta
+        return null;
+      }
+      
       // Validar que los tipos de elemento son válidos
       settings.activeLayers = settings.activeLayers.filter(type => this.isValidElementType(type));
       
+      this.logger.debug('LayerManagerService: Configuración de capas cargada desde localStorage:', settings.activeLayers);
       return settings;
     } catch (error) {
-      this.logger.error('Error al cargar configuración de capas', error);
+      this.logger.error('Error al cargar configuración de capas desde localStorage', error);
+      // En caso de error de parseo, podría ser útil limpiar la entrada corrupta
+      localStorage.removeItem(USER_LAYERS_STORAGE_KEY);
       return null;
     }
   }
@@ -423,13 +340,13 @@ export class LayerManagerService implements OnDestroy {
    * @param type Tipo de elemento a verificar
    * @returns true si el tipo es válido, false en caso contrario
    */
-  private isValidElementType(type: any): boolean {
-    return (
-      type !== undefined && 
-      type !== null && 
-      Object.values(ElementType).includes(type) && 
-      typeof type === 'number'
-    );
+  private isValidElementType(type: any): type is ElementType { 
+    // Verifica simplemente si el valor está presente en los valores del enum ElementType
+    if (typeof type === 'string') {
+      // Verificamos si el string existe como valor (no como clave) en ElementType
+      return Object.values(ElementType).includes(type as ElementType);
+    }
+    return false;
   }
   
   /**
@@ -437,12 +354,13 @@ export class LayerManagerService implements OnDestroy {
    * @param type Tipo de elemento
    * @returns Nombre del tipo o 'Desconocido' si no es válido
    */
-  private getLayerName(type: ElementType): string {
+  public getLayerName(type: ElementType): string {
     try {
-      if (!this.isValidElementType(type)) {
-        return `Tipo desconocido (${type})`;
+      const name = ElementType[type]; 
+      if (name !== undefined) {
+        return name;
       }
-      return ElementType[type] || `Tipo ${type}`;
+      return `Tipo desconocido (${type})`;
     } catch (error) {
       return `Error (${type})`;
     }

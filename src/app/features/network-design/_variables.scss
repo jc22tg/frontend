@@ -1,0 +1,55 @@
+/**
+ * Variables centralizadas para el módulo de network-design
+ * Este archivo sirve como fuente única de verdad para todas las variables SCSS
+ * utilizadas en los componentes relacionados con el mapa y paneles laterales.
+ */
+
+// Sistema estandarizado de z-index
+$z-index-map: 1;
+$z-index-map-elements: 5;
+$z-index-widgets-container: var(--z-index-widget-container, 100);
+$z-index-toolbar: var(--z-index-toolbar, 110);
+$z-index-context-menu: var(--z-index-context-menu, 120);
+$z-index-panel: var(--z-index-panel, 150);
+$z-index-dragging-widget: var(--z-index-dragging, 500);
+$z-index-loading-overlay: var(--z-index-loading-overlay, 1000);
+$z-index-error-overlay: var(--z-index-error-overlay, 1100);
+$z-index-details-panel: var(--z-index-details-panel, 130);
+$z-index-performance-info: var(--z-index-performance-info, 140);
+$z-index-map-controls: var(--z-index-map-controls, 200);
+$z-index-layer-control: var(--z-index-layer-control, 200);
+
+// Variables de widgets y paneles
+$widget-background: var(--map-widget-bg-color, rgba(255, 255, 255, 0.65));
+$widget-background-dark: var(--map-widget-bg-color-dark, rgba(48, 48, 48, 0.65));
+$widget-border-radius: var(--map-widget-border-radius, 12px);
+$widget-box-shadow: var(--map-widget-shadow, 0 4px 15px rgba(0, 0, 0, 0.1));
+$widget-box-shadow-dark: 0 4px 15px rgba(0, 0, 0, 0.2);
+$widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.25s ease;
+
+// Toolbar y controles
+$toolbar-height: 48px;
+$toolbar-width: 48px;
+$toolbar-background: rgba(255, 255, 255, 0.5);
+$toolbar-background-dark: rgba(48, 48, 48, 0.5);
+
+// Colores principales (para sobreescribir las variables CSS si es necesario)
+$primary-color: var(--primary-color, #3f51b5);
+$accent-color: var(--accent-color, #ff4081);
+
+// Breakpoints estándar
+$breakpoint-tablet: 768px;
+$breakpoint-mobile: 600px;
+$breakpoint-small: 480px; // Para compatibilidad con código existente, pero mejor usar $breakpoint-mobile
+
+// Panel lateral - tamaños
+$side-panel-width: var(--side-panel-width, 320px);
+$side-panel-width-tablet: var(--side-panel-width-tablet, 280px);
+$side-panel-width-mobile: var(--side-panel-width-mobile, 100%);
+$panel-header-height: var(--panel-header-height, 44px);
+
+// Variables específicas para layer-control
+$layer-control-width: var(--layer-control-width, 280px);
+$layer-control-width-tablet: var(--layer-control-width-tablet, 260px);
+$layer-control-width-mobile: var(--layer-control-width-mobile, 240px);
+$layer-control-max-height: var(--layer-control-max-height, 500px); 

@@ -44,15 +44,28 @@ Este componente ha sido renombrado de `DashboardComponent` a `DashboardLayoutCom
 2. **Hacer más explícita la función** principal de cada componente
 3. **Seguir patrones estándar** de Angular para facilitar mantenimiento
 
-## Componentes Auxiliares
+## Componentes Dashboard y Widgets Compartidos
 
-Los siguientes componentes son utilizados por el dashboard principal:
+El dashboard utiliza dos tipos de componentes visuales:
+
+### Componentes Específicos del Dashboard
+
+Componentes desarrollados específicamente para el dashboard:
 
 - **QuickNavMenuComponent**: Menú de navegación rápida que se adapta según el espacio disponible
 - **StatCardsComponent**: Tarjetas de estadísticas principales
 - **RecentActivitiesComponent**: Muestra las actividades recientes en el sistema
-- **PerformanceMetricsComponent**: Visualiza métricas de rendimiento del sistema
-- **SystemAlertsComponent**: Muestra las alertas del sistema
+- **PerformanceMetricsComponent**: Visualiza métricas de rendimiento detalladas del sistema
+
+### Widgets Compartidos
+
+Widgets reutilizables que también se utilizan en otras partes de la aplicación:
+
+- **NetworkHealthWidgetComponent**: Muestra el estado de salud de la red
+- **MetricsWidgetComponent**: Visualiza métricas de rendimiento básicas
+- **SystemAlertsWidgetComponent**: Muestra las alertas del sistema
+- **MiniMapWidgetComponent**: Proporciona una vista previa del mapa de red
+- **NetworkWidgetComponent**: Muestra una visualización de la red
 
 ## Configuración de Rutas
 
@@ -95,4 +108,5 @@ Si estás utilizando el componente simple de dashboard, debes migrar al componen
 
 - No uses el componente simple de dashboard en nuevas implementaciones
 - El componente principal usa el patrón Facade a través de `DashboardFacade`
-- La UI es completamente responsive con diseño adaptable a móviles 
+- La UI es completamente responsive con diseño adaptable a móviles
+- La integración de componentes específicos y widgets compartidos proporciona flexibilidad y reutilización 

@@ -31,12 +31,16 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
     data: { 
       animation: 'map',
       breadcrumb: 'Mapa',
-      preload: true
+      preload: true,
+      mapConfig: {
+        initialZoom: 16,
+        initialCenter: [19.783750, -70.676666]
+      }
     }
   },
   {
     path: 'elements',
-    loadComponent: () => import('./components/element-details/element-details.component').then(c => c.ElementDetailsComponent),
+    loadComponent: () => import('@features/network-design/components/elements/element-details/element-details.component').then(c => c.ElementDetailsComponent),
     data: { 
       animation: 'list',
       breadcrumb: 'Elementos'
@@ -44,7 +48,7 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
   },
   {
     path: 'connections',
-    loadComponent: () => import('./components/connection-editor/connection-editor.component').then(c => c.ConnectionEditorComponent),
+    loadComponent: () => import('@features/network-design/components/connection-editor/connection-editor.component').then(c => c.ConnectionEditorComponent),
     data: { 
       animation: 'connections',
       breadcrumb: 'Conexiones'
@@ -52,7 +56,7 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
   },
   {
     path: 'monitoring',
-    loadComponent: () => import('./components/widgets/monitoring/network-health-widget/network-health-widget.component').then(c => c.NetworkHealthWidgetComponent),
+    loadComponent: () => import('@features/network-design/components/widgets/monitoring/network-health-widget/network-health-widget.component').then(c => c.NetworkHealthWidgetComponent),
     data: { 
       animation: 'monitoring',
       breadcrumb: 'Monitoreo'
@@ -60,7 +64,7 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
   },
   {
     path: 'editor',
-    loadComponent: () => import('./components/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
     canDeactivate: [PendingChangesGuard],
     data: { 
       animation: 'editor',
@@ -69,7 +73,7 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
   },
   {
     path: 'editor/:id',
-    loadComponent: () => import('./components/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
     canDeactivate: [PendingChangesGuard],
     data: { 
       animation: 'editor',
@@ -77,16 +81,36 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
     },
   },
   {
-    path: 'elements/:type/:id',
-    loadComponent: () => import('./components/element-details/element-details.component').then(c => c.ElementDetailsComponent),
-    data: { 
-      animation: 'details',
-      breadcrumb: 'Detalles'
-    },
+    path: 'elements/create',
+    title: 'Crear Elemento',
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    canDeactivate: [PendingChangesGuard],
+  },
+  {
+    path: 'elements/:type/create',
+    title: 'Crear Elemento',
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    canDeactivate: [PendingChangesGuard],
+  },
+  {
+    path: 'elements/:id',
+    title: 'Detalles del Elemento',
+    loadComponent: () => import('@features/network-design/components/elements/element-details/element-details.component').then(c => c.ElementDetailsComponent),
+  },
+  {
+    path: 'elements/:id/edit',
+    title: 'Editar Elemento',
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    canDeactivate: [PendingChangesGuard],
+  },
+  {
+    path: 'elements/:id/history',
+    title: 'Historial del Elemento',
+    loadComponent: () => import('@features/network-design/components/elements/element-history/element-history.component').then(c => c.ElementHistoryComponent),
   },
   {
     path: 'history/:id',
-    loadComponent: () => import('./components/element-history/element-history.component').then(c => c.ElementHistoryComponent),
+    loadComponent: () => import('@features/network-design/components/elements/element-history/element-history.component').then(c => c.ElementHistoryComponent),
     data: { 
       animation: 'history',
       breadcrumb: 'Historial'
@@ -94,7 +118,7 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
   },
   {
     path: 'diagnostic',
-    loadComponent: () => import('./components/map-diagnostic/map-diagnostic.component').then(c => c.MapDiagnosticComponent),
+    loadComponent: () => import('@features/network-design/components/map-diagnostic/map-diagnostic.component').then(c => c.MapDiagnosticComponent),
     data: { 
       animation: 'diagnostic',
       breadcrumb: 'Diagnóstico'
@@ -116,6 +140,40 @@ export const NETWORK_DESIGN_ROUTES: Routes = [
       animation: 'error',
       breadcrumb: 'Error'
     },
+  },
+  {
+    path: 'element/:type/edit/:id',
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    data: { 
+      animation: 'editor',
+      breadcrumb: 'Editor' 
+    }
+  },
+  {
+    path: 'element/:type/new',
+    loadComponent: () => import('@features/network-design/components/elements/element-editor/element-editor.component').then(c => c.ElementEditorComponent),
+    data: { 
+      animation: 'editor',
+      breadcrumb: 'Nuevo' 
+    }
+  },
+  {
+    path: 'element/:type/batch',
+    loadComponent: () => import('@features/network-design/components/batch-element-editor/batch-element-editor.component').then(c => c.BatchElementEditorComponent),
+    data: { 
+      animation: 'editor',
+      breadcrumb: 'Editor por Lotes', 
+      icon: 'library_add' 
+    }
+  },
+  {
+    path: 'element/history/:id',
+    loadComponent: () => import('@features/network-design/components/elements/element-history/element-history.component').then(c => c.ElementHistoryComponent),
+    data: { 
+      animation: 'history',
+      breadcrumb: 'Historial', 
+      icon: 'history' 
+    }
   },
   {
     path: '**',

@@ -1,14 +1,18 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef, ViewChild, Input, Output, EventEmitter, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef, ViewChild, Input, Output, EventEmitter, inject, Injector, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ElementType, NetworkElement, NetworkConnection } from '../../../../../../shared/types/network.types';
+import { ElementType, NetworkElement, NetworkConnection, ElementStatus, ConnectionType, ConnectionStatus } from '../../../../../../shared/types/network.types';
+import { CommonPositions } from '../../../../../../shared/utils/migration-helpers';
 import { LoggerService } from '../../../../../../core/services/logger.service';
 import { MapStateManagerService, ToolType } from '../../../../services/map/map-state-manager.service';
 import { MapElementManagerService } from '../../../../services/map/map-element-manager.service';
-import { MapRenderingService } from '../../../../services/map/map-rendering.service';
+import { MapPerformanceService } from '../../../../services/map/map-performance.service';
 import { MapInteractionService } from '../../../../services/map/map-interaction.service';
+import { MapConnectionService } from '../../../../services/map/map-connection.service';
+import { MapStateService } from '../../../../services/map/state/map-state.service';
+import { BaseMapComponent } from '../../../base/base-map.component';
 
 /**
  * Constantes utilizadas en el componente
@@ -32,6 +36,15 @@ const CONSTANTS = {
   }
 };
 
+// Niveles de log disponibles para depuración - Duplicado de BaseMapComponent para evitar dependencia cíclica
+enum LogLevel {
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARN = 'warn',
+  ERROR = 'error',
+  PERFORMANCE = 'performance'
+}
+
 /**
  * Componente para la vista principal del mapa
  * 
@@ -46,146 +59,61 @@ const CONSTANTS = {
     MatProgressSpinnerModule
   ],
   template: `
-    <div class="map-view-container" 
-      [class.dark-mode]="isDarkMode" 
+    <div class="map-view-container"
+      [class.dark-mode]="isDarkMode"
       [class.loading]="isLoading"
+      [class.dragging]="isDragging"
+      [class.has-error]="!!errorMessage"
+      tabindex="0"
       (mousedown)="onMouseDown($event)"
       (mousemove)="onMouseMove($event)"
       (mouseup)="onMouseUp($event)"
       (wheel)="onWheel($event)"
       #mapContainer>
       
-      <!-- Loading spinner -->
-      <div class="loading-overlay" *ngIf="isLoading">
-        <mat-spinner [diameter]="40"></mat-spinner>
+      <!-- Overlay de carga -->
+      <div class="loading-overlay fade-in" *ngIf="isLoading">
+        <mat-spinner [diameter]="48"></mat-spinner>
         <span>Cargando mapa...</span>
       </div>
       
-      <!-- Error message -->
-      <div class="error-message" *ngIf="errorMessage">
+      <!-- Overlay de error -->
+      <div class="error-message fade-in" *ngIf="errorMessage">
         <p>{{ errorMessage }}</p>
-        <button (click)="retryLoading()">Reintentar</button>
+        <button class="retry-btn" (click)="retryLoading()">Reintentar</button>
       </div>
       
       <!-- SVG Container -->
-      <svg #mapSvg class="map-svg" [attr.width]="width" [attr.height]="height">
-        <!-- Background Grid -->
-        <g class="grid-container" [attr.transform]="'translate(' + panOffset.x + ',' + panOffset.y + ') scale(' + zoomScale + ')'">
-          <!-- Grid will be generated dynamically -->
-        </g>
-        
-        <!-- Connections Layer -->
-        <g class="connections-layer" [attr.transform]="'translate(' + panOffset.x + ',' + panOffset.y + ') scale(' + zoomScale + ')'">
-          <!-- Connections will be rendered here -->
-        </g>
-        
-        <!-- Elements Layer -->
-        <g class="elements-layer" [attr.transform]="'translate(' + panOffset.x + ',' + panOffset.y + ') scale(' + zoomScale + ')'">
-          <!-- Network elements will be rendered here -->
-        </g>
-        
-        <!-- Selection Layer -->
-        <g class="selection-layer">
-          <!-- Selection indicators, measurement lines, etc. -->
-        </g>
-      </svg>
+      <div class="svg-wrapper">
+        <svg #mapSvg class="map-svg fade-in"
+          [attr.width]="width"
+          [attr.height]="height"
+          [class.interactive]="!isLoading && !errorMessage"
+          [class.has-selection]="!!selectedElement || !!selectedConnection">
+          <!-- Background Grid -->
+          <g class="grid-container" [attr.transform]="'translate(' + panOffset.x + ',' + panOffset.y + ') scale(' + zoomScale + ')'">
+            <!-- Grid will be generated dynamically -->
+          </g>
+          <!-- Connections Layer -->
+          <g class="connections-layer" [attr.transform]="'translate(' + panOffset.x + ',' + panOffset.y + ') scale(' + zoomScale + ')'">
+            <!-- Connections will be rendered here -->
+          </g>
+          <!-- Elements Layer -->
+          <g class="elements-layer" [attr.transform]="'translate(' + panOffset.x + ',' + panOffset.y + ') scale(' + zoomScale + ')'">
+            <!-- Network elements will be rendered here -->
+          </g>
+          <!-- Selection Layer -->
+          <g class="selection-layer">
+            <!-- Selection indicators, measurement lines, etc. -->
+          </g>
+        </svg>
+      </div>
     </div>
   `,
-  styles: [`
-    .map-view-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      overflow: hidden;
-      background-color: var(--map-bg-color, #f5f5f5);
-      cursor: grab;
-    }
-    
-    .map-view-container.dark-mode {
-      --map-bg-color: #333;
-      --map-grid-color: #555;
-      --map-text-color: #fff;
-      --map-element-stroke: #ddd;
-      --map-selection-color: #4fc3f7;
-    }
-    
-    .map-view-container.loading {
-      cursor: wait;
-    }
-    
-    .map-svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    
-    .loading-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: rgba(255, 255, 255, 0.7);
-      z-index: 10;
-    }
-    
-    .map-view-container.dark-mode .loading-overlay {
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-    }
-    
-    .error-message {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 20px;
-      background-color: rgba(244, 67, 54, 0.9);
-      color: white;
-      border-radius: 4px;
-      text-align: center;
-      z-index: 11;
-    }
-    
-    .error-message button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      background-color: white;
-      color: #f44336;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    
-    .grid-container line {
-      stroke: var(--map-grid-color, #ddd);
-      stroke-width: 0.5;
-    }
-    
-    .connections-layer path {
-      stroke-width: 2;
-      fill: none;
-    }
-    
-    .elements-layer circle, .elements-layer rect {
-      stroke: var(--map-element-stroke, #333);
-      stroke-width: 1;
-    }
-    
-    .selection-layer .selection-indicator {
-      stroke: var(--map-selection-color, #2196F3);
-      stroke-width: 2;
-      stroke-dasharray: 5;
-      fill: none;
-    }
-  `],
+  styleUrls: ['./map-view.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
+export class MapViewComponent extends BaseMapComponent implements AfterViewInit {
   @ViewChild('mapContainer', { static: true }) mapContainerEl!: ElementRef;
   @ViewChild('mapSvg', { static: true }) mapSvgEl!: ElementRef;
   
@@ -227,7 +155,6 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
   width = 800;
   height = 600;
   isDarkMode = false;
-  isLoading = true;
   errorMessage: string | null = null;
   
   // Variables de interacción
@@ -242,23 +169,42 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
   private _activeLayers: ElementType[] = [];
   private elements: NetworkElement[] = [];
   private connections: NetworkConnection[] = [];
-  private selectedElement: NetworkElement | null = null;
-  private selectedConnection: NetworkConnection | null = null;
-  
-  // Gestión de suscripciones
-  private destroy$ = new Subject<void>();
+  public selectedElement: NetworkElement | null = null;
+  public selectedConnection: NetworkConnection | null = null;
   
   // Servicios
-  private logger = inject(LoggerService);
-  private stateManager = inject(MapStateManagerService);
-  private elementManager = inject(MapElementManagerService);
-  private renderingService = inject(MapRenderingService);
-  private interactionService = inject(MapInteractionService);
-  private cdr = inject(ChangeDetectorRef);
+  private stateManager: MapStateManagerService;
+  private elementManager: MapElementManagerService;
+  private performanceService: MapPerformanceService;
+  private interactionService: MapInteractionService;
+  private connectionService: MapConnectionService | null = null;
+  protected zone: NgZone;
   
-  constructor() {}
+  constructor(injector: Injector) {
+    super(injector);
+    
+    // Inicializar servicios específicos
+    this.stateManager = injector.get(MapStateManagerService);
+    this.elementManager = injector.get(MapElementManagerService);
+    this.performanceService = injector.get(MapPerformanceService);
+    this.interactionService = injector.get(MapInteractionService);
+    this.zone = injector.get(NgZone);
+    
+    // Intentar obtener el servicio de conexiones (puede no estar disponible)
+    try {
+      this.connectionService = injector.get(MapConnectionService);
+      this.logDebug('MapConnectionService inicializado correctamente');
+    } catch (error) {
+      this.logDebug('MapConnectionService no disponible, algunas funciones de conexión podrían estar limitadas', null, LogLevel.WARN);
+    }
+    
+    this.logDebug('MapViewComponent inicializado');
+  }
   
-  ngOnInit(): void {
+  /**
+   * Implementación del método abstracto de BaseMapComponent
+   */
+  protected initializeComponent(): void {
     // Suscribirse a eventos relevantes
     this.setupSubscriptions();
   }
@@ -272,6 +218,11 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
     
     // Cargar elementos
     this.loadElements();
+    
+    // Establecer un timeout corto para finalizar la carga automáticamente
+    setTimeout(() => {
+      this.finishLoading();
+    }, 1500);
   }
   
   /**
@@ -294,23 +245,89 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
         this.updateCursor();
       });
     
-    // Elemento seleccionado
-    this.interactionService.selectedElement
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(element => {
-        this.selectedElement = element;
-        this.updateSelectionIndicators();
-        this.cdr.markForCheck();
-      });
-    
-    // Conexión seleccionada
-    this.interactionService.selectedConnection
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(connection => {
-        this.selectedConnection = connection;
-        this.updateSelectionIndicators();
-        this.cdr.markForCheck();
-      });
+    // Subscripciones a elementos seleccionados - Manejando de forma más flexible según el servicio disponible
+    if (this.interactionService) {
+      try {
+        // Intentar obtener los observables de selección desde MapStateService
+        const mapStateService = this.injector.get(MapStateService, null);
+        
+        if (mapStateService) {
+          // Usar MapStateService para observables de selección
+          this.logDebug('Usando observables de selección de MapStateService');
+          
+          // Suscripción a IDs de elementos seleccionados
+          mapStateService.selectedElementIds$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(selectedIds => {
+              if (selectedIds && selectedIds.length > 0) {
+                // Buscar el elemento por ID
+                const elementId = selectedIds[0]; // Tomamos el primero para mantener compatibilidad
+                const selectedElement = this.elements.find(el => el.id === elementId) || null;
+                
+                if (this.selectedElement?.id !== selectedElement?.id) {
+                  this.selectedElement = selectedElement;
+                  this.updateSelectionIndicators();
+                  this.elementSelected.emit(selectedElement);
+                  this.cdr.markForCheck();
+                }
+              } else if (this.selectedElement) {
+                // Limpiar selección
+                this.selectedElement = null;
+                this.updateSelectionIndicators();
+                this.elementSelected.emit(null);
+                this.cdr.markForCheck();
+              }
+            });
+          
+          // Suscripción a IDs de conexiones seleccionadas
+          mapStateService.selectedConnectionIds$
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(selectedIds => {
+              if (selectedIds && selectedIds.length > 0) {
+                // Buscar la conexión por ID
+                const connectionId = selectedIds[0]; // Tomamos la primera para mantener compatibilidad
+                const selectedConnection = this.connections.find(conn => conn.id === connectionId) || null;
+                
+                if (this.selectedConnection?.id !== selectedConnection?.id) {
+                  this.selectedConnection = selectedConnection;
+                  this.updateSelectionIndicators();
+                  this.connectionSelected.emit(selectedConnection);
+                  this.cdr.markForCheck();
+                }
+              } else if (this.selectedConnection) {
+                // Limpiar selección
+                this.selectedConnection = null;
+                this.updateSelectionIndicators();
+                this.connectionSelected.emit(null);
+                this.cdr.markForCheck();
+              }
+            });
+        } else if (this.elementManager && (this.elementManager as any).elementSelected) {
+          // Alternativa: suscribirse al Observable de elemento seleccionado de ElementManager
+          this.logDebug('Usando observable elementSelected de ElementManager');
+          
+          (this.elementManager as any).elementSelected
+            .pipe(takeUntil(this.destroy$))
+            .subscribe((element: NetworkElement | null) => {
+              if (this.selectedElement?.id !== element?.id) {
+                this.selectedElement = element;
+                this.updateSelectionIndicators();
+                this.elementSelected.emit(element);
+                this.cdr.markForCheck();
+              }
+            });
+            
+          // No hay observable para conexiones en este modo, por lo que manejamos la selección manualmente
+        } else {
+          // No hay observables disponibles, usamos la implementación manual
+          this.logDebug('No se encontraron observables de selección, usando selección manual', null, LogLevel.WARN);
+        }
+      } catch (error) {
+        this.logDebug('Error al configurar suscripciones de selección', error, LogLevel.ERROR);
+      }
+    } else {
+      this.logDebug('InteractionService no disponible, la selección funcionará solo manualmente', null, LogLevel.WARN);
+    }
   }
   
   /**
@@ -329,8 +346,97 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
    * Genera el grid de fondo
    */
   private generateGrid(): void {
-    // Implementación pendiente
-    // Este método generaría líneas de grid en el SVG
+    if (!this.mapSvgEl || !this.mapSvgEl.nativeElement) {
+      this.logDebug('No se puede generar el grid: elemento SVG no disponible', null, LogLevel.WARN);
+      return;
+    }
+    
+    try {
+      const svgElement = this.mapSvgEl.nativeElement;
+      const gridContainer = svgElement.querySelector('.grid-container');
+      
+      if (!gridContainer) {
+        this.logDebug('No se encuentra el contenedor de la cuadrícula', null, LogLevel.WARN);
+        return;
+      }
+      
+      // Limpiar grid existente
+      while (gridContainer.firstChild) {
+        gridContainer.removeChild(gridContainer.firstChild);
+      }
+      
+      // Definir tamaño de cuadrícula y espacio
+      const gridSize = 50; // Unidades de mapa
+      const gridExtent = 5000; // Área total cubierta (aumentada para asegurar que cubra toda la vista)
+      
+      // Crear fondo de color sólido
+      const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      background.setAttribute('x', (-gridExtent).toString());
+      background.setAttribute('y', (-gridExtent).toString());
+      background.setAttribute('width', (gridExtent * 2).toString());
+      background.setAttribute('height', (gridExtent * 2).toString());
+      background.setAttribute('fill', this.isDarkMode ? '#2D3748' : '#E8EEF2'); // Gris pizarra oscuro / Gris azulado claro
+      gridContainer.appendChild(background);
+      
+      // Crear cuadrícula con líneas más visibles
+      for (let x = -gridExtent; x <= gridExtent; x += gridSize) {
+        // Línea vertical
+        const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        vLine.setAttribute('x1', x.toString());
+        vLine.setAttribute('y1', (-gridExtent).toString());
+        vLine.setAttribute('x2', x.toString());
+        vLine.setAttribute('y2', gridExtent.toString());
+        vLine.setAttribute('class', 'grid-line');
+        vLine.setAttribute('stroke', this.isDarkMode ? '#777777' : '#aaaaaa');
+        vLine.setAttribute('stroke-width', '1');
+        gridContainer.appendChild(vLine);
+      }
+      
+      for (let y = -gridExtent; y <= gridExtent; y += gridSize) {
+        // Línea horizontal
+        const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        hLine.setAttribute('x1', (-gridExtent).toString());
+        hLine.setAttribute('y1', y.toString());
+        hLine.setAttribute('x2', gridExtent.toString());
+        hLine.setAttribute('y2', y.toString());
+        hLine.setAttribute('class', 'grid-line');
+        hLine.setAttribute('stroke', this.isDarkMode ? '#777777' : '#aaaaaa');
+        hLine.setAttribute('stroke-width', '1');
+        gridContainer.appendChild(hLine);
+      }
+      
+      // Añadir ejes principales con un color más oscuro
+      const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      xAxis.setAttribute('x1', (-gridExtent).toString());
+      xAxis.setAttribute('y1', '0');
+      xAxis.setAttribute('x2', gridExtent.toString());
+      xAxis.setAttribute('y2', '0');
+      xAxis.setAttribute('class', 'grid-axis');
+      xAxis.setAttribute('stroke', this.isDarkMode ? '#999999' : '#666666');
+      xAxis.setAttribute('stroke-width', '2');
+      gridContainer.appendChild(xAxis);
+      
+      const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      yAxis.setAttribute('x1', '0');
+      yAxis.setAttribute('y1', (-gridExtent).toString());
+      yAxis.setAttribute('x2', '0');
+      yAxis.setAttribute('y2', gridExtent.toString());
+      yAxis.setAttribute('class', 'grid-axis');
+      yAxis.setAttribute('stroke', this.isDarkMode ? '#999999' : '#666666');
+      yAxis.setAttribute('stroke-width', '2');
+      gridContainer.appendChild(yAxis);
+      
+      // Centrar automáticamente el mapa en el origen
+      this.panOffset = {
+        x: this.width / 2,
+        y: this.height / 2
+      };
+      this.lastPanOffset = { ...this.panOffset };
+      
+      this.logDebug('Grid generado correctamente');
+    } catch (error) {
+      this.logDebug('Error al generar el grid', error, LogLevel.ERROR);
+    }
   }
   
   /**
@@ -341,52 +447,332 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
     this.errorMessage = null;
     this.cdr.markForCheck();
     
-    this.elementManager.loadElementsProgressively({
-      batchSize: 50,
-      maxElements: 1000,
-      progressCallback: (progress) => {
-        // Actualizar progreso si es necesario
-      },
-      elementsCallback: (elements) => {
-        // Actualizar elementos
-        this.renderElements(elements);
-      }
-    }).subscribe({
-      next: (result) => {
-        this.isLoading = false;
-        if (result.success) {
-          this.mapLoaded.emit();
-          this.elements = this.elementManager.getAllElements();
-          this.renderingService.startPerformanceTracking();
-        } else {
-          this.errorMessage = 'Error al cargar elementos';
+    // Verificar que ElementManager esté disponible
+    if (!this.elementManager) {
+      this.logDebug('ElementManager no disponible, finalizando carga', null, LogLevel.WARN);
+      setTimeout(() => {
+        this.finishLoading();
+      }, 500);
+      return;
+    }
+    
+    this.logDebug('Iniciando carga de elementos del mapa', null, LogLevel.INFO);
+    
+    // Asegurar que la detección de cambios actualice la UI antes de continuar
+    setTimeout(() => {
+      try {
+        // Registrar tiempo inicial para medición de rendimiento
+        const startTime = performance.now();
+        
+        this.elementManager.loadElementsProgressively({
+          batchSize: 50, // Aumentado para acelerar carga
+          maxElements: 1000, // Aumentado para mayor contenido
+          progressCallback: (progress) => {
+            // Forzar actualización de la UI cada 10% de progreso para más retroalimentación
+            if (progress % 10 === 0) {
+              this.zone.run(() => {
+                this.logDebug(`Progreso de carga: ${progress}%`, null, LogLevel.INFO);
+                this.cdr.detectChanges();
+              });
+            }
+          },
+          elementsCallback: (elements) => {
+            // Verificar que los elementos tengan la estructura correcta
+            if (!elements || !Array.isArray(elements)) {
+              this.logDebug('Elementos recibidos con formato incorrecto', elements, LogLevel.WARN);
+              return;
+            }
+            
+            // Filtrar elementos sin posiciones válidas
+            const validElements = elements.filter(el => {
+              // Verificar que el elemento exista
+              if (!el) return false;
+              
+              // Verificar la posición
+              const position = el.position;
+              
+              // Verificar los diferentes formatos posibles de posición
+              // 1. Array de coordenadas [x, y]
+              if (Array.isArray(position) && position.length >= 2) {
+                return true; 
+              }
+              
+              // 2. Objeto GeographicPosition con lat/lng
+              if (position && typeof position === 'object') {
+                // Formato con lat/lng
+                if (typeof position.lat === 'number' && typeof position.lng === 'number') {
+                  return true;
+                }
+                
+                // Formato con coordenadas GeoJSON
+                if (Array.isArray(position.coordinates) && position.coordinates.length >= 2) {
+                  return true;
+                }
+              }
+              
+              // Si llegamos aquí, la posición no es válida
+              this.logDebug(`Elemento con posición inválida: ${el.id || '(sin ID)'} - Tipo: ${el.type}`, 
+                { positionType: position ? typeof position : 'undefined' }, LogLevel.DEBUG);
+              return false;
+            });
+            
+            if (validElements.length !== elements.length) {
+              this.logDebug(`Filtrados ${elements.length - validElements.length} elementos con posiciones inválidas`, null, LogLevel.WARN);
+            }
+            
+            // Actualizar elementos dentro de la zona de Angular
+            this.zone.run(() => {
+              this.renderElements(validElements);
+              this.cdr.detectChanges();
+            });
+          }
+        }).subscribe({
+          next: (result) => {
+            // Calcular tiempo total de carga
+            const loadTime = Math.round(performance.now() - startTime);
+            
+            this.zone.run(() => {
+              if (result && result.success) {
+                // Verificar que getAllElements devuelva datos válidos
+                const allElements = this.elementManager.getAllElements && typeof this.elementManager.getAllElements === 'function' 
+                  ? this.elementManager.getAllElements() 
+                  : [];
+                  
+                this.elements = allElements;
+                
+                // Iniciar monitorización de rendimiento si está disponible
+                if (this.performanceService && typeof this.performanceService.startMonitoring === 'function') {
+                  this.performanceService.startMonitoring();
+                }
+
+                // Asegurar que la grilla y elementos estén visibles
+                this.refreshMap();
+                
+                this.logDebug(
+                  `Carga de elementos completada con éxito en ${loadTime}ms`, 
+                  { 
+                    elementsCount: this.elements.length,
+                    loadTimeMs: loadTime
+                  }, 
+                  LogLevel.INFO
+                );
+
+                // Finalizar la carga después de un pequeño retraso para asegurar renderizado
+                setTimeout(() => this.finishLoading(), 100);
+              } else {
+                this.errorMessage = 'Error al cargar elementos';
+                this.mapError.emit(this.errorMessage);
+                this.logDebug('Error en la carga de elementos', result, LogLevel.ERROR);
+                this.finishLoading();
+              }
+            });
+          },
+          error: (err) => {
+            const loadTime = Math.round(performance.now() - startTime);
+            
+            this.zone.run(() => {
+              this.handleError(err, 'Error al cargar el mapa');
+              
+              // Detallar mejor el mensaje de error
+              const errorMessage = (err as any)?.message || 'Error desconocido';
+              this.errorMessage = `Error al cargar el mapa: ${errorMessage}`;
+              this.mapError.emit(this.errorMessage);
+              
+              // Mostrar información detallada en el log
+              this.logDebug(`Error de carga después de ${loadTime}ms`, err, LogLevel.ERROR);
+              
+              this.finishLoading();
+            });
+          }
+        });
+      } catch (err) {
+        // Capturar errores durante la inicialización
+        this.zone.run(() => {
+          this.handleError(err, 'Error al iniciar la carga del mapa');
+          
+          // Detallar mejor el mensaje de error
+          const errorMessage = (err as any)?.message || 'Inicialización fallida';
+          this.errorMessage = `Error al iniciar la carga: ${errorMessage}`;
           this.mapError.emit(this.errorMessage);
-        }
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.errorMessage = 'Error al cargar el mapa: ' + (err.message || 'Error desconocido');
-        this.mapError.emit(this.errorMessage);
-        this.cdr.markForCheck();
+          
+          this.logDebug('Error crítico al iniciar la carga del mapa', err, LogLevel.ERROR);
+          
+          this.finishLoading();
+        });
       }
+    }, 100);
+  }
+  
+  /**
+   * Finaliza el proceso de carga y actualiza la UI
+   */
+  private finishLoading(): void {
+    this.zone.run(() => {
+      this.isLoading = false;
+      
+      // Si no hay elementos en el mapa, agregar algunos elementos de muestra
+      if (this.elements.length === 0) {
+        this.addSampleElements();
+      }
+      
+      this.cdr.markForCheck();
+      this.mapLoaded.emit();
+
+      // Forzar detección de cambios para asegurar actualización de UI
+      setTimeout(() => this.cdr.detectChanges(), 0);
     });
   }
   
   /**
-   * Renderiza elementos en el mapa
-   * @param elements Elementos a renderizar
+   * Agrega elementos de muestra al mapa para visualización
    */
-  private renderElements(elements: NetworkElement[]): void {
-    // Implementación pendiente
-    // Este método renderizaría los elementos en el SVG
+  private addSampleElements(): void {
+    this.logDebug('Agregando elementos de muestra al mapa');
+    
+    try {
+      // Elementos de muestra en diferentes posiciones
+      const sampleElements: NetworkElement[] = [
+        {
+          id: 'sample-olt-1',
+          type: ElementType.OLT,
+          name: 'OLT Muestra 1',
+          position: CommonPositions.origin(),
+          status: ElementStatus.ACTIVE
+        },
+        {
+          id: 'sample-splitter-1',
+          type: ElementType.SPLITTER,
+          name: 'Splitter Muestra 1',
+          position: CommonPositions.santo_domingo(),
+          status: ElementStatus.ACTIVE
+        },
+        {
+          id: 'sample-splitter-2',
+          type: ElementType.SPLITTER,
+          name: 'Splitter Muestra 2',
+          position: CommonPositions.domincanRepublic(),
+          status: ElementStatus.ACTIVE
+        },
+        {
+          id: 'sample-fdp-1',
+          type: ElementType.FDP,
+          name: 'FDP Muestra 1',
+          position: CommonPositions.santo_domingo(),
+          status: ElementStatus.ACTIVE
+        },
+        {
+          id: 'sample-fdp-2',
+          type: ElementType.FDP,
+          name: 'FDP Muestra 2',
+          position: CommonPositions.domincanRepublic(),
+          status: ElementStatus.ACTIVE
+        },
+        {
+          id: 'sample-ont-1',
+          type: ElementType.ONT,
+          name: 'ONT Muestra 1',
+          position: CommonPositions.santo_domingo(),
+          status: ElementStatus.ACTIVE
+        },
+        {
+          id: 'sample-ont-2',
+          type: ElementType.ONT,
+          name: 'ONT Muestra 2',
+          position: CommonPositions.domincanRepublic(),
+          status: ElementStatus.ACTIVE
+        }
+      ];
+      
+      // Conexiones de muestra
+      const sampleConnections: NetworkConnection[] = [
+        {
+          id: 'sample-conn-1',
+          name: 'Conexión 1',
+          sourceElementId: 'sample-olt-1',
+          targetElementId: 'sample-splitter-1',
+          type: ConnectionType.FIBER,
+          status: ConnectionStatus.ACTIVE
+        },
+        {
+          id: 'sample-conn-2',
+          name: 'Conexión 2',
+          sourceElementId: 'sample-olt-1',
+          targetElementId: 'sample-splitter-2',
+          type: ConnectionType.FIBER,
+          status: ConnectionStatus.ACTIVE
+        },
+        {
+          id: 'sample-conn-3',
+          name: 'Conexión 3',
+          sourceElementId: 'sample-splitter-1',
+          targetElementId: 'sample-fdp-1',
+          type: ConnectionType.FIBER,
+          status: ConnectionStatus.ACTIVE
+        },
+        {
+          id: 'sample-conn-4',
+          name: 'Conexión 4',
+          sourceElementId: 'sample-splitter-2',
+          targetElementId: 'sample-fdp-2',
+          type: ConnectionType.FIBER,
+          status: ConnectionStatus.ACTIVE
+        },
+        {
+          id: 'sample-conn-5',
+          name: 'Conexión 5',
+          sourceElementId: 'sample-fdp-1',
+          targetElementId: 'sample-ont-1',
+          type: ConnectionType.FIBER,
+          status: ConnectionStatus.ACTIVE
+        },
+        {
+          id: 'sample-conn-6',
+          name: 'Conexión 6',
+          sourceElementId: 'sample-fdp-2',
+          targetElementId: 'sample-ont-2',
+          type: ConnectionType.FIBER,
+          status: ConnectionStatus.ACTIVE
+        }
+      ];
+      
+      // Guardar los elementos y conexiones
+      this.elements = sampleElements;
+      this.connections = sampleConnections;
+      
+      // Forzar la actualización del mapa
+      this._activeLayers = [
+        ElementType.OLT, 
+        ElementType.SPLITTER, 
+        ElementType.FDP, 
+        ElementType.ONT
+      ];
+      
+      // Renderizar elementos y conexiones
+      this.renderElements(this.elements);
+      this.renderConnections();
+      
+      // Centrar en el primer elemento
+      if (this.elements.length > 0) {
+        const position = this.elements[0].position;
+        if (position && typeof position === 'object' && position.lat !== undefined && position.lng !== undefined) {
+          // Usando los campos lat y lng para calcular coordenadas del mapa (asumiendo conversión simple)
+          this.centerMap([position.lng, position.lat]);
+        }
+      }
+      
+    } catch (error) {
+      this.logDebug('Error al agregar elementos de muestra', error, LogLevel.ERROR);
+    }
   }
   
   /**
    * Refresca el mapa cuando cambian las capas activas
    */
   private refreshMap(): void {
-    if (!this.mapSvgEl) return;
+    if (!this.mapSvgEl) {
+      this.logDebug('No se puede refrescar el mapa: elemento SVG no disponible', null, LogLevel.WARN);
+      return;
+    }
     
     // Filtrar elementos por capas activas
     const visibleElements = this.elements.filter(e => 
@@ -395,9 +781,387 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
     // Renderizar elementos filtrados
     this.renderElements(visibleElements);
     
-    // Actualizar estadísticas
-    this.renderingService.trackFrame(visibleElements.length);
+    // Actualizar indicadores de selección después de refrescar
+    this.updateSelectionIndicators();
     
+    // Actualizar estadísticas si el servicio está disponible
+    if (this.performanceService) {
+      // Asumimos que el servicio tiene un método para registrar actualizaciones
+      // Si hay problemas de tipos, adaptar según la implementación real
+      if (typeof (this.performanceService as any).registerMapUpdate === 'function') {
+        (this.performanceService as any).registerMapUpdate({
+          elementsCount: visibleElements.length,
+          timestamp: Date.now(),
+          visibleLayers: this.activeLayers
+        });
+      }
+    }
+
+    this.cdr.markForCheck();
+  }
+  
+  /**
+   * Renderiza elementos en el mapa
+   * @param elements Elementos a renderizar
+   */
+  private renderElements(elements: NetworkElement[]): void {
+    if (!this.mapSvgEl || !this.mapSvgEl.nativeElement) {
+      this.logDebug('No se pueden renderizar elementos: elemento SVG no disponible', null, LogLevel.WARN);
+      return;
+    }
+    
+    try {
+      const svgElement = this.mapSvgEl.nativeElement;
+      const elementLayer = svgElement.querySelector('.elements-layer');
+      
+      if (!elementLayer) {
+        this.logDebug('No se encuentra la capa para elementos', null, LogLevel.WARN);
+        return;
+      }
+      
+      // Limpiar capa existente
+      while (elementLayer.firstChild) {
+        elementLayer.removeChild(elementLayer.firstChild);
+      }
+      
+      // Procesamos primero las conexiones si el servicio está disponible
+      if (this.elementManager) {
+        this.renderConnections();
+      }
+      
+      this.logDebug(`Renderizando ${elements.length} elementos en el mapa`, null, LogLevel.INFO);
+      
+      // Conteo de elementos para verificación
+      let renderedCount = 0;
+      
+      // Renderizar elementos
+      elements.forEach(element => {
+        // Obtener las coordenadas x, y del elemento según el formato de posición
+        let x = 0;
+        let y = 0;
+        
+        if (Array.isArray(element.position) && element.position.length >= 2) {
+          // Formato array [x, y]
+          [x, y] = element.position;
+        } else if (element.position && typeof element.position === 'object') {
+          if (typeof element.position.lat === 'number' && typeof element.position.lng === 'number') {
+            // Formato objeto lat/lng - convertimos a coordenadas del mapa
+            x = element.position.lng * 100; // Escala arbitraria para ejemplo
+            y = element.position.lat * 100; // Ajustar según tu sistema de coordenadas
+          } else if (Array.isArray(element.position.coordinates) && element.position.coordinates.length >= 2) {
+            // Formato coordinates GeoJSON [lng, lat]
+            x = element.position.coordinates[0] * 100;
+            y = element.position.coordinates[1] * 100;
+          } else {
+            this.logDebug(`Elemento con formato de posición no soportado: ${element.id || '(sin ID)'}`);
+            return; // Saltar este elemento
+          }
+        } else {
+          this.logDebug(`Elemento sin posición válida: ${element.id || '(sin ID)'}`);
+          return; // Saltar elementos sin posición válida
+        }
+        
+        // Crear grupo para el elemento
+        const elementGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        elementGroup.setAttribute('class', `network-element element-type-${element.type}`);
+        elementGroup.setAttribute('data-element-id', element.id || '');
+        elementGroup.setAttribute('data-element-type', element.type);
+        
+        // Posicionar grupo
+        elementGroup.setAttribute('transform', `translate(${x}, ${y})`);
+        
+        // Añadir forma según el tipo de elemento (simplificado)
+        const elementShape = this.createElementShape(element);
+        elementGroup.appendChild(elementShape);
+        
+        // Añadir etiqueta si existe
+        if (element.name) {
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', '0');
+          label.setAttribute('y', '20');
+          label.setAttribute('text-anchor', 'middle');
+          label.setAttribute('fill', this.isDarkMode ? '#ffffff' : '#333333');
+          label.setAttribute('font-size', '10');
+          label.setAttribute('class', 'element-label');
+          label.textContent = element.name || '';
+          elementGroup.appendChild(label);
+        }
+        
+        // Añadir eventos
+        elementGroup.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          if (this.tool === 'select') {
+            this.selectElement(element);
+          }
+        });
+        
+        // Añadir el grupo
+        elementLayer.appendChild(elementGroup);
+        renderedCount++;
+      });
+      
+      this.logDebug(`Elementos renderizados con éxito: ${renderedCount} de ${elements.length}`);
+      
+      // Si no se renderiza ningún elemento pero la lista no está vacía, esto indica un problema
+      if (renderedCount === 0 && elements.length > 0) {
+        this.logDebug('No se pudo renderizar ningún elemento aunque la lista no está vacía', 
+                    { elementsSample: elements.slice(0, 3) }, LogLevel.WARN);
+      }
+      
+      // Centrar automáticamente el mapa si es la primera vez
+      if (renderedCount > 0 && this.panOffset.x === 0 && this.panOffset.y === 0) {
+        this.centerMap([0, 0]);
+      }
+      
+    } catch (error) {
+      this.logDebug('Error al renderizar elementos', error, LogLevel.ERROR);
+    }
+  }
+  
+  /**
+   * Crea una forma SVG para representar un elemento según su tipo
+   */
+  private createElementShape(element: NetworkElement): SVGElement {
+    let shape: SVGElement;
+    
+    switch (element.type) {
+      case ElementType.OLT:
+        // Rectángulo para OLT
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        shape.setAttribute('x', '-10');
+        shape.setAttribute('y', '-10');
+        shape.setAttribute('width', '20');
+        shape.setAttribute('height', '20');
+        shape.setAttribute('rx', '3');
+        shape.setAttribute('fill', '#4CAF50');
+        break;
+        
+      case ElementType.ONT:
+        // Círculo para ONT
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        shape.setAttribute('cx', '0');
+        shape.setAttribute('cy', '0');
+        shape.setAttribute('r', '8');
+        shape.setAttribute('fill', '#F44336');
+        break;
+        
+      case ElementType.SPLITTER:
+        // Diamante para Splitter
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        shape.setAttribute('points', '0,-8 8,0 0,8 -8,0');
+        shape.setAttribute('fill', '#FF9800');
+        break;
+        
+      default:
+        // Círculo genérico para otros tipos
+        shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        shape.setAttribute('cx', '0');
+        shape.setAttribute('cy', '0');
+        shape.setAttribute('r', '6');
+        shape.setAttribute('fill', '#9E9E9E');
+    }
+    
+    // Agregar borde 
+    shape.setAttribute('stroke', '#333');
+    shape.setAttribute('stroke-width', '1');
+    
+    return shape;
+  }
+  
+  /**
+   * Renderiza las conexiones entre elementos
+   */
+  private renderConnections(): void {
+    if (!this.mapSvgEl || !this.mapSvgEl.nativeElement) {
+      this.logDebug('No se pueden renderizar conexiones: elemento SVG no disponible', null, LogLevel.WARN);
+      return;
+    }
+    
+    try {
+      const svgElement = this.mapSvgEl.nativeElement;
+      const connectionsLayer = svgElement.querySelector('.connections-layer');
+      
+      if (!connectionsLayer) {
+        this.logDebug('No se encuentra la capa de conexiones', null, LogLevel.WARN);
+        return;
+      }
+      
+      // Limpiar conexiones existentes
+      while (connectionsLayer.firstChild) {
+        connectionsLayer.removeChild(connectionsLayer.firstChild);
+      }
+      
+      // Obtener conexiones a partir de los elementos
+      let connections: NetworkConnection[] = [];
+      
+      // Intentar obtener el servicio de conexiones
+      if (this.connectionService && typeof this.connectionService.getConnections === 'function') {
+        // Obtener conexiones del servicio de conexiones si existe
+        connections = this.connectionService.getConnections();
+        this.logDebug(`Obtenidas ${connections.length} conexiones del servicio MapConnectionService`);
+      } else {
+        // Si no está disponible MapConnectionService, buscar en ElementManager
+        this.logDebug('MapConnectionService no disponible, buscando en ElementManager', null, LogLevel.INFO);
+        
+        // Intentar obtener conexiones del ElementManager
+        if (this.elementManager && typeof (this.elementManager as any).getConnections === 'function') {
+          connections = (this.elementManager as any).getConnections() || [];
+          this.logDebug(`Obtenidas ${connections.length} conexiones de ElementManager`);
+        } else {
+          // Usar una alternativa: mantener conexiones previamente cargadas
+          this.logDebug('Método getConnections no disponible, usando alternativa', null, LogLevel.WARN);
+          connections = this.connections;
+        }
+      }
+      
+      // Filtrar conexiones según capas activas
+      const visibleConnections = connections.filter(connection => {
+        if (!connection.sourceElementId || !connection.targetElementId) {
+          return false;
+        }
+        
+        // Buscar elementos fuente y destino para verificar su tipo
+        const sourceElement = this.elements.find(e => e.id === connection.sourceElementId);
+        const targetElement = this.elements.find(e => e.id === connection.targetElementId);
+        
+        if (!sourceElement || !targetElement) {
+          return false;
+        }
+        
+        // Verificar si los tipos están en las capas activas
+        return this.activeLayers.includes(sourceElement.type) && 
+               this.activeLayers.includes(targetElement.type);
+      });
+      
+      // Guardar las conexiones filtradas para uso futuro
+      this.connections = connections;
+      
+      this.logDebug(`Renderizando ${visibleConnections.length} conexiones visibles de ${connections.length} totales`);
+      
+      // Renderizar conexiones visibles
+      visibleConnections.forEach(connection => {
+        const sourceElement = this.elements.find(e => e.id === connection.sourceElementId);
+        const targetElement = this.elements.find(e => e.id === connection.targetElementId);
+        
+        if (!sourceElement?.position || !targetElement?.position) {
+          return; // Saltar conexiones sin elementos válidos
+        }
+        
+        // Obtener coordenadas del elemento origen
+        let sourceX = 0;
+        let sourceY = 0;
+        
+        // Obtener coordenadas según el formato de posición
+        if (Array.isArray(sourceElement.position) && sourceElement.position.length >= 2) {
+          // Formato array [x, y]
+          [sourceX, sourceY] = sourceElement.position;
+        } else if (sourceElement.position && typeof sourceElement.position === 'object') {
+          if (typeof sourceElement.position.lat === 'number' && typeof sourceElement.position.lng === 'number') {
+            // Formato objeto lat/lng
+            sourceX = sourceElement.position.lng * 100; // Escala arbitraria para ejemplo
+            sourceY = sourceElement.position.lat * 100; // Ajustar según tu sistema de coordenadas
+          } else if (Array.isArray(sourceElement.position.coordinates) && sourceElement.position.coordinates.length >= 2) {
+            // Formato coordinates GeoJSON [lng, lat]
+            sourceX = sourceElement.position.coordinates[0] * 100;
+            sourceY = sourceElement.position.coordinates[1] * 100;
+          } else {
+            return; // Formato no soportado
+          }
+        } else {
+          return; // Posición no válida
+        }
+        
+        // Obtener coordenadas del elemento destino
+        let targetX = 0;
+        let targetY = 0;
+        
+        // Obtener coordenadas según el formato de posición
+        if (Array.isArray(targetElement.position) && targetElement.position.length >= 2) {
+          // Formato array [x, y]
+          [targetX, targetY] = targetElement.position;
+        } else if (targetElement.position && typeof targetElement.position === 'object') {
+          if (typeof targetElement.position.lat === 'number' && typeof targetElement.position.lng === 'number') {
+            // Formato objeto lat/lng
+            targetX = targetElement.position.lng * 100; // Escala arbitraria para ejemplo
+            targetY = targetElement.position.lat * 100; // Ajustar según tu sistema de coordenadas
+          } else if (Array.isArray(targetElement.position.coordinates) && targetElement.position.coordinates.length >= 2) {
+            // Formato coordinates GeoJSON [lng, lat]
+            targetX = targetElement.position.coordinates[0] * 100;
+            targetY = targetElement.position.coordinates[1] * 100;
+          } else {
+            return; // Formato no soportado
+          }
+        } else {
+          return; // Posición no válida
+        }
+        
+        // Crear línea para la conexión
+        const connectionLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        connectionLine.setAttribute('x1', sourceX.toString());
+        connectionLine.setAttribute('y1', sourceY.toString());
+        connectionLine.setAttribute('x2', targetX.toString());
+        connectionLine.setAttribute('y2', targetY.toString());
+        
+        // Estilo según estado
+        const status = connection.status || 'unknown';
+        let strokeColor;
+        
+        // Convertir a string y comparar para evitar problemas con el tipo ConnectionStatus
+        const statusStr = String(status);
+        if (statusStr === 'active' || statusStr === 'ACTIVE') {
+          strokeColor = '#4CAF50'; // Verde
+        } else if (statusStr === 'inactive' || statusStr === 'INACTIVE') {
+          strokeColor = '#F44336'; // Rojo
+        } else if (statusStr === 'warning' || statusStr === 'WARNING' || 
+                  statusStr === 'degraded' || statusStr === 'DEGRADED') {
+          strokeColor = '#FF9800'; // Naranja
+        } else {
+          strokeColor = '#9E9E9E'; // Gris
+        }
+        
+        connectionLine.setAttribute('stroke', strokeColor);
+        connectionLine.setAttribute('stroke-width', '2');
+        connectionLine.setAttribute('class', `connection-line connection-status-${status}`);
+        connectionLine.setAttribute('data-connection-id', connection.id || '');
+        connectionLine.setAttribute('data-source-id', connection.sourceElementId);
+        connectionLine.setAttribute('data-target-id', connection.targetElementId);
+        
+        // Añadir evento para seleccionar la conexión
+        connectionLine.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          if (this.tool === 'select') {
+            this.selectConnection(connection);
+          }
+        });
+        
+        // Añadir la línea al contenedor
+        connectionsLayer.appendChild(connectionLine);
+      });
+      
+    } catch (error) {
+      this.logDebug('Error al renderizar conexiones', error, LogLevel.ERROR);
+    }
+  }
+  
+  /**
+   * Selecciona un elemento
+   */
+  private selectElement(element: NetworkElement): void {
+    this.selectedElement = element;
+    this.selectedConnection = null;
+    this.updateSelectionIndicators();
+    this.elementSelected.emit(element);
+    this.cdr.markForCheck();
+  }
+  
+  /**
+   * Selecciona una conexión
+   */
+  private selectConnection(connection: NetworkConnection): void {
+    this.selectedConnection = connection;
+    this.selectedElement = null;
+    this.updateSelectionIndicators();
+    this.connectionSelected.emit(connection);
     this.cdr.markForCheck();
   }
   
@@ -405,8 +1169,120 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
    * Actualiza indicadores de selección
    */
   private updateSelectionIndicators(): void {
-    // Implementación pendiente
-    // Este método actualizaría los indicadores visuales de selección
+    if (!this.mapSvgEl || !this.mapSvgEl.nativeElement) {
+      return;
+    }
+    
+    try {
+      const svgElement = this.mapSvgEl.nativeElement;
+      const selectionLayer = svgElement.querySelector('.selection-layer');
+      
+      if (!selectionLayer) {
+        this.logDebug('No se encuentra la capa de selección', null, LogLevel.WARN);
+        return;
+      }
+      
+      // Limpiar indicadores existentes
+      while (selectionLayer.firstChild) {
+        selectionLayer.removeChild(selectionLayer.firstChild);
+      }
+      
+      // Crear indicador según lo que esté seleccionado
+      if (this.selectedElement) {
+        this.createElementSelectionIndicator(selectionLayer, this.selectedElement);
+      } else if (this.selectedConnection) {
+        this.createConnectionSelectionIndicator(selectionLayer, this.selectedConnection);
+      }
+      
+    } catch (error) {
+      this.logDebug('Error al actualizar indicadores de selección', error, LogLevel.ERROR);
+    }
+  }
+  
+  /**
+   * Crea un indicador de selección para un elemento
+   */
+  private createElementSelectionIndicator(container: Element, element: NetworkElement): void {
+    // Verificar que la posición sea un array y tenga al menos 2 elementos
+    if (!element.position || !Array.isArray(element.position) || element.position.length < 2) {
+      return;
+    }
+    
+    // Acceder a las coordenadas directamente en lugar de usar desestructuración
+    const x = element.position[0];
+    const y = element.position[1];
+    
+    // Crear círculo de selección
+    const selectionCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    selectionCircle.setAttribute('cx', x.toString());
+    selectionCircle.setAttribute('cy', y.toString());
+    selectionCircle.setAttribute('r', '16'); // Radio mayor que el elemento
+    selectionCircle.setAttribute('fill', 'none');
+    selectionCircle.setAttribute('stroke', '#1976d2');
+    selectionCircle.setAttribute('stroke-width', '2');
+    selectionCircle.setAttribute('stroke-dasharray', '4,2');
+    selectionCircle.setAttribute('class', 'selection-indicator pulse-effect');
+    
+    // Añadir animación de pulsación
+    const animation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+    animation.setAttribute('attributeName', 'r');
+    animation.setAttribute('from', '16');
+    animation.setAttribute('to', '18');
+    animation.setAttribute('dur', '1s');
+    animation.setAttribute('repeatCount', 'indefinite');
+    animation.setAttribute('values', '16;18;16');
+    animation.setAttribute('keyTimes', '0;0.5;1');
+    selectionCircle.appendChild(animation);
+    
+    container.appendChild(selectionCircle);
+  }
+  
+  /**
+   * Crea un indicador de selección para una conexión
+   */
+  private createConnectionSelectionIndicator(container: Element, connection: NetworkConnection): void {
+    // Buscar elementos fuente y destino usando sourceId y targetId
+    const sourceElement = this.elements.find(e => e.id === connection.sourceElementId);
+    const targetElement = this.elements.find(e => e.id === connection.targetElementId);
+    
+    // Verificar que ambos elementos existan y tengan posiciones válidas
+    if (!sourceElement?.position || !targetElement?.position) {
+      return;
+    }
+    
+    // Verificar que las posiciones sean arrays con al menos 2 elementos
+    if (!Array.isArray(sourceElement.position) || sourceElement.position.length < 2 ||
+        !Array.isArray(targetElement.position) || targetElement.position.length < 2) {
+      return;
+    }
+    
+    // Obtener coordenadas de los elementos
+    const sourceX = sourceElement.position[0];
+    const sourceY = sourceElement.position[1];
+    const targetX = targetElement.position[0];
+    const targetY = targetElement.position[1];
+    
+    // Crear línea de selección que sigue la conexión
+    const selectionLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    selectionLine.setAttribute('x1', sourceX.toString());
+    selectionLine.setAttribute('y1', sourceY.toString());
+    selectionLine.setAttribute('x2', targetX.toString());
+    selectionLine.setAttribute('y2', targetY.toString());
+    selectionLine.setAttribute('stroke', '#1976d2');
+    selectionLine.setAttribute('stroke-width', '4');
+    selectionLine.setAttribute('stroke-dasharray', '6,3');
+    selectionLine.setAttribute('class', 'selection-indicator');
+    
+    // Añadir animación de flujo a lo largo de la línea
+    const animation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+    animation.setAttribute('attributeName', 'stroke-dashoffset');
+    animation.setAttribute('from', '0');
+    animation.setAttribute('to', '12');
+    animation.setAttribute('dur', '1s');
+    animation.setAttribute('repeatCount', 'indefinite');
+    selectionLine.appendChild(animation);
+    
+    container.appendChild(selectionLine);
   }
   
   /**
@@ -559,10 +1435,30 @@ export class MapViewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   /**
-   * Limpieza al destruir el componente
+   * Centra el mapa en las coordenadas especificadas (sistema de coordenadas del mapa).
+   * @param coordinates Coordenadas [x, y] a centrar.
    */
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  centerMap(coordinates: [number, number]): void {
+    if (!this.mapContainerEl || !this.mapContainerEl.nativeElement) {
+      this.logger.warn('Contenedor del mapa no disponible para centrar.');
+      return;
+    }
+
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
+
+    // Calculamos el nuevo panOffset para que las coordenadas (x,y)
+    // multiplicadas por el zoom actual, más el offset, resulten en el centro de la pantalla.
+    // targetX * zoomScale + newPanX = screenCenterX
+    // newPanX = screenCenterX - targetX * zoomScale
+    this.panOffset = {
+      x: centerX - (coordinates[0] * this.zoomScale),
+      y: centerY - (coordinates[1] * this.zoomScale)
+    };
+
+    this.lastPanOffset = { ...this.panOffset }; // Actualizar el último offset para el panning
+    this.refreshMap(); // Volver a dibujar el mapa con el nuevo centrado
+    this.logger.debug(`Mapa centrado en [${coordinates[0]}, ${coordinates[1]}] con panOffset:`, this.panOffset);
+    this.cdr.markForCheck();
   }
 } 

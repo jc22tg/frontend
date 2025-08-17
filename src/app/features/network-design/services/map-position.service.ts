@@ -3,7 +3,7 @@ import * as L from 'leaflet';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import { Observable, Subject, fromEvent, of, BehaviorSubject, throwError } from 'rxjs';
 import { map, tap, delay, catchError } from 'rxjs/operators';
-import { GeographicPosition, createPosition } from '../../../shared/types/network.types';
+import { GeographicPosition, GeoPosition } from '../../../shared/types/geo-position';
 import { MapDiagnosticService } from './map-diagnostic.service';
 import { LoggerService } from '../../../core/services/logger.service';
 
@@ -95,9 +95,9 @@ export class MapPositionService implements IMapPositionService {
   private currentZoom = 1;
   
   // Coordenadas predeterminadas de Puerto Plata, República Dominicana
-  private defaultLatitude = 19.7934;
-  private defaultLongitude = -70.6884;
-  private defaultZoom = 13;
+  private defaultLatitude = 19.783750;
+  private defaultLongitude = -70.676666;
+  private defaultZoom = 16;
 
   private readonly baseLayers: Record<string, MapLayer> = {
     OpenStreetMap: {
@@ -256,10 +256,12 @@ export class MapPositionService implements IMapPositionService {
     
     // Si no se proporciona una posición inicial, usar las coordenadas predeterminadas
     if (!initialPosition) {
-      initialPosition = createPosition(
-        [this.defaultLongitude, this.defaultLatitude],
-        { type: 'Point' }
-      );
+      initialPosition = {
+        type: 'Point',
+        lat: this.defaultLatitude,
+        lng: this.defaultLongitude,
+        coordinates: [this.defaultLongitude, this.defaultLatitude]
+      };
     }
     
     try {
@@ -291,8 +293,8 @@ export class MapPositionService implements IMapPositionService {
       const puertoPlataLng = this.defaultLongitude;
       
       // Asegurarse de que las coordenadas son válidas, usando Puerto Plata como valor predeterminado
-      const validLat = initialPosition?.coordinates?.[1] || puertoPlataLat;
-      const validLng = initialPosition?.coordinates?.[0] || puertoPlataLng;
+      const validLat = initialPosition.coordinates?.[1] || puertoPlataLat;
+      const validLng = initialPosition.coordinates?.[0] || puertoPlataLng;
       
       // Crear un pequeño indicador visual para mostrar que el mapa se está inicializando
       const initIndicator = document.createElement('div');
@@ -405,10 +407,12 @@ export class MapPositionService implements IMapPositionService {
         this.logger.debug(`Clic en mapa: [${latlng.lat}, ${latlng.lng}]`);
         
         // Emitir posición seleccionada
-        this.clickSubject.next(createPosition(
-          [latlng.lng, latlng.lat],
-          { type: 'Point' }
-        ));
+        this.clickSubject.next({
+          type: 'Point',
+          lat: latlng.lat,
+          lng: latlng.lng,
+          coordinates: [latlng.lng, latlng.lat]
+        });
       }
     });
   }
@@ -447,48 +451,48 @@ export class MapPositionService implements IMapPositionService {
    * Añade un marcador al mapa
    */
   private addMarker(position: GeographicPosition): void {
-    if (!this.map) {
-      console.warn('No se puede añadir marcador: mapa no inicializado');
-      return;
+    if (this.marker) {
+      this.map?.removeLayer(this.marker);
     }
     
-    console.log(`Añadiendo marcador en [${position.coordinates[1]}, ${position.coordinates[0]}]`);
+    this.logger.debug(`Añadiendo marcador en [${position.lat}, ${position.lng}]`);
     
-    try {
-      const customIcon = L.icon({
-        iconUrl: 'assets/icons/marker-icon.png',
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
-      });
-
-      // Limpiar marcador existente si existe
-      if (this.marker) {
-        this.marker.remove();
-      }
-
-      // Crear nuevo marcador
-      this.marker = L.marker([position.coordinates[1], position.coordinates[0]], {
-        draggable: true,
-        icon: customIcon
-      });
+    // Crear un icono personalizado
+    const icon = L.icon({
+      iconUrl: 'assets/leaflet/images/marker-icon.png',
+      shadowUrl: 'assets/leaflet/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+    
+    // Coordenadas para el marcador
+    const markerPosition = position.coordinates ? 
+      [position.coordinates[1], position.coordinates[0]] : 
+      [position.lat, position.lng];
+    
+    // Añadir el marcador
+    this.marker = L.marker(markerPosition as L.LatLngExpression, {
+      draggable: true,
+      icon
+    }).addTo(this.map!);
+    
+    // Configurar evento para arrastrar
+    this.marker.on('dragend', () => {
+      const latLng = this.marker!.getLatLng();
       
-      this.marker.addTo(this.map);
+      const newPosition: GeographicPosition = {
+        type: 'Point',
+        lat: latLng.lat,
+        lng: latLng.lng,
+        coordinates: [latLng.lng, latLng.lat]
+      };
       
-      // Añadir evento para cuando se arrastra el marcador
-      this.marker.on('dragend', () => {
-        const newPos = this.marker?.getLatLng();
-        if (newPos) {
-          console.log(`Marcador movido a: [${newPos.lat}, ${newPos.lng}]`);
-          this.markerDragEndSubject.next(createPosition(
-            [newPos.lng, newPos.lat],
-            { type: 'Point' }
-          ));
-        }
-      });
-    } catch (error) {
-      console.error('Error al añadir marcador:', error);
-    }
+      this.markerDragEndSubject.next(newPosition);
+      
+      this.logger.debug(`Marcador arrastrado a: [${latLng.lat}, ${latLng.lng}]`);
+    });
   }
 
   /**
@@ -528,10 +532,12 @@ export class MapPositionService implements IMapPositionService {
       const results = await this.searchProvider.search({ query });
       if (results.length > 0) {
         const result = results[0];
-        const position = createPosition(
-          [result.x, result.y],
-          { type: 'Point' }
-        );
+        const position: GeographicPosition = {
+          type: 'Point',
+          lat: result.y,
+          lng: result.x,
+          coordinates: [result.x, result.y] as [number, number]
+        };
         this.updateMarkerPosition(position);
         return position;
       }
@@ -546,13 +552,16 @@ export class MapPositionService implements IMapPositionService {
    * Actualiza la posición del marcador
    */
   updateMarkerPosition(position: GeographicPosition): void {
-    if (!this.map || !this.marker) return;
+    // Asegurarse de que tenemos coordenadas válidas
+    const latLng = position.coordinates && position.coordinates.length >= 2
+      ? L.latLng(position.coordinates[1], position.coordinates[0])
+      : L.latLng(position.lat, position.lng);
     
-    const latLng = L.latLng(position.coordinates[1], position.coordinates[0]);
-    this.marker.setLatLng(latLng);
-    
-    // Opcional: centrar el mapa en la nueva posición
-    this.map.panTo(latLng);
+    if (this.marker) {
+      this.marker.setLatLng(latLng);
+    } else if (this.map) {
+      this.addMarker(position);
+    }
   }
 
   /**
@@ -560,14 +569,21 @@ export class MapPositionService implements IMapPositionService {
    */
   getMarkerPosition(): GeographicPosition {
     if (!this.marker) {
-      return createPosition([0, 0], { type: 'Point' });
+      return {
+        type: 'Point',
+        lat: 0,
+        lng: 0,
+        coordinates: [0, 0]
+      };
     }
     
     const position = this.marker.getLatLng();
-    return createPosition(
-      [position.lng, position.lat],
-      { type: 'Point' }
-    );
+    return {
+      type: 'Point',
+      lat: position.lat,
+      lng: position.lng,
+      coordinates: [position.lng, position.lat]
+    };
   }
 
   /**
@@ -577,10 +593,12 @@ export class MapPositionService implements IMapPositionService {
     if (!this.map) return;
     
     this.map.on('click', (e: L.LeafletMouseEvent) => {
-      const position = createPosition(
-        [e.latlng.lng, e.latlng.lat],
-        { type: 'Point' }
-      );
+      const position: GeographicPosition = {
+        type: 'Point',
+        lat: e.latlng.lat,
+        lng: e.latlng.lng,
+        coordinates: [e.latlng.lng, e.latlng.lat] as [number, number]
+      };
       this.updateMarkerPosition(position);
       callback(position);
     });
@@ -640,16 +658,26 @@ export class MapPositionService implements IMapPositionService {
    */
   resetView(position?: GeographicPosition): void {
     // Si no se proporciona una posición, usar las coordenadas predeterminadas
-    const defaultPosition = createPosition(
-      [this.defaultLongitude, this.defaultLatitude],
-      { type: 'Point' }
-    );
+    const defaultPosition: GeographicPosition = {
+      type: 'Point' as const,
+      lat: this.defaultLatitude,
+      lng: this.defaultLongitude,
+      coordinates: [this.defaultLongitude, this.defaultLatitude] as [number, number]
+    };
     
     // Usar la posición proporcionada o la predeterminada
     const finalPosition = position || defaultPosition;
     
     if (this.map) {
-      this.map.setView([finalPosition.coordinates[1], finalPosition.coordinates[0]], this.defaultZoom);
+      // Asegurarse de que las coordenadas estén definidas
+      const latCoord = finalPosition.coordinates && finalPosition.coordinates.length >= 2 
+        ? finalPosition.coordinates[1] 
+        : finalPosition.lat;
+      const lngCoord = finalPosition.coordinates && finalPosition.coordinates.length >= 2 
+        ? finalPosition.coordinates[0] 
+        : finalPosition.lng;
+      
+      this.map.setView([latCoord, lngCoord], this.defaultZoom);
       this.updateMarkerPosition(finalPosition);
     }
     
@@ -662,7 +690,11 @@ export class MapPositionService implements IMapPositionService {
       height: this._viewport.getValue().height
     });
     
-    this.logger.debug(`Vista del mapa restablecida: [${finalPosition.coordinates[1]}, ${finalPosition.coordinates[0]}]`);
+    // Obtener coordenadas seguras para el log
+    const latLog = finalPosition.lat || (finalPosition.coordinates ? finalPosition.coordinates[1] : 0);
+    const lngLog = finalPosition.lng || (finalPosition.coordinates ? finalPosition.coordinates[0] : 0);
+    
+    this.logger.debug(`Vista del mapa restablecida: [${latLog}, ${lngLog}]`);
   }
 
   /**
@@ -713,10 +745,12 @@ export class MapPositionService implements IMapPositionService {
         currentPosition = this.getMarkerPosition();
       } catch (error) {
         // Si hay un error al obtener la posición actual, usar la predeterminada
-        currentPosition = createPosition(
-          [this.defaultLongitude, this.defaultLatitude],
-          { type: 'Point' }
-        );
+        currentPosition = {
+          type: 'Point',
+          lat: this.defaultLatitude,
+          lng: this.defaultLongitude,
+          coordinates: [this.defaultLongitude, this.defaultLatitude] as [number, number]
+        };
       }
       
       const currentZoom = this.map?.getZoom() || this.defaultZoom;
@@ -741,7 +775,10 @@ export class MapPositionService implements IMapPositionService {
             setTimeout(() => {
               if (this.map) {
                 this.map.setZoom(currentZoom);
-                console.log(`Mapa reinicializado en: [${currentPosition.coordinates[1]}, ${currentPosition.coordinates[0]}], zoom: ${currentZoom}`);
+                // Usar valores seguros para el log
+                const lat = currentPosition.lat;
+                const lng = currentPosition.lng;
+                console.log(`Mapa reinicializado en: [${lat}, ${lng}], zoom: ${currentZoom}`);
               }
             }, 300);
           }
@@ -992,7 +1029,24 @@ export class MapPositionService implements IMapPositionService {
    * Reinicia completamente el estado del mapa
    */
   resetMapState(): void {
-    // Implementación existente
+    if (this.map) {
+      // Establecer vista a las coordenadas predeterminadas
+      this.map.setView([this.defaultLatitude, this.defaultLongitude], this.defaultZoom);
+      
+      // Limpiar elementos visuales
+      this.clearLeafletVisuals();
+      
+      // Actualizar viewport
+      this._viewport.next({
+        x: 0,
+        y: 0,
+        zoom: this.DEFAULT_ZOOM,
+        width: this._viewport.getValue().width,
+        height: this._viewport.getValue().height
+      });
+      
+      this.logger.debug('Estado del mapa restablecido');
+    }
   }
   
   /**

@@ -41,6 +41,29 @@ Widgets que muestran estadísticas, métricas o estados de la red.
 ### Search
 Widgets para buscar y filtrar elementos en la red.
 
+## Widgets Reorganizados
+
+### Performance Widget
+
+El componente `PerformanceWidgetComponent` ha sido reorganizado y movido a su ubicación correcta dentro de la estructura de carpetas:
+
+```
+widgets/
+└── monitoring/
+    └── performance-widget/
+        ├── performance-widget.component.ts
+        ├── performance-widget.component.html
+        └── performance-widget.component.scss
+```
+
+Este componente ahora utiliza el servicio unificado `MapPerformanceService` que combina las funcionalidades que antes estaban divididas en varios servicios duplicados.
+
+### Nota Importante
+
+Los servicios relacionados con el rendimiento del mapa han sido consolidados:
+- Se ha eliminado `MapRenderingService`, y sus funcionalidades ahora están en `MapPerformanceService`
+- Consultar el documento `MIGRATION.md` en la carpeta `services/map/` para más detalles sobre la migración
+
 ## Uso
 
 Para importar todos los widgets en un componente, puedes utilizar el archivo barrel index.ts:

@@ -5,6 +5,18 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { NetworkElement, ElementType, ElementStatus } from '../../../shared/types/network.types';
+import {
+  OLT,
+  ONT,
+  ODF,
+  Splitter,
+  TerminalBox,
+  SlackFiber,
+  FiberThread,
+  Rack
+} from '../interfaces/element.interface';
+import { EDFA } from '../../../shared/models/edfa.model';
+import { Manga as SharedManga } from '../../../shared/models/manga.model';
 
 @Injectable({
   providedIn: 'root'
@@ -196,5 +208,46 @@ export class ElementManagementService {
    */
   getActiveFilters(): Observable<Record<string, any>> {
     return this.activeFilters$;
+  }
+
+  // Type guards para tipos concretos
+  isOLT(element: any): element is OLT {
+    return element && element.type === 'OLT';
+  }
+  isONT(element: any): element is ONT {
+    return element && element.type === 'ONT';
+  }
+  isODF(element: any): element is ODF {
+    return element && element.type === 'ODF';
+  }
+  isEDFA(element: any): element is EDFA {
+    return element && element.type === 'EDFA';
+  }
+  isSplitter(element: any): element is Splitter {
+    return element && element.type === 'SPLITTER';
+  }
+  isManga(element: any): element is SharedManga {
+    return element && element.type === 'MANGA';
+  }
+  isTerminalBox(element: any): element is TerminalBox {
+    return element && element.type === 'TERMINAL_BOX';
+  }
+  isSlackFiber(element: any): element is SlackFiber {
+    return element && element.type === 'SLACK_FIBER';
+  }
+  isFiberThread(element: any): element is FiberThread {
+    return element && element.type === 'FIBER_THREAD';
+  }
+  isRack(element: any): element is Rack {
+    return element && element.type === 'RACK';
+  }
+
+  /**
+   * Obtiene todos los elementos que pertenecen a un rack específico
+   */
+  getElementsByRackId(rackId: string) {
+    return this.getElements().pipe(
+      map(elements => elements.filter(e => 'rackId' in e && e.rackId === rackId))
+    );
   }
 } 

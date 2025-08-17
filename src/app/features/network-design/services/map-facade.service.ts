@@ -3,7 +3,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { takeUntil, map, distinctUntilChanged } from 'rxjs/operators';
 import { ElementType, NetworkElement, NetworkConnection, ElementStatus } from '../../../shared/types/network.types';
 import { NetworkStateService } from './network-state.service';
-import { NetworkEventBusService, NetworkEventType, ElementSelectedEvent, ConnectionSelectedEvent, ZoomChangedEvent } from './network-event-bus.service';
+import { NetworkEventBusService, NetworkEventType, NetworkEvent } from './network-event-bus.service';
 import { LayerManagerService } from './layer-manager.service';
 import { ElementService } from './element.service';
 import { LoggerService } from '../../../core/services/logger.service';
@@ -91,27 +91,27 @@ export class MapFacadeService {
    */
   private subscribeToEvents(): void {
     // Suscribirnos al evento de selección de elemento
-    this.eventBus.ofType<ElementSelectedEvent>(NetworkEventType.ELEMENT_SELECTED).pipe(
+    this.eventBus.on(NetworkEventType.ELEMENT_SELECTED).pipe(
       takeUntil(this.destroy$)
-    ).subscribe((event: ElementSelectedEvent) => {
+    ).subscribe((event: NetworkEvent) => {
       // Notificar a los observadores sobre el elemento seleccionado
-      this.networkStateService.updateSelectedElement(event.payload.element);
+      this.networkStateService.updateSelectedElement(event.payload?.element);
     });
 
     // Suscribirnos al evento de selección de conexión
-    this.eventBus.ofType<ConnectionSelectedEvent>(NetworkEventType.CONNECTION_SELECTED).pipe(
+    this.eventBus.on(NetworkEventType.CONNECTION_SELECTED).pipe(
       takeUntil(this.destroy$)
-    ).subscribe((event: ConnectionSelectedEvent) => {
+    ).subscribe((event: NetworkEvent) => {
       // Notificar a los observadores sobre la conexión seleccionada
-      this.networkStateService.setSelectedConnection(event.payload.connection);
+      this.networkStateService.setSelectedConnection(event.payload?.connection);
     });
 
     // Suscribirnos al evento de cambio de zoom
-    this.eventBus.ofType<ZoomChangedEvent>(NetworkEventType.ZOOM_CHANGED).pipe(
+    this.eventBus.on(NetworkEventType.ZOOM_CHANGED).pipe(
       takeUntil(this.destroy$)
-    ).subscribe((event: ZoomChangedEvent) => {
+    ).subscribe((event: NetworkEvent) => {
       // Actualizar el nivel de zoom actual
-      this.networkStateService.setZoomLevel(event.payload.level);
+      this.networkStateService.setZoomLevel(event.payload?.level);
     });
   }
   
@@ -120,7 +120,11 @@ export class MapFacadeService {
    */
   setZoomLevel(level: number): void {
     this.networkStateService.setZoomLevel(level);
-    this.eventBus.emitZoomChanged(level);
+    this.eventBus.emit({
+      type: NetworkEventType.ZOOM_CHANGED,
+      timestamp: new Date(),
+      payload: { level }
+    });
   }
   
   /**
@@ -128,7 +132,11 @@ export class MapFacadeService {
    */
   selectElement(element: NetworkElement | null): void {
     // Emitir evento al bus en lugar de llamar directamente a NetworkStateService y MapEventsService
-    this.eventBus.emitElementSelected(element);
+    if (element) {
+      this.eventBus.emitElementSelected(element);
+    } else {
+      this.networkStateService.updateSelectedElement(null);
+    }
   }
   
   /**
@@ -136,7 +144,11 @@ export class MapFacadeService {
    */
   selectConnection(connection: NetworkConnection | null): void {
     // Emitir evento al bus en lugar de llamar directamente a NetworkStateService y MapEventsService
-    this.eventBus.emitConnectionSelected(connection);
+    if (connection) {
+      this.eventBus.emitConnectionSelected(connection);
+    } else {
+      this.networkStateService.setSelectedConnection(null);
+    }
   }
   
   /**
@@ -159,7 +171,11 @@ export class MapFacadeService {
   setCurrentTool(tool: string): void {
     const previousTool = this.networkStateService.getCurrentState().currentTool;
     this.networkStateService.setCurrentTool(tool);
-    this.eventBus.emitToolChanged(tool, previousTool);
+    this.eventBus.emit({
+      type: NetworkEventType.VIEW_MODE_CHANGED,
+      timestamp: new Date(),
+      payload: { tool, previousTool }
+    });
   }
   
   /**
@@ -168,8 +184,10 @@ export class MapFacadeService {
   completeMeasurement(data: {sourceElement: NetworkElement, targetElement: NetworkElement, distance: number}): void {
     // Emitir evento de medición completada
     this.eventBus.emit({
-      type: NetworkEventType.MEASUREMENT_COMPLETED,
+      type: NetworkEventType.WIDGET_ACTION,
+      timestamp: new Date(),
       payload: {
+        action: 'measurement_completed',
         sourceElement: data.sourceElement,
         targetElement: data.targetElement,
         distance: data.distance
@@ -187,9 +205,13 @@ export class MapFacadeService {
    */
   createConnection(connection: NetworkConnection): void {
     this.networkStateService.setIsDirty(true);
-    this.eventBus.emitConnectionCreated(connection);
+    this.eventBus.emit({
+      type: NetworkEventType.CONNECTION_CREATED,
+      timestamp: new Date(),
+      payload: { connection }
+    });
     this.networkStateService.addToHistory({
-      action: `Conexión creada: ${connection.sourceId} → ${connection.targetId}`,
+      action: `Conexión creada: ${connection.sourceElementId} → ${connection.targetElementId}`,
       timestamp: new Date()
     });
   }
@@ -205,7 +227,8 @@ export class MapFacadeService {
       
       // Emitir evento de cambio de componente UI
       this.eventBus.emit({
-        type: NetworkEventType.UI_COMPONENT_TOGGLED,
+        type: NetworkEventType.WIDGET_ACTION,
+        timestamp: new Date(),
         payload: { component: 'searchWidget', visible: newState }
       });
     });
@@ -222,7 +245,8 @@ export class MapFacadeService {
       
       // Emitir evento de cambio de componente UI
       this.eventBus.emit({
-        type: NetworkEventType.UI_COMPONENT_TOGGLED,
+        type: NetworkEventType.WIDGET_ACTION,
+        timestamp: new Date(),
         payload: { component: 'elementsPanel', visible: newState }
       });
     });

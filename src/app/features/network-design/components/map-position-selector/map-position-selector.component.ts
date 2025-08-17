@@ -9,32 +9,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { BaseElementFormComponent } from '../element-editor/element-type-form/base-element-form.component';
-import { GeographicPosition, createPosition } from '../../../../shared/types/network.types';
-
-// Los servicios no son necesarios renderizar el componente para esta demostración
-// Usamos implementaciones mock si son necesarias
-class MockMapService {
-  centerOnCoordinates(coords: any): void {}
-  setCurrentCoordinates(coords: any): void {}
-}
-
-class MockNetworkMapDialogService {
-  openMapPositionDialog(position: any, options: any): any {
-    return {
-      afterClosed: () => ({
-        pipe: () => ({
-          subscribe: (fn: any) => {}
-        })
-      })
-    };
-  }
-}
-
-class MockLoggerService {
-  debug(message: string, ...args: any[]): void {}
-  error(message: string, ...args: any[]): void {}
-}
+import { BaseElementFormComponent } from '../elements/element-editor/element-type-form/base-element-form.component';
+import { GeographicPosition, createPosition } from '../../../../shared/types/geo-position';
+import { MapService } from '../../services/map.service';
+import { NetworkMapDialogService } from '../../services/network-map-dialog.service';
+import { LoggerService } from '../../../../core/services/logger.service';
 
 /**
  * Componente para seleccionar la posición geográfica del elemento en el mapa
@@ -150,21 +129,16 @@ class MockLoggerService {
     MatIconModule,
     MatTooltipModule
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    { provide: MockMapService, useClass: MockMapService },
-    { provide: MockNetworkMapDialogService, useClass: MockNetworkMapDialogService },
-    { provide: MockLoggerService, useClass: MockLoggerService }
-  ]
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MapPositionSelectorComponent extends BaseElementFormComponent {
   private destroy$ = new Subject<void>();
   private selectionActive = false;
   
   constructor(
-    private mapService: MockMapService,
-    private networkMapDialogService: MockNetworkMapDialogService,
-    private logger: MockLoggerService,
+    private mapService: MapService,
+    private networkMapDialogService: NetworkMapDialogService,
+    private logger: LoggerService,
     private cdr: ChangeDetectorRef
   ) {
     super();
@@ -189,13 +163,28 @@ export class MapPositionSelectorComponent extends BaseElementFormComponent {
   enableMapSelection(): void {
     // Obtener la posición actual del formulario
     const coordinatesArray = this.getCoordinatesArray();
+    const position = this.getPositionObject();
     
-    // Código simplificado para la demostración
     this.logger.debug('Abriendo diálogo de selección de posición');
-    this.networkMapDialogService.openMapPositionDialog(null, {
+    
+    // Usar el servicio real para abrir el diálogo
+    const dialogRef = this.networkMapDialogService.openMapPositionDialog(position || undefined, {
       title: 'Seleccionar ubicación',
       description: 'Seleccione ubicación en el mapa'
     });
+    
+    // Suscribirse al resultado del diálogo
+    dialogRef.afterClosed()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(result => {
+        if (result && result.coordinates) {
+          this.updateCoordinates({
+            lat: result.coordinates[1],
+            lng: result.coordinates[0]
+          });
+          this.logger.debug(`Posición actualizada: [${result.coordinates[1]}, ${result.coordinates[0]}]`);
+        }
+      });
   }
 
   /**
@@ -211,7 +200,7 @@ export class MapPositionSelectorComponent extends BaseElementFormComponent {
         this.mapService.centerOnCoordinates({ x: lng, y: lat });
         this.logger.debug(`Mapa centrado en [${lat}, ${lng}]`);
       } catch (error) {
-        this.logger.error('Error al centrar el mapa');
+        this.logger.error('Error al centrar el mapa', error);
       }
     }
   }
@@ -223,10 +212,12 @@ export class MapPositionSelectorComponent extends BaseElementFormComponent {
     if (!coords || !this.parentForm) return;
     
     const coordinatesArray = this.getCoordinatesArray();
-    coordinatesArray.at(0).setValue(coords.lng); // Longitud
-    coordinatesArray.at(1).setValue(coords.lat); // Latitud
-    
-    this.cdr.markForCheck();
+    if (coordinatesArray) {
+      coordinatesArray.at(0).setValue(coords.lng); // Longitud
+      coordinatesArray.at(1).setValue(coords.lat); // Latitud
+      
+      this.cdr.markForCheck();
+    }
   }
   
   /**
@@ -237,11 +228,28 @@ export class MapPositionSelectorComponent extends BaseElementFormComponent {
   }
   
   /**
+   * Obtiene el objeto de posición completo
+   */
+  private getPositionObject(): GeographicPosition | null {
+    if (!this.hasValidCoordinates()) {
+      return null;
+    }
+    
+    const coordinatesArray = this.getCoordinatesArray();
+    const lng = coordinatesArray.at(0).value;
+    const lat = coordinatesArray.at(1).value;
+    
+    return createPosition([lng, lat], {
+      type: 'Point'
+    });
+  }
+  
+  /**
    * Verifica si hay coordenadas válidas
    */
   hasValidCoordinates(): boolean {
     const coordinatesArray = this.getCoordinatesArray();
-    return coordinatesArray && 
+    return !!coordinatesArray && 
            coordinatesArray.length === 2 && 
            coordinatesArray.at(0).value !== null && 
            coordinatesArray.at(1).value !== null;

@@ -15,18 +15,19 @@
  * ```
  */
 import { Injectable, inject } from '@angular/core';
-import { Observable, from } from 'rxjs';
-import { map, mergeMap, toArray } from 'rxjs/operators';
+import { Observable, from, throwError } from 'rxjs';
+import { map, mergeMap, toArray, catchError } from 'rxjs/operators';
 import {
   NetworkElement,
+  CustomLayer,
   ElementType,
   ElementStatus,
-  GeographicPosition,
   MonitoringData,
   NetworkAlert,
   MaintenanceSchedule,
   Attachment,
-  NetworkConnection
+  NetworkConnection,
+  ElementHistoryEntry
 } from '../../../shared/types/network.types';
 import { NetworkService } from '../../../core/services/network.service';
 import { NetworkMonitoringService } from './network-monitoring.service';
@@ -34,20 +35,42 @@ import { AttachmentService } from './attachment.service';
 import { ProjectService } from '@core/services/project.service';
 import { Project, ProjectStatus } from '../../../interfaces/project.interface';
 import { Client, ClientType } from '../../../shared/types/network.types';
+import { HttpClient } from '@angular/common/http';
+import { LoggerService } from '../../../core/services/logger.service';
+import { environment } from '../../../../environments/environment';
+import { GeographicPosition } from '../../../shared/types/geo-position';
+import { 
+  ConnectionType,
+  ConnectionStatus
+} from '../../../shared/types/network.types';
+import { 
+  FiberConnection as FiberConnectionModel,
+  FiberUsageType as FiberConnectionModelUsageType,
+  FiberType as FiberConnectionModelFiberType,
+  ConnectorType as FiberConnectionModelConnectorType,
+  PolishingType as FiberConnectionModelPolishingType,
+  FiberStandard as FiberConnectionModelFiberStandard 
+} from '../../../shared/models/fiber-connection.model';
+import { PaginatedResponse, QueryParams } from '../../../shared/types/api.types';
 
 @Injectable({
   providedIn: 'root'
 })
 export class NetworkDesignService {
+  private readonly apiUrl = environment.apiUrl;
+
   private networkService = inject(NetworkService);
   private monitoringService = inject(NetworkMonitoringService);
   private attachmentService = inject(AttachmentService);
   private projectService = inject(ProjectService);
+  private http = inject(HttpClient);
+  private logger = inject(LoggerService);
 
   /**
    * Obtiene todos los elementos de red de un tipo específico
    * 
    * @param type Tipo de elemento a obtener (ODF, OLT, ONT, etc.)
+   * @param params QueryParams para filtrar y paginar los resultados
    * @returns Observable con los elementos encontrados
    * @throws Error si el tipo de elemento no es válido
    *
@@ -57,8 +80,11 @@ export class NetworkDesignService {
    *   .subscribe(elements => this.odfs = elements);
    * ```
    */
-  getElementsByType(type: ElementType): Observable<NetworkElement[]> {
-    return this.networkService.getElementsByType(type);
+  getElementsByType(
+    type: ElementType,
+    params?: QueryParams
+  ): Observable<PaginatedResponse<NetworkElement>> {
+    return this.networkService.getElementsByType(type, params);
   }
 
   /**
@@ -99,28 +125,21 @@ export class NetworkDesignService {
    * }
    * ```
    */
-  validatePosition(position: any): boolean {
+  validatePosition(position: GeographicPosition): boolean {
     if (!position || !position.coordinates || position.coordinates.length !== 2) {
       return false;
     }
     
-    // Si tiene lat/lng (ExtendedPosition), usamos esos valores
-    if ('lat' in position && 'lng' in position) {
-      return (
-        position.lat >= 17.5 &&
-        position.lat <= 19.9 &&
-        position.lng >= -72.0 &&
-        position.lng <= -68.3
-      );
-    }
-    
     // Para GeographicPosition estándar
     // Validar que las coordenadas estén dentro de los límites de la República Dominicana
+    const longitude = position.coordinates[0];
+    const latitude = position.coordinates[1];
+
     return (
-      position.coordinates[1] >= 17.5 &&
-      position.coordinates[1] <= 19.9 &&
-      position.coordinates[0] >= -72.0 &&
-      position.coordinates[0] <= -68.3
+      latitude >= 17.5 &&
+      latitude <= 19.9 &&
+      longitude >= -72.0 &&
+      longitude <= -68.3
     );
   }
 
@@ -142,18 +161,19 @@ export class NetworkDesignService {
     element2: NetworkElement
   ): number {
     const R = 6371; // Radio de la Tierra en km
-    const dLat = this.toRad(
-      element2.position.coordinates[1] - element1.position.coordinates[1]
-    );
-    const dLon = this.toRad(
-      element2.position.coordinates[0] - element1.position.coordinates[0]
-    );
-    const lat1 = this.toRad(element1.position.coordinates[1]);
-    const lat2 = this.toRad(element2.position.coordinates[1]);
-
+    
+    // Acceder directamente a las coordenadas
+    const lat1 = element1.position.coordinates[1];
+    const lng1 = element1.position.coordinates[0];
+    const lat2 = element2.position.coordinates[1];
+    const lng2 = element2.position.coordinates[0];
+    
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lng2 - lng1);
+    
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2));
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -217,7 +237,9 @@ export class NetworkDesignService {
   getMaintenanceSchedules(
     status?: MaintenanceSchedule['status']
   ): Observable<MaintenanceSchedule[]> {
-    return this.monitoringService.getMaintenanceSchedules(status);
+    // Convertir a minúsculas si es string
+    const statusParam = typeof status === 'string' ? status.toLowerCase() as any : status;
+    return this.monitoringService.getMaintenanceSchedules(statusParam);
   }
 
   /**
@@ -293,7 +315,7 @@ export class NetworkDesignService {
    * @returns Observable con los proyectos
    */
   getProjects(estado?: ProjectStatus): Observable<Project[]> {
-    return this.projectService.getProjects(); // El ProjectService global no filtra por estado, así que ignora el argumento
+    return this.projectService.getProjects();
   }
 
   /**
@@ -323,7 +345,20 @@ export class NetworkDesignService {
    * @returns Observable con las conexiones de red
    */
   getConnections(): Observable<NetworkConnection[]> {
-    return this.networkService.getConnections();
+    this.logger.info('NetworkDesignService: Fetching connections.');
+    return this.networkService.getConnections().pipe(
+      map(fiberConnections => {
+        if (!Array.isArray(fiberConnections)) {
+          this.logger.error('NetworkDesignService: getConnections response is not an array.', fiberConnections);
+          return [];
+        }
+        return fiberConnections.map(fc => this.mapFiberConnectionModelToNetworkConnection(fc));
+      }),
+      catchError(err => {
+        this.logger.error('Error fetching connections in NetworkDesignService', err);
+        return throwError(() => new Error('Failed to fetch connections'));
+      })
+    );
   }
 
   /**
@@ -333,7 +368,19 @@ export class NetworkDesignService {
    * @returns Observable con la conexión creada
    */
   createConnection(connection: Omit<NetworkConnection, 'id'>): Observable<NetworkConnection> {
-    return this.networkService.createConnection(connection);
+    this.logger.info('NetworkDesignService: Creating connection.', connection);
+    const payload = this.mapNetworkConnectionToFiberConnectionPayload(connection);
+    this.logger.debug('NetworkDesignService: createConnection payload for networkService:', payload);
+    return this.networkService.createConnection(payload).pipe(
+      map(createdFiberConnection => {
+        this.logger.info('NetworkDesignService: Connection created by networkService, mapping response.', createdFiberConnection);
+        return this.mapFiberConnectionModelToNetworkConnection(createdFiberConnection);
+      }),
+      catchError(err => {
+        this.logger.error('Error creating connection in NetworkDesignService', err, { originalInput: connection, mappedPayload: payload });
+        return throwError(() => new Error('Failed to create connection'));
+      })
+    );
   }
 
   /**
@@ -344,7 +391,19 @@ export class NetworkDesignService {
    * @returns Observable con la conexión actualizada
    */
   updateConnection(connectionId: string, updates: Partial<NetworkConnection>): Observable<NetworkConnection> {
-    return this.networkService.updateConnection(connectionId, updates);
+    this.logger.info(`NetworkDesignService: Updating connection ${connectionId}.`, updates);
+    const payload = this.mapNetworkConnectionToFiberConnectionPayload(updates);
+    this.logger.debug(`NetworkDesignService: updateConnection payload for networkService (id: ${connectionId}):`, payload);
+    return this.networkService.updateConnection(connectionId, payload).pipe(
+      map(updatedFiberConnection => {
+        this.logger.info(`NetworkDesignService: Connection ${connectionId} updated by networkService, mapping response.`, updatedFiberConnection);
+        return this.mapFiberConnectionModelToNetworkConnection(updatedFiberConnection);
+      }),
+      catchError(err => {
+        this.logger.error(`Error updating connection ${connectionId} in NetworkDesignService`, err, { originalInput: updates, mappedPayload: payload });
+        return throwError(() => new Error('Failed to update connection'));
+      })
+    );
   }
 
   /**
@@ -400,4 +459,162 @@ export class NetworkDesignService {
       toArray()
     );
   }
+
+  /**
+   * Servicio para gestionar el historial de elementos
+   * @param elementId ID del elemento del que obtener el historial
+   * @returns Observable con el historial del elemento
+   */
+  getElementHistory(elementId: string): Observable<ElementHistoryEntry[]> {
+    return this.http.get<ElementHistoryEntry[]>(`${this.apiUrl}/elements/${elementId}/history`).pipe(
+      catchError(error => {
+        this.logger.error('Error al obtener historial del elemento:', error);
+        return throwError(() => new Error(`Error al obtener historial: ${error.message}`));
+      }),
+      map(history => history.map(entry => ({
+        ...entry,
+        timestamp: new Date(entry.timestamp)
+      })))
+    );
+  }
+
+  // --- START HELPER MAPPING FUNCTIONS ---
+
+  private mapFiberConnectionModelToNetworkConnection(fc: any): NetworkConnection {
+    if (!fc) {
+      this.logger.error('mapFiberConnectionModelToNetworkConnection: input FiberConnectionModel is null or undefined.');
+      return {
+        id: 'ERROR_NULL_INPUT',
+        sourceElementId: 'UNKNOWN_SOURCE',
+        targetElementId: 'UNKNOWN_TARGET',
+        type: ConnectionType.FIBER,
+        status: ConnectionStatus.INACTIVE,
+        name: 'Error: Null Input Connection',
+      };
+    }
+    
+    const sourceId = fc.sourceId || fc.properties?.sourceId;
+    const targetId = fc.targetId || fc.properties?.targetId;
+    const connectionType = fc.connectionType || fc.properties?.connectionType;
+    const connectionStatus = fc.status || fc.properties?.status;
+
+    if (!sourceId || !targetId || !connectionType || !connectionStatus) {
+      this.logger.warn(
+        `FiberConnectionModel (id: ${fc.id}) is missing one or more required fields (sourceId, targetId, type, status) for full NetworkConnection mapping. Using defaults. Original object:`,
+        fc
+      );
+    }
+
+    return {
+      id: fc.id,
+      name: fc.name || `Connection ${fc.id}`,
+      description: fc.description,
+      sourceElementId: sourceId || 'UNKNOWN_SOURCE',
+      targetElementId: targetId || 'UNKNOWN_TARGET',
+      type: connectionType || ConnectionType.FIBER,
+      status: connectionStatus || ConnectionStatus.INACTIVE,
+      capacity: fc.capacity || (typeof fc.bandwidth === 'number' ? fc.bandwidth : undefined), // Example: take bandwidth as capacity if capacity is missing
+      utilization: fc.utilization,
+      latency: fc.latency,
+      properties: {
+        // Transfer other specific FiberConnectionModel fields to properties
+        usageType: fc.usageType,
+        fiberType: fc.fiberType, // This is FiberConnectionModelFiberType
+        connectorType: fc.connectorType,
+        polishingType: fc.polishingType,
+        standard: fc.standard,
+        insertionLoss: fc.insertionLoss,
+        returnLoss: fc.returnLoss,
+        wavelength: fc.wavelength,
+        bandwidthMhzKm: fc.bandwidth, 
+        coreDiameter: fc.coreDiameter,
+        claddingDiameter: fc.claddingDiameter,
+        outerDiameter: fc.outerDiameter,
+        operatingTemperature: fc.operatingTemperature,
+        tensileStrength: fc.tensileStrength,
+        manufacturer: fc.manufacturer,
+        modelNumber: fc.modelNumber,
+        manufacturingDate: fc.manufacturingDate,
+        certifications: fc.certifications,
+        strands: fc.strands,
+        strandConfiguration: fc.strandConfiguration,
+        networkInfo: fc.networkInfo,
+        installation: fc.installation,
+        maintenance: fc.maintenance,
+        emergency: fc.emergency,
+        // Keep original non-mapped properties if any
+        ...(fc.properties || {}), 
+      },
+      metadata: fc.metadata,
+      fiberDetails: fc, // Store the original full object for reference
+      createdAt: fc.createdAt || fc.manufacturingDate,
+      updatedAt: fc.updatedAt,
+      // Vertices and points might be part of fc.metadata or fc.networkInfo.points
+      // If they are directly on fc, map them here.
+      points: fc.points || fc.networkInfo?.points, 
+      vertices: fc.vertices 
+    };
+  }
+
+  private mapNetworkConnectionToFiberConnectionPayload(
+    nc: Partial<NetworkConnection> | Omit<NetworkConnection, 'id'>
+  ): any {
+    const fiberDetailsSource = (nc as NetworkConnection).fiberDetails;
+    const propertiesSource = nc.properties || {};
+
+    const payload: Partial<FiberConnectionModel> = {
+      name: nc.name || `Connection`,
+      description: nc.description,
+      
+      usageType: propertiesSource.usageType || fiberDetailsSource?.usageType || FiberConnectionModelUsageType.DISTRIBUTION,
+      fiberType: propertiesSource.fiberType || fiberDetailsSource?.fiberType || FiberConnectionModelFiberType.SINGLE_MODE,
+      connectorType: propertiesSource.connectorType || fiberDetailsSource?.connectorType || FiberConnectionModelConnectorType.SC,
+      polishingType: propertiesSource.polishingType || fiberDetailsSource?.polishingType || FiberConnectionModelPolishingType.APC,
+      standard: propertiesSource.standard || fiberDetailsSource?.standard || FiberConnectionModelFiberStandard.ITU_T_G_652,
+      
+      insertionLoss: typeof (propertiesSource.insertionLoss ?? fiberDetailsSource?.insertionLoss) === 'number' ? (propertiesSource.insertionLoss ?? fiberDetailsSource?.insertionLoss) : 0,
+      returnLoss: typeof (propertiesSource.returnLoss ?? fiberDetailsSource?.returnLoss) === 'number' ? (propertiesSource.returnLoss ?? fiberDetailsSource?.returnLoss) : 0,
+      wavelength: typeof (propertiesSource.wavelength ?? fiberDetailsSource?.wavelength) === 'number' ? (propertiesSource.wavelength ?? fiberDetailsSource?.wavelength) : 1310,
+      bandwidth: typeof (propertiesSource.bandwidthMhzKm ?? fiberDetailsSource?.bandwidth) === 'number' ? (propertiesSource.bandwidthMhzKm ?? fiberDetailsSource?.bandwidth) : 0,
+      
+      coreDiameter: propertiesSource.coreDiameter ?? fiberDetailsSource?.coreDiameter,
+      claddingDiameter: propertiesSource.claddingDiameter ?? fiberDetailsSource?.claddingDiameter,
+      outerDiameter: propertiesSource.outerDiameter ?? fiberDetailsSource?.outerDiameter,
+      
+      operatingTemperature: propertiesSource.operatingTemperature ?? fiberDetailsSource?.operatingTemperature,
+      tensileStrength: propertiesSource.tensileStrength ?? fiberDetailsSource?.tensileStrength,
+      
+      manufacturer: propertiesSource.manufacturer ?? fiberDetailsSource?.manufacturer,
+      modelNumber: propertiesSource.modelNumber ?? fiberDetailsSource?.modelNumber,
+      manufacturingDate: propertiesSource.manufacturingDate ?? fiberDetailsSource?.manufacturingDate,
+      
+      certifications: propertiesSource.certifications ?? fiberDetailsSource?.certifications,
+      strands: propertiesSource.strands ?? fiberDetailsSource?.strands,
+      strandConfiguration: propertiesSource.strandConfiguration ?? fiberDetailsSource?.strandConfiguration,
+      
+      networkInfo: propertiesSource.networkInfo ?? fiberDetailsSource?.networkInfo,
+      installation: propertiesSource.installation ?? fiberDetailsSource?.installation,
+      maintenance: propertiesSource.maintenance ?? fiberDetailsSource?.maintenance,
+      emergency: propertiesSource.emergency ?? fiberDetailsSource?.emergency,
+      metadata: nc.metadata || propertiesSource.metadata || fiberDetailsSource?.metadata,
+    };
+    
+    // Clean undefined values from payload, as some backends might not like null/undefined for non-nullable fields
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+    
+    // IMPORTANT: The FiberConnectionModel does not include sourceId, targetId, type, status of the connection instance.
+    // If networkService expects these AT THE SAME LEVEL as FiberConnectionModel properties, they should be added here.
+    // e.g., if payload should be { ...payload, sourceId: nc.sourceId, targetId: nc.targetId }
+    // This depends on the actual API contract of this.networkService.create/updateConnection
+    // For now, strictly adhering to mapping to FiberConnectionModel structure.
+    // We also add sourceId, targetId etc. directly to the payload, as networkService might expect a hybrid object
+    if ('sourceId' in nc && nc.sourceId) payload['sourceId'] = nc.sourceId;
+    if ('targetId' in nc && nc.targetId) payload['targetId'] = nc.targetId;
+    if ('type' in nc && nc.type) payload['type'] = nc.type; // ConnectionType
+    if ('status' in nc && nc.status) payload['status'] = nc.status; // ConnectionStatus
+
+    return payload;
+  }
+
+  // --- END HELPER MAPPING FUNCTIONS ---
 }

@@ -1,422 +1,215 @@
-@use '../../network-design.styles.scss' as styles;
-
-// Variables para dimensiones y estilos comunes
-$min-height: 600px;
-$background-light: var(--background-light, #f5f5f5);
-$background-dark: var(--background-dark, #212121);
-$primary-color: var(--primary-color, #3f51b5);
-$accent-color: var(--accent-color, #ff4081);
-$warning-color: var(--warning-color, #ff9800);
-$error-color: var(--error-color, #f44336);
-$success-color: var(--success-color, #4caf50);
-$text-color: var(--text-color, #333333);
-$text-color-light: var(--text-color-light, #f5f5f5);
-$box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
-$box-shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.15);
-$box-shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.2);
-$border-radius: var(--border-radius, 4px);
-$box-shadow: var(--box-shadow, 0 2px 6px rgba(0, 0, 0, 0.2));
-$transition: var(--transition, all 0.3s ease);
-$spacing-xs: var(--spacing-xs, 4px);
-$spacing-sm: var(--spacing-sm, 8px);
-$spacing-md: var(--spacing-md, 16px);
-$spacing-lg: var(--spacing-lg, 24px);
-$spacing-xl: var(--spacing-xl, 32px);
+@use '../../network-design.styles.scss' as global-styles;
+@use './map-container.shared.scss' as shared;
 
 :host {
-  display: block;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  width: 100%;
   position: relative;
   overflow: hidden;
 }
 
-// Contenedor principal del mapa
 .map-container {
+  flex: 1;
   position: relative;
   width: 100%;
-  height: 100%;
-  min-height: $min-height;
-  background-color: $background-light;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  background-color: var(--surface-level-1, #f5f5f5);
+}
+
+#map, .map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-widgets-container {
+  position: absolute;
+  z-index: var(--z-index-widgets-container, 1000);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
   
-  &.dark-theme {
-    --map-bg-color: #333;
-    --map-text-color: #fff;
-    --map-overlay-bg: rgba(33, 33, 33, 0.8);
-    --map-border-color: #555;
-    
-    color: var(--map-text-color);
+  > * {
+    pointer-events: auto;
   }
 }
 
-// Indicador de carga
 .map-loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.9);
-  z-index: 1000;
+  background-color: var(--surface-overlay-light, rgba(255, 255, 255, 0.9));
+  z-index: var(--z-index-loading-overlay, 1050);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  
-  .dark-mode & {
-    background-color: rgba(33, 33, 33, 0.9);
-  }
-  
+  box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+  animation: fadeInUp 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+
   .loading-spinner {
-    margin-bottom: $spacing-md;
+    margin-bottom: var(--spacing-md, 16px);
   }
-  
+
   .loading-message {
-    font-size: 18px;
+    font-size: var(--font-size-lg, 18px);
     font-weight: 500;
-    color: $text-color;
-    
-    .dark-mode & {
-      color: $text-color-light;
-    }
+    color: var(--text-color, #333333);
   }
 }
 
-// Mensaje de error
 .map-error-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.95);
-  z-index: 1100;
+  background-color: var(--surface-overlay-light-strong, rgba(255, 255, 255, 0.95));
+  z-index: var(--z-index-loading-overlay, 1050);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: $spacing-lg;
-  
-  .dark-mode & {
-    background-color: rgba(18, 18, 18, 0.95);
-  }
-  
+  padding: var(--spacing-lg, 24px);
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(255,0,0,0.10);
+  animation: fadeInUp 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+
   mat-icon {
-    font-size: 48px;
-    height: 48px;
-    width: 48px;
-    margin-bottom: $spacing-md;
-    color: $error-color;
+    font-size: var(--icon-size-xxxl, 48px);
+    height: var(--icon-size-xxxl, 48px);
+    width: var(--icon-size-xxxl, 48px);
+    margin-bottom: var(--spacing-md, 16px);
+    color: var(--color-danger, #f44336);
   }
-  
+
   h3 {
-    font-size: 24px;
+    font-size: var(--font-size-xl, 20px);
     font-weight: 500;
-    margin: 0 0 $spacing-md 0;
-    color: $error-color;
+    margin: 0 0 var(--spacing-md, 16px) 0;
+    color: var(--color-danger, #f44336);
   }
-  
+
   p {
-    font-size: 16px;
-    text-align: center;
+    font-size: var(--font-size-md, 16px);
     max-width: 400px;
-    margin: 0 0 $spacing-lg 0;
-    color: $text-color;
-    
-    .dark-mode & {
-      color: $text-color-light;
-    }
+    margin: 0 0 var(--spacing-lg, 24px) 0;
+    color: var(--text-color, #333333);
   }
-  
+
   button {
+    padding: var(--button-padding-y, var(--spacing-sm, 8px)) var(--button-padding-x, var(--spacing-md, 16px));
+    background-color: var(--button-bg-color, var(--primary-color, #007bff));
+    color: var(--button-text-color, white);
+    border: var(--button-border, none);
+    border-radius: var(--button-border-radius, var(--border-radius-md, 4px));
     min-width: 150px;
   }
 }
 
-// Contenedor del contenido del mapa
 .map-content {
   flex: 1;
   position: relative;
-  width: 100%; 
+  width: 100%;
   height: 100%;
-  min-height: $min-height;
-  z-index: 1;
+  z-index: var(--z-index-map-base, 1);
   
-  // Asegurar que el mapa Leaflet se muestre correctamente
   ::ng-deep .leaflet-container {
     width: 100% !important;
     height: 100% !important;
-    background-color: $background-light !important;
-    z-index: 1;
-    
-    .dark-mode & {
-      background-color: $background-dark !important;
-    }
-  }
-}
-
-.map-toolbar {
-  display: flex;
-  background-color: var(--surface-color, #fff);
-  color: $text-color;
-  padding: 0 10px;
-  height: 48px;
-  box-shadow: $box-shadow-light;
-  z-index: 10;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-  
-  .toolbar-left, .toolbar-right {
-    display: flex;
-    align-items: center;
-  }
-  
-  .action-group {
-    display: flex;
-    align-items: center;
-    margin-right: 10px;
-  }
-  
-  .action-button {
-    margin: 0 2px;
-    
-    &.active-tool {
-      color: $primary-color;
-      background-color: rgba(33, 150, 243, 0.1);
-    }
-  }
-  
-  .toolbar-divider {
-    height: 30px;
-    margin: 0 10px;
-  }
-}
-
-.mini-map-container {
-  position: absolute;
-  right: 20px;
-  top: 80px;
-  width: 200px;
-  height: 150px;
-  background-color: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  z-index: 50;
-  box-shadow: $box-shadow-medium;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: scale(1.02);
-    box-shadow: $box-shadow-hover;
-  }
-}
-
-.mini-map-content {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    border-radius: 7px;
-    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
-  }
-  
-  .viewport-indicator {
-    position: absolute;
-    border: 2px solid $primary-color;
-    background-color: rgba(33, 150, 243, 0.1);
-    pointer-events: none;
-    z-index: 2;
-  }
-}
-
-.mini-map-close {
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  z-index: 51;
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background-color: rgba(33, 150, 243, 0.1);
+    background-color: var(--surface-level-1, #f5f5f5) !important;
+    z-index: var(--z-index-map-base, 1);
   }
 }
 
 .cursor-position {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  box-shadow: $box-shadow-light;
-  z-index: 5;
-  
-  .dark-mode & {
-    background-color: rgba(30, 30, 30, 0.9);
-    color: $text-color-light;
-  }
+  bottom: var(--spacing-lg, 20px);
+  left: var(--spacing-lg, 20px);
+  background-color: var(--surface-overlay-light, rgba(255, 255, 255, 0.9));
+  padding: var(--spacing-xs, 5px) var(--spacing-sm, 10px);
+  border-radius: var(--border-radius-md, 4px);
+  font-size: var(--font-size-xs, 12px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.12));
+  z-index: var(--z-index-map-widgets-overlay, 50);
+  color: var(--text-color, #333);
 }
 
 .save-notification {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background-color: rgba(76, 175, 80, 0.9);
-  color: white;
-  padding: 10px 15px;
-  border-radius: 4px;
+  top: var(--spacing-lg, 20px);
+  right: var(--spacing-lg, 20px);
+  background-color: var(--color-success-bg-strong, rgba(76, 175, 80, 0.9));
+  color: var(--color-success-contrast, white);
+  padding: var(--spacing-sm, 10px) var(--spacing-md, 15px);
+  border-radius: var(--border-radius-md, 4px);
   display: flex;
   align-items: center;
-  box-shadow: $box-shadow-medium;
-  z-index: 100;
+  box-shadow: var(--shadow-md, 0 2px 6px rgba(0,0,0,0.15));
+  z-index: var(--z-index-dialog, 1075);
   
   mat-icon {
-    margin-right: 8px;
+    margin-right: var(--spacing-sm, 8px);
   }
 }
 
 .measurement-info {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 300px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: $box-shadow-medium;
-  z-index: 10;
+  top: var(--spacing-xl, 80px);
+  right: var(--spacing-lg, 20px);
+  width: var(--measurement-info-width, 300px);
+  background-color: var(--surface-color, white); 
+  border-radius: var(--border-radius-lg, 8px);
+  box-shadow: var(--shadow-md, 0 2px 6px rgba(0,0,0,0.15));
+  z-index: var(--z-index-floating-panel-base, 1000);
   overflow: hidden;
-  
-  .dark-mode & {
-    background-color: $background-dark;
-    color: $text-color-light;
-  }
+  color: var(--text-color, #333);
   
   .measurement-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    background-color: $primary-color;
-    color: white;
+    padding: var(--spacing-sm, 10px) var(--spacing-md, 15px);
+    background-color: var(--primary-color, #3f51b5);
+    color: var(--primary-contrast-color, white);
   }
   
   .measurement-content {
-    padding: 15px;
-    
+    padding: var(--spacing-md, 15px);
     .measurement-distance {
-      margin-top: 10px;
-      font-size: 16px;
+      margin-top: var(--spacing-sm, 10px);
+      font-size: var(--font-size-lg, 16px);
     }
   }
   
   .measurement-actions {
-    padding: 10px;
+    padding: var(--spacing-sm, 10px);
     display: flex;
     justify-content: flex-end;
-    border-top: 1px solid #eee;
-    
-    .dark-mode & {
-      border-top-color: #444;
-    }
+    border-top: 1px solid var(--border-color, #eee);
   }
 }
 
-.performance-indicator {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  box-shadow: $box-shadow-light;
-  z-index: 4;
-  
-  .dark-mode & {
-    background-color: rgba(30, 30, 30, 0.8);
-    color: $text-color-light;
-  }
-}
-
-.diagnostic-button {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 10;
-}
-
-// Estilos responsivos
-@media (max-width: 768px) {
-  .mini-map-container {
-    width: 150px;
-    height: 120px;
-    top: 60px;
-    right: 10px;
-  }
-  
-  .measurement-info {
-    width: 250px;
-  }
-}
-
-@media (max-width: 480px) {
-  .mini-map-container {
-    display: none;
-  }
-  
-  .map-toolbar {
-    height: 56px;
-    padding: 0 5px;
-    
-    .action-button {
-      margin: 0 1px;
-    }
-  }
-}
-
-/* Estilos para app-network-toolbar dentro del componente */
 app-network-toolbar {
-  z-index: 1000;
+  z-index: var(--z-index-toolbar, 1100);
   position: relative;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
 }
 
-/* Estilos para los tooltips de elementos */
 .element-tooltip {
   position: absolute;
-  background-color: white;
-  border-radius: var(--border-radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  box-shadow: var(--shadow-md);
-  font-size: var(--font-size-xs);
+  background-color: var(--tooltip-bg-color, var(--surface-color, white)); 
+  border-radius: var(--border-radius-sm, 4px); 
+  padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+  box-shadow: var(--shadow-md, 0 2px 6px rgba(0,0,0,0.15)); 
+  font-size: var(--font-size-xs, 12px);
+  color: var(--tooltip-text-color, var(--text-color, #333)); 
   max-width: 200px;
-  z-index: 1000;
+  z-index: var(--z-index-tooltip, 1150);
   pointer-events: none;
   
   &__title {
@@ -424,129 +217,12 @@ app-network-toolbar {
   }
 }
 
-/* Media queries para pantallas pequeñas */
-@media (max-width: 768px) {
-  .map-container {
-    .map-content {
-      .mini-map {
-        width: 150px;
-        height: 120px;
-        right: 10px;
-        top: 70px;
-        
-        .mini-map-title {
-          font-size: 10px;
-        }
-      }
-      
-      .measurement-info-panel {
-        width: 250px;
-        left: 10px;
-        bottom: 60px;
-      }
-    }
-  }
-}
-
-/* Ajustes para pantallas muy pequeñas */
-@media (max-width: 480px) {
-  .map-container {
-    .map-content {
-      .mini-map {
-        display: none;
-      }
-      
-      .measurement-info-panel {
-        width: calc(100% - 20px);
-        left: 10px;
-        bottom: 60px;
-      }
-    }
-  }
-}
-
-// Tema oscuro
 :host-context(.dark-theme) {
-  .map-container {
-    background-color: #121212;
-    
-    .map-toolbar {
-      background-color: #1e1e1e;
-      color: #e0e0e0;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-    
-    .map-content {
-      .mini-map {
-        background-color: rgba(30, 30, 30, 0.95);
-        border-color: #444;
-        
-        .mini-map-content {
-          &::after {
-            box-shadow: inset 0 0 3px rgba(255, 255, 255, 0.1);
-          }
-          
-          .viewport-indicator {
-            border-color: var(--accent-color, #bb86fc);
-            background-color: rgba(187, 134, 252, 0.1);
-          }
-        }
-        
-        .mini-map-toggle {
-          background-color: rgba(30, 30, 30, 0.9);
-          color: #e0e0e0;
-          
-          &:hover {
-            background-color: rgba(187, 134, 252, 0.1);
-          }
-        }
-        
-        .mini-map-title {
-          color: rgba(255, 255, 255, 0.7);
-        }
-      }
-      
-      .measurement-info-panel {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-        
-        .panel-header {
-          background-color: #0d47a1;
-        }
-      }
-      
-      .floating-panel {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-      }
-    }
-    
-    .map-footer {
-      background-color: #1e1e1e;
-      color: #e0e0e0;
-      border-top: 1px solid #444;
-    }
-  }
-  
-  .element-tooltip {
-    background-color: var(--dark-bg-secondary);
-    
-    &__title {
-      color: var(--accent-color);
-    }
-    
-    &__details {
-      color: var(--dark-text-secondary);
-    }
-  }
-  
-  .element-details-panel {
-    background-color: var(--dark-bg-secondary);
-    color: var(--dark-text-primary);
-  }
+  // Ejemplo: si el fondo del mapa necesita un color específico en dark mode
+  // que no es el --surface-level-1 global del tema oscuro.
+  // .map-container { background-color: var(--map-specific-dark-bg, #2a2a2a); }
 }
 
-// Garantizar visibilidad de contenedores cuando Leaflet no carga correctamente
 .map-container:empty::after {
   content: "⚠️ Error: No se pudo cargar el contenedor del mapa";
   display: flex;
@@ -554,641 +230,129 @@ app-network-toolbar {
   justify-content: center;
   height: 100%;
   width: 100%;
-  background-color: #ffcccc;
-  color: #d32f2f;
-  font-size: 16px;
+  background-color: var(--color-warning-bg-subtle, #ffcccc);
+  color: var(--color-warning-contrast-strong, #d32f2f);
+  font-size: var(--font-size-lg, 16px);
   font-weight: bold;
+  z-index: var(--z-index-map-base, 1);
 }
 
-// Indicador visual cuando los tiles de la capa base no cargan
 .leaflet-container:not(:has(.leaflet-tile))::after {
   content: "⚠️ Error: No se pudieron cargar las capas del mapa";
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 12px 16px;
-  border-radius: 4px;
-  color: #d32f2f;
+  background-color: var(--surface-overlay-light, rgba(255, 255, 255, 0.9));
+  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+  border-radius: var(--border-radius-md, 4px);
+  color: var(--color-danger-strong, #d32f2f);
   font-weight: bold;
-  z-index: 1000;
+  z-index: var(--z-index-loading-overlay, 1050);
 }
 
-// Barra de control superior
-.map-control-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: $spacing-sm $spacing-md;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  z-index: 900;
-  box-shadow: $box-shadow;
-  transition: $transition;
-  
-  &.hidden {
-    transform: translateY(-100%);
-  }
-  
-  .control-section {
-    display: flex;
-    align-items: center;
-    
-    &.search-section {
-      flex: 1;
-      margin: 0 $spacing-md;
-      max-width: 400px;
-      
-      .search-field {
-        width: 100%;
-        margin: 0;
-        
-        ::ng-deep .mat-mdc-form-field-infix {
-          padding: 8px 0;
-        }
-      }
-    }
-    
-    .control-button {
-      margin-right: $spacing-sm;
-      
-      mat-icon {
-        margin-right: $spacing-xs;
-      }
-    }
-  }
-}
-
-// Estilos para el menú de capas
-::ng-deep .layers-menu {
-  max-width: none !important;
-  width: 450px;
-  
-  .mat-mdc-menu-content {
-    padding: 0 !important;
-  }
-}
-
-.layers-menu-container {
-  padding: $spacing-md;
-  width: 100%;
-  
-  mat-checkbox {
-    padding: $spacing-xs $spacing-sm;
-    display: block;
-  }
-  
-  .layer-groups {
-    display: flex;
-    flex-wrap: wrap;
-    margin: $spacing-md 0;
-    
-    .layer-group {
-      flex: 1 0 50%;
-      padding: 0 $spacing-md $spacing-md 0;
-      
-      h4 {
-        margin: $spacing-sm 0;
-        font-weight: 500;
-        color: $primary-color;
-        font-size: 14px;
-      }
-    }
-  }
-  
-  mat-divider {
-    margin: $spacing-md 0;
-  }
-  
-  button {
-    margin-top: $spacing-sm;
-  }
-}
-
-// Panel de estadísticas
-.stats-panel {
-  position: absolute;
-  bottom: $spacing-lg;
-  right: $spacing-lg;
-  width: 300px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: $border-radius;
-  box-shadow: $box-shadow;
-  z-index: 800;
-  transition: $transition;
-  overflow: hidden;
-  
-  &.hidden {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  
-  .stats-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: $spacing-sm $spacing-md;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    
-    h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 500;
-    }
-  }
-  
-  .stats-content {
-    padding: $spacing-md;
-    
-    .stats-group {
-      margin-bottom: $spacing-md;
-      
-      &:last-child {
-        margin-bottom: 0;
-      }
-      
-      .stat-item {
-        display: flex;
-        align-items: center;
-        margin-bottom: $spacing-sm;
-        
-        mat-icon {
-          margin-right: $spacing-sm;
-          font-size: 20px;
-          width: 20px;
-          height: 20px;
-        }
-        
-        span {
-          font-size: 14px;
-        }
-      }
-    }
-  }
-}
-
-// Información de medición
-.measurement-info {
-  position: absolute;
-  top: 80px;
-  right: $spacing-lg;
-  width: 280px;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: $border-radius;
-  box-shadow: $box-shadow;
-  z-index: 810;
-  overflow: hidden;
-  
-  .measurement-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: $spacing-sm $spacing-md;
-    background-color: $primary-color;
-    color: white;
-    
-    h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 500;
-    }
-  }
-  
-  .measurement-content {
-    padding: $spacing-md;
-    
-    .measurement-point {
-      margin-bottom: $spacing-sm;
-      font-size: 14px;
-    }
-    
-    .measurement-result {
-      margin-top: $spacing-md;
-      font-size: 16px;
-      color: $primary-color;
-    }
-  }
-}
-
-// Mini mapa
-.mini-map-container {
-  position: absolute;
-  bottom: $spacing-lg;
-  left: $spacing-lg;
-  width: 200px;
-  height: 200px;
-  border-radius: $border-radius;
-  box-shadow: $box-shadow;
-  overflow: hidden;
-  z-index: 790;
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  
-  .mini-map-content {
-    width: 100%;
-    height: 100%;
-  }
-}
-
-// Herramientas flotantes
-.floating-tools {
-  position: absolute;
-  left: $spacing-lg;
-  top: 80px;
+.map-error-message {
   display: flex;
   flex-direction: column;
-  z-index: 800;
-  transition: $transition;
-  
-  &.hidden {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  
-  .tool-group {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: $spacing-md;
-    
-    &.main-tools {
-      button {
-        margin-bottom: $spacing-sm;
-      }
-    }
-    
-    &.secondary-tools {
-      button {
-        margin-bottom: $spacing-xs;
-      }
-    }
-  }
-}
-
-// Notificación de guardado
-.save-notification {
-  position: absolute;
-  bottom: $spacing-lg;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.8);
+  justify-content: center;
+  background: var(--color-warning-bg, #fff3cd);
+  color: var(--color-warning-contrast, #856404);
+  border: 1px solid var(--color-warning-border, #ffeeba);
+  border-radius: var(--border-radius-lg, 8px);
+  padding: var(--spacing-xl, 24px);
+  margin: var(--spacing-lg, 16px) auto;
+  max-width: 400px;
+  font-size: var(--font-size-md, 16px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.05));
+  z-index: var(--z-index-map-overlay, 100);
+}
+
+.map-error-icon {
+  font-size: var(--icon-size-xxxxl, 48px);
+  margin-bottom: var(--spacing-md, 12px);
+}
+
+.map-error-text {
+  text-align: center;
+}
+
+.performance-info {
+  position: absolute;
+  bottom: var(--spacing-sm, 10px);
+  left: var(--spacing-sm, 10px);
+  background: rgba(0, 0, 0, 0.6);
   color: white;
-  padding: $spacing-sm $spacing-md;
-  border-radius: 20px;
-  box-shadow: $box-shadow;
-  z-index: 850;
-  
-  mat-icon {
-    margin-right: $spacing-sm;
-    color: $success-color;
-  }
-  
-  span {
-    margin-right: $spacing-md;
-  }
+  padding: var(--spacing-xs, 5px) var(--spacing-sm, 10px);
+  border-radius: var(--border-radius-md, 4px);
+  font-size: var(--font-size-xs, 12px);
+  z-index: var(--z-index-debug-info, 999);
 }
 
-// Animaciones
-@keyframes pulsate {
-  0% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-  100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
+.performance-metric {
+  margin-right: var(--spacing-sm, 10px);
 }
 
-// Media queries para responsividad
-@media (max-width: 768px) {
-  .map-control-bar {
-    flex-direction: column;
-    padding: $spacing-xs;
-    
-    .control-section {
-      width: 100%;
-      margin-bottom: $spacing-xs;
-      
-      &.search-section {
-        max-width: 100%;
-        margin: $spacing-xs 0;
-      }
-    }
-  }
-  
-  .stats-panel,
-  .measurement-info {
-    width: calc(100% - 48px);
-    right: $spacing-md;
-    left: $spacing-md;
-  }
-  
-  .floating-tools {
-    top: auto;
-    bottom: $spacing-lg;
-    flex-direction: row;
-    
-    .tool-group {
-      flex-direction: row;
-      margin-right: $spacing-md;
-      margin-bottom: 0;
-      
-      &.main-tools,
-      &.secondary-tools {
-        button {
-          margin-right: $spacing-xs;
-          margin-bottom: 0;
-        }
-      }
-    }
-  }
-  
-  .mini-map-container {
-    width: 150px;
-    height: 150px;
-  }
-}
-
-// Clases de utilidad
-.hidden {
-  display: none !important;
-}
-
-// Estilos para las capas de Leaflet
 ::ng-deep {
   .leaflet-popup-content-wrapper {
-    border-radius: $border-radius;
-    
-    .dark-mode & {
-      background-color: $background-dark;
-      color: $text-color-light;
-    }
+    border-radius: var(--border-radius-md, 4px);
+    background-color: var(--surface-color, white);
+    color: var(--text-color, #333);
   }
   
   .leaflet-popup-tip {
-    .dark-mode & {
-      background-color: $background-dark;
-    }
+    background-color: var(--surface-color, white);
   }
   
   .leaflet-control-zoom {
-    border-radius: $border-radius;
+    border-radius: var(--border-radius-md, 4px);
+    border: none;
     
-    a {
-      border-radius: $border-radius !important;
+    a.leaflet-control-zoom-in,
+    a.leaflet-control-zoom-out {
+      border-radius: var(--border-radius-md, 4px) !important;
+      background-color: var(--surface-button, var(--surface-color, white));
+      color: var(--text-color-button, var(--text-color, #333));
+      transition: background-color var(--transition-fast, 0.2s) ease;
       
-      .dark-mode & {
-        background-color: $background-dark;
-        color: $text-color-light;
-        
-        &:hover {
-          background-color: #303030;
-        }
+      &:hover {
+        background-color: var(--surface-button-hover, var(--surface-hover, #f0f0f0));
       }
     }
   }
   
-  // Estilos para el clustering
   .marker-cluster {
-    background-color: rgba($primary-color, 0.4);
-    
+    background-color: var(--primary-bg-semitransparent, rgba(63, 81, 181, 0.4));
     div {
-      background-color: rgba($primary-color, 0.8);
-      color: white;
+      background-color: var(--primary-bg-strong-semitransparent, rgba(63, 81, 181, 0.8));
+      color: var(--primary-contrast-color, white);
       font-weight: bold;
+      border-radius: 50%;
     }
-    
     &:hover {
-      background-color: rgba($primary-color, 0.6);
+      background-color: var(--primary-bg-hover-semitransparent, rgba(63, 81, 181, 0.6));
     }
   }
   
-  // Estilos para las etiquetas
   .leaflet-tooltip {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: var(--tooltip-leaflet-bg, var(--surface-overlay-light, rgba(255, 255, 255, 0.9)));
+    color: var(--tooltip-leaflet-text-color, var(--text-color, #333));
     border: none;
-    box-shadow: $box-shadow;
-    padding: $spacing-xs $spacing-sm;
-    font-size: 12px;
-    
-    .dark-mode & {
-      background-color: rgba($background-dark, 0.9);
-      color: $text-color-light;
-    }
+    box-shadow: var(--shadow-md, 0 2px 6px rgba(0,0,0,0.2));
+    padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+    font-size: var(--font-size-xs, 12px);
+    border-radius: var(--border-radius-sm, 4px);
     
     &::before {
-      border-color: transparent;
     }
   }
-}
 
-// Variables globales
-:host {
-  display: block;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
-// Contenedor principal
-.map-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  background-color: var(--map-bg-color, #f5f5f5);
-  
-  &.dark-theme {
-    --map-bg-color: #333;
-    --map-text-color: #fff;
-    --map-overlay-bg: rgba(33, 33, 33, 0.8);
-    --map-border-color: #555;
-    
-    color: var(--map-text-color);
+  .leaflet-control-attribution {
+    background-color: var(--surface-overlay-light-semitransparent, rgba(255,255,255,0.7)) !important;
+    color: var(--text-secondary-color, #666) !important;
   }
-}
 
-// Contenedor de barra de herramientas
-.toolbar-container {
-  flex: 0 0 auto;
-  z-index: 10;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-// Contenido del mapa
-.map-content {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  
-  // El componente app-map-view ocupará todo el espacio
-  ::ng-deep app-map-view {
-    display: block;
-    width: 100%;
-    height: 100%;
+  .leaflet-marker-icon {
+    cursor: pointer;
   }
-}
-
-// Panel de búsqueda
-.search-panel {
-  position: absolute;
-  top: 64px;
-  right: 16px;
-  width: 300px;
-  max-height: 400px;
-  background-color: var(--map-overlay-bg, rgba(255, 255, 255, 0.9));
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  
-  .search-header {
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--map-border-color, #ddd);
-  }
-  
-  .search-results {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-    
-    &:empty::after {
-      content: 'No se encontraron resultados';
-      display: block;
-      padding: 16px;
-      text-align: center;
-      color: #666;
-    }
-  }
-}
-
-// Barra de estado
-.status-bar {
-  flex: 0 0 auto;
-  height: 32px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
-  background-color: var(--map-overlay-bg, rgba(255, 255, 255, 0.9));
-  border-top: 1px solid var(--map-border-color, #ddd);
-  font-size: 12px;
-  
-  .status-info {
-    display: flex;
-    gap: 16px;
-    
-    .performance-info {
-      &.warning {
-        color: #ff9800;
-      }
-    }
-  }
-}
-
-// Notificación de guardado
-.save-notification {
-  position: absolute;
-  top: 70px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #4caf50;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  z-index: 100;
-}
-
-// Información de medición
-.measurement-info {
-  position: absolute;
-  bottom: 40px;
-  left: 16px;
-  width: 280px;
-  background-color: var(--map-overlay-bg, rgba(255, 255, 255, 0.9));
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 15;
-  
-  .info-header {
-    padding: 8px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--map-border-color, #ddd);
-    font-weight: 500;
-  }
-  
-  .info-content {
-    padding: 12px;
-  }
-}
-
-// Controles de capa
-.layer-controls {
-  position: absolute;
-  top: 80px;
-  left: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 15;
-  
-  button {
-    &[color="default"] {
-      opacity: 0.6;
-    }
-  }
-}
-
-// Estilos específicos para el minimapa
-::ng-deep app-mini-map {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  z-index: 15;
-}
-
-// Clase de ayuda para elementos ocultos
-.hidden {
-  display: none !important;
-}
-
-// Media queries para ajustes responsive
-@media (max-width: 768px) {
-  .search-panel {
-    width: calc(100% - 32px);
-    max-height: 300px;
-  }
-  
-  .layer-controls {
-    top: auto;
-    bottom: 16px;
-    left: 16px;
-  }
-}
-
-// Estilos para animaciones
-@keyframes pulse {
-  0% { opacity: 0.7; }
-  50% { opacity: 1; }
-  100% { opacity: 0.7; }
-}
-
-.pulse {
-  animation: pulse 2s infinite ease-in-out;
 } 

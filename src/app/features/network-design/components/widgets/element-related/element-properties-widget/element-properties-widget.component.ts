@@ -1,130 +1,94 @@
-import { Component, Input, OnChanges, SimpleChanges, OnInit, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatExpansionModule } from '@angular/material/expansion';
 
-import { NetworkElement, ElementStatus, ElementType } from '../../../../../../shared/types/network.types';
-import { BaseWidgetComponent } from '../../base/base-widget.component';
-import { WidgetDataService } from '../../../../services/widget-data.service';
-import { fadeAnimation, slideInUpAnimation } from '../../../../../../shared/animations/common.animations';
+import { NetworkElement } from '../../../../../../shared/types/network.types';
+import { WidgetActionEvent, WidgetErrorEvent, WidgetUpdateEvent } from '../../container/map-widgets-container/map-widgets-container.component';
 
-/**
- * Widget para mostrar propiedades básicas de un elemento de red
- */
 @Component({
   selector: 'app-element-properties-widget',
   standalone: true,
   imports: [
     CommonModule,
-    MatCardModule,
-    MatDividerModule,
+    MatButtonModule,
     MatIconModule,
-    MatButtonModule
+    MatDividerModule,
+    MatExpansionModule
   ],
   template: `
-    <div class="widget-container element-properties-widget"
-         *ngIf="(widgetState$ | async)?.isVisible"
-         @fadeIn>
-      <div class="widget-header">
-        <h3>
-          <mat-icon>settings</mat-icon>
-          <span>{{ title }}</span>
-        </h3>
-        <div class="widget-controls">
-          <button mat-icon-button (click)="toggleCollapse()" *ngIf="collapsible">
-            <mat-icon>{{ (widgetState$ | async)?.isCollapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
-          </button>
-          <button mat-icon-button (click)="closeWidget()" *ngIf="closable">
-            <mat-icon>close</mat-icon>
-          </button>
-        </div>
-      </div>
-      
-      <div class="widget-content" *ngIf="!(widgetState$ | async)?.isCollapsed" @slideInUp>
-        <div *ngIf="selectedElement; else noElement">
-          <div class="element-header">
-            <h4>{{ selectedElement.name }}</h4>
-            <span class="element-status" [ngClass]="getStatusClass()">
-              {{ getStatusLabel() }}
+    <div class="widget-container" *ngIf="selectedElement">
+      <ng-content select=".widget-header"></ng-content>
+      <div class="widget-content">
+        <h3>{{ selectedElement.name || 'Elemento sin nombre' }}</h3>
+        
+        <mat-divider></mat-divider>
+        
+        <div class="element-properties">
+          <div class="property-row">
+            <span class="property-label">ID:</span>
+            <span class="property-value">{{ selectedElement.id }}</span>
+          </div>
+          
+          <div class="property-row">
+            <span class="property-label">Tipo:</span>
+            <span class="property-value">{{ selectedElement.type }}</span>
+          </div>
+          
+          <div class="property-row" *ngIf="selectedElement.description">
+            <span class="property-label">Descripción:</span>
+            <span class="property-value">{{ selectedElement.description }}</span>
+          </div>
+          
+          <div class="property-row" *ngIf="selectedElement.position">
+            <span class="property-label">Posición:</span>
+            <span class="property-value">
+              {{ selectedElement.position.lat | number:'1.6-6' }}, 
+              {{ selectedElement.position.lng | number:'1.6-6' }}
             </span>
-          </div>
-          
-          <mat-divider></mat-divider>
-          
-          <div class="element-details">
-            <div class="property-row">
-              <span class="property-label">Tipo:</span>
-              <span class="property-value">{{ getTypeName() }}</span>
-            </div>
-            <div class="property-row">
-              <span class="property-label">ID:</span>
-              <span class="property-value">{{ selectedElement.id }}</span>
-            </div>
-            <div class="property-row" *ngIf="selectedElement.description">
-              <span class="property-label">Descripción:</span>
-              <span class="property-value">{{ selectedElement.description }}</span>
-            </div>
-            <div class="property-row" *ngIf="selectedElement.position">
-              <span class="property-label">Posición:</span>
-              <span class="property-value">
-                {{ selectedElement.position.coordinates[1] | number:'1.6-6' }}, 
-                {{ selectedElement.position.coordinates[0] | number:'1.6-6' }}
-              </span>
-            </div>
-          </div>
-          
-          <div class="element-actions">
-            <button mat-button color="primary" (click)="onEdit()">
-              <mat-icon>edit</mat-icon> Editar
-            </button>
-            <button mat-button color="accent" (click)="onShowDetails()">
-              <mat-icon>visibility</mat-icon> Detalles
-            </button>
           </div>
         </div>
         
-        <ng-template #noElement>
-          <div class="no-element-message">
-            <mat-icon>info</mat-icon>
-            <p>Seleccione un elemento para ver sus propiedades</p>
-          </div>
-        </ng-template>
+        <div class="actions">
+          <button mat-button color="primary" (click)="onEditElement()">
+            <mat-icon>edit</mat-icon> Editar
+          </button>
+          <button mat-button color="warn" (click)="onDeleteElement()">
+            <mat-icon>delete</mat-icon> Eliminar
+          </button>
+          <button mat-button (click)="onLocateElement()">
+            <mat-icon>my_location</mat-icon> Localizar
+          </button>
+          <button mat-button (click)="onViewConnections()">
+            <mat-icon>link</mat-icon> Ver conexiones
+          </button>
+        </div>
       </div>
     </div>
   `,
   styles: [`
-    @use '../../base/widget' as widget;
+    .widget-container {
+      width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
     
-    .element-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .widget-content {
+      padding: 16px;
+    }
+    
+    h3 {
+      margin-top: 0;
       margin-bottom: 12px;
-    }
-    
-    .element-header h4 {
-      margin: 0;
+      font-size: 16px;
       font-weight: 500;
+      color: #333;
     }
     
-    .element-status {
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    
-    .status-active { background-color: #e8f5e9; color: #2e7d32; }
-    .status-inactive { background-color: #f5f5f5; color: #757575; }
-    .status-fault { background-color: #ffebee; color: #c62828; }
-    .status-warning { background-color: #fff8e1; color: #ff8f00; }
-    .status-maintenance { background-color: #e3f2fd; color: #1565c0; }
-    
-    .element-details {
-      margin: 16px 0;
+    .element-properties {
+      margin: 12px 0;
     }
     
     .property-row {
@@ -134,177 +98,73 @@ import { fadeAnimation, slideInUpAnimation } from '../../../../../../shared/anim
     
     .property-label {
       font-weight: 500;
-      width: 30%;
-      color: #616161;
+      min-width: 100px;
+      color: #555;
     }
     
     .property-value {
-      flex-grow: 1;
+      flex: 1;
+      word-break: break-word;
     }
     
-    .element-actions {
+    .actions {
       display: flex;
-      justify-content: flex-end;
-      gap: 8px;
+      justify-content: space-between;
       margin-top: 16px;
     }
-    
-    .no-element-message {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-      color: #9e9e9e;
-    }
-    
-    .no-element-message mat-icon {
-      margin-bottom: 12px;
-      font-size: 36px;
-      height: 36px;
-      width: 36px;
-    }
   `],
-  animations: [fadeAnimation, slideInUpAnimation]
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ElementPropertiesWidgetComponent extends BaseWidgetComponent implements OnInit, OnChanges {
+export class ElementPropertiesWidgetComponent {
   @Input() selectedElement: NetworkElement | null = null;
   
-  // Inyectar el servicio de datos para widgets
-  private widgetDataService = inject(WidgetDataService);
+  @Output() widgetAction = new EventEmitter<WidgetActionEvent>();
+  @Output() widgetError = new EventEmitter<WidgetErrorEvent>();
+  @Output() widgetUpdate = new EventEmitter<WidgetUpdateEvent>();
+  @Output() viewConnections = new EventEmitter<string>();
   
-  constructor() {
-    super();
-    this.widgetId = 'element-properties-widget';
-    this.title = 'Propiedades del Elemento';
-    this.position = 'top-right';
-  }
-  
-  ngOnInit(): void {
-    super.ngOnInit();
-  }
-  
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['selectedElement'] && this.selectedElement) {
-      // Expandir el widget automáticamente cuando se selecciona un elemento
-      if (this.isCollapsed) {
-        this.widgetStateService.updateWidgetState(this.widgetId, { isCollapsed: false });
-      }
-      
-      // Cargar datos adicionales del elemento desde el servicio si es necesario
-      this.loadElementDetails();
-    }
-  }
-  
-  /**
-   * Carga detalles adicionales del elemento
-   */
-  private loadElementDetails(): void {
-    if (!this.selectedElement?.id) return;
-    
-    // Utilizar el servicio de datos centralizado
-    this.widgetDataService.fetchElementProperties(this.selectedElement.id)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (elementData) => {
-          // Actualizar datos si es necesario
-          console.log('Datos adicionales cargados:', elementData);
-        },
-        error: (error) => {
-          console.error('Error al cargar detalles:', error);
-        }
-      });
-  }
-  
-  /**
-   * Obtiene la clase CSS para el estado del elemento
-   */
-  getStatusClass(): string {
-    if (!this.selectedElement) return '';
-    
-    switch (this.selectedElement.status) {
-      case ElementStatus.ACTIVE:
-        return 'status-active';
-      case ElementStatus.INACTIVE:
-        return 'status-inactive';
-      case ElementStatus.FAULT:
-        return 'status-fault';
-      case ElementStatus.WARNING:
-        return 'status-warning';
-      case ElementStatus.MAINTENANCE:
-        return 'status-maintenance';
-      default:
-        return '';
-    }
-  }
-  
-  /**
-   * Obtiene la etiqueta legible del estado
-   */
-  getStatusLabel(): string {
-    if (!this.selectedElement) return '';
-    
-    switch (this.selectedElement.status) {
-      case ElementStatus.ACTIVE:
-        return 'Activo';
-      case ElementStatus.INACTIVE:
-        return 'Inactivo';
-      case ElementStatus.FAULT:
-        return 'Fallo';
-      case ElementStatus.WARNING:
-        return 'Advertencia';
-      case ElementStatus.MAINTENANCE:
-        return 'Mantenimiento';
-      case ElementStatus.PLANNED:
-        return 'Planificado';
-      default:
-        return 'Desconocido';
-    }
-  }
-  
-  /**
-   * Obtiene el nombre legible del tipo
-   */
-  getTypeName(): string {
-    if (!this.selectedElement) return '';
-    
-    const typeNames: Partial<Record<ElementType, string>> = {
-      [ElementType.OLT]: 'OLT',
-      [ElementType.ONT]: 'ONT',
-      [ElementType.SPLITTER]: 'Splitter',
-      [ElementType.FDP]: 'FDP',
-      [ElementType.ODF]: 'ODF',
-      [ElementType.EDFA]: 'EDFA',
-      [ElementType.MANGA]: 'Manga',
-      [ElementType.TERMINAL_BOX]: 'Terminal Box',
-      [ElementType.MSAN]: 'MSAN',
-      [ElementType.FIBER_THREAD]: 'Fibra',
-      [ElementType.DROP_CABLE]: 'Cable Drop',
-      [ElementType.DISTRIBUTION_CABLE]: 'Cable Distribución',
-      [ElementType.FEEDER_CABLE]: 'Cable Feeder',
-      [ElementType.BACKBONE_CABLE]: 'Cable Backbone'
-    };
-    
-    return typeNames[this.selectedElement.type] || String(this.selectedElement.type);
-  }
-  
-  /**
-   * Maneja el evento de edición
-   */
-  onEdit(): void {
+  onEditElement(): void {
     if (!this.selectedElement) return;
     
-    // Emitir evento de edición (implementar en componente real)
-    console.log('Editar elemento:', this.selectedElement.id);
+    this.widgetAction.emit({
+      source: 'element-properties-widget',
+      type: 'action',
+      timestamp: new Date(),
+      action: 'edit',
+      elementId: this.selectedElement.id,
+      actionData: { element: this.selectedElement }
+    });
   }
   
-  /**
-   * Maneja el evento de mostrar detalles
-   */
-  onShowDetails(): void {
+  onDeleteElement(): void {
     if (!this.selectedElement) return;
     
-    // Emitir evento para mostrar detalles (implementar en componente real)
-    console.log('Mostrar detalles de elemento:', this.selectedElement.id);
+    this.widgetAction.emit({
+      source: 'element-properties-widget',
+      type: 'action',
+      timestamp: new Date(),
+      action: 'delete',
+      elementId: this.selectedElement.id,
+      actionData: { element: this.selectedElement }
+    });
+  }
+  
+  onLocateElement(): void {
+    if (!this.selectedElement) return;
+    
+    this.widgetAction.emit({
+      source: 'element-properties-widget',
+      type: 'action',
+      timestamp: new Date(),
+      action: 'locate',
+      elementId: this.selectedElement.id,
+      actionData: { element: this.selectedElement }
+    });
+  }
+  
+  onViewConnections(): void {
+    if (this.selectedElement?.id) {
+      this.viewConnections.emit(this.selectedElement.id);
+    }
   }
 } 

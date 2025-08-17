@@ -35,6 +35,78 @@
     </div>
   </div>
   
+  <!-- Menú de navegación rápida -->
+  <app-quick-nav-menu [isCompact]="isCompactView"></app-quick-nav-menu>
+  
+  <!-- Stat Cards -->
+  <mat-card class="dashboard-section wide-section" [class.hidden]="hiddenSections.includes('statCards')">
+    <mat-card-header>
+      <mat-card-title>Estadísticas Principales</mat-card-title>
+      <button mat-icon-button [matMenuTriggerFor]="statCardsMenu" class="section-menu-button">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #statCardsMenu="matMenu">
+        <button mat-menu-item (click)="refreshSection('statCards')">
+          <mat-icon>refresh</mat-icon>
+          <span>Actualizar</span>
+        </button>
+        <button mat-menu-item (click)="toggleSection('statCards')">
+          <mat-icon>visibility_off</mat-icon>
+          <span>Ocultar</span>
+        </button>
+      </mat-menu>
+    </mat-card-header>
+    <mat-card-content>
+      <app-stat-cards></app-stat-cards>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Recent Activities -->
+  <mat-card class="dashboard-section wide-section" [class.hidden]="hiddenSections.includes('activities')">
+    <mat-card-header>
+      <mat-card-title>Actividades Recientes</mat-card-title>
+      <button mat-icon-button [matMenuTriggerFor]="activitiesMenu" class="section-menu-button">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #activitiesMenu="matMenu">
+        <button mat-menu-item (click)="refreshSection('activities')">
+          <mat-icon>refresh</mat-icon>
+          <span>Actualizar</span>
+        </button>
+        <button mat-menu-item (click)="toggleSection('activities')">
+          <mat-icon>visibility_off</mat-icon>
+          <span>Ocultar</span>
+        </button>
+      </mat-menu>
+    </mat-card-header>
+    <mat-card-content>
+      <app-recent-activities></app-recent-activities>
+    </mat-card-content>
+  </mat-card>
+  
+  <!-- Performance Metrics -->
+  <mat-card class="dashboard-section wide-section" [class.hidden]="hiddenSections.includes('perfMetrics')">
+    <mat-card-header>
+      <mat-card-title>Métricas de Rendimiento Detalladas</mat-card-title>
+      <button mat-icon-button [matMenuTriggerFor]="perfMetricsMenu" class="section-menu-button">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #perfMetricsMenu="matMenu">
+        <button mat-menu-item (click)="refreshSection('perfMetrics')">
+          <mat-icon>refresh</mat-icon>
+          <span>Actualizar</span>
+        </button>
+        <button mat-menu-item (click)="toggleSection('perfMetrics')">
+          <mat-icon>visibility_off</mat-icon>
+          <span>Ocultar</span>
+        </button>
+      </mat-menu>
+    </mat-card-header>
+    <mat-card-content>
+      <app-performance-metrics></app-performance-metrics>
+    </mat-card-content>
+  </mat-card>
+  
   <div class="dashboard-grid" [ngClass]="{'compact': isCompactView}">
     <!-- Widget de Salud de Red -->
     <mat-card class="dashboard-section" [class.hidden]="hiddenSections.includes('health')">
@@ -78,7 +150,17 @@
         </mat-menu>
       </mat-card-header>
       <mat-card-content>
-        <app-mini-map-widget (fullMapRequested)="navegarAMapaCompleto()"></app-mini-map-widget>
+        <app-mini-map-widget 
+          [title]="'Mini Mapa de Red'" 
+          [height]="200"
+          [zoomLevel]="12"
+          [centerCoordinates]="{ lat: 19.78375, lng: -70.67667 }"
+          [showActions]="true"
+          [openMapButtonText]="'Ver mapa completo'"
+          (fullMapRequested)="onFullMapRequested($event)"
+          (mapClicked)="onMiniMapClicked($event)"
+          (errorOccurred)="onMiniMapError($event)">
+        </app-mini-map-widget>
       </mat-card-content>
     </mat-card>
     
@@ -164,6 +246,15 @@
       <mat-card-content>
         <h4>Mostrar/Ocultar Secciones</h4>
         <div class="section-toggles">
+          <mat-button-toggle [checked]="!hiddenSections.includes('statCards')" (change)="toggleSection('statCards')">
+            Estadísticas
+          </mat-button-toggle>
+          <mat-button-toggle [checked]="!hiddenSections.includes('activities')" (change)="toggleSection('activities')">
+            Actividades
+          </mat-button-toggle>
+          <mat-button-toggle [checked]="!hiddenSections.includes('perfMetrics')" (change)="toggleSection('perfMetrics')">
+            Métricas Detalladas
+          </mat-button-toggle>
           <mat-button-toggle [checked]="!hiddenSections.includes('health')" (change)="toggleSection('health')">
             Salud de Red
           </mat-button-toggle>

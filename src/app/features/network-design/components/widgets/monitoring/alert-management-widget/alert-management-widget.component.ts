@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -10,65 +10,30 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { trigger, transition, style, animate, query, stagger, keyframes } from '@angular/animations';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
+import { BaseWidgetComponent } from '../../../widgets/base/base-widget.component';
 import { MonitoringService } from '../../../../services/monitoring.service';
-import { NetworkAlert, ElementType } from '../../../../../../shared/types/network.types';
+import { LoggerService } from '../../../../../../core/services/logger.service';
+import { NetworkElement, ElementType, NetworkAlert } from '../../../../../../shared/types/network.types';
+import { ExtendedElementType } from '../../../../../../shared/types/network-elements';
+import { fadeAnimation, slideInUpAnimation } from '../../../../../../shared/animations/common.animations';
 
 /**
- * Componente de gestión de alertas de red
- *
- * @description
- * Este componente muestra y permite gestionar alertas de red, proporcionando
- * funcionalidades para filtrar alertas por severidad, marcarlas como resueltas,
- * eliminarlas y exportarlas. Incluye visualización de estadísticas y facilita
- * la interacción con el sistema de monitoreo.
+ * Widget para gestión y monitoreo de alertas del sistema
+ * 
+ * Permite visualizar, filtrar, reconocer y resolver alertas de la red.
+ * Se integra con el servicio de monitoreo para obtener y gestionar alertas en tiempo real.
  */
 @Component({
   selector: 'app-alert-management-widget',
-  templateUrl: './alert-management-widget.component.html',
-  styleUrls: ['./alert-management-widget.component.scss'],
   standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [
-    trigger('cardAnimation', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate('300ms var(--animation-timing-normal)', style({ opacity: 1, transform: 'translateY(0)' }))
-      ]),
-      transition(':leave', [
-        animate('200ms var(--animation-timing-normal)', style({ opacity: 0, transform: 'translateY(10px)' }))
-      ])
-    ]),
-    trigger('listAnimation', [
-      transition('* => *', [
-        query(':enter', [
-          style({ opacity: 0, transform: 'translateY(10px)' }),
-          stagger('60ms', [
-            animate('300ms var(--animation-timing-normal)', style({ opacity: 1, transform: 'translateY(0)' }))
-          ])
-        ], { optional: true })
-      ])
-    ]),
-    trigger('fadeAnimation', [
-      transition(':enter', [
-        style({ opacity: 0 }),
-        animate('300ms var(--animation-timing-normal)', style({ opacity: 1 }))
-      ])
-    ]),
-    trigger('pulseAnimation', [
-      transition('* => *', [
-        animate('2s ease-in-out', keyframes([
-          style({ opacity: 1, offset: 0 }),
-          style({ opacity: 0.6, offset: 0.5 }),
-          style({ opacity: 1, offset: 1 })
-        ]))
-      ])
-    ])
-  ],
   imports: [
     CommonModule,
     FormsModule,
@@ -80,305 +45,722 @@ import { NetworkAlert, ElementType } from '../../../../../../shared/types/networ
     MatTooltipModule,
     MatButtonToggleModule,
     MatSlideToggleModule,
-    MatPaginatorModule
-  ]
+    MatPaginatorModule,
+    MatDividerModule,
+    MatMenuModule,
+    MatChipsModule,
+    MatSnackBarModule
+  ],
+  template: `
+    <div class="widget-container alert-management-widget" 
+         *ngIf="(widgetState$ | async)?.isVisible">
+      <div class="widget-header">
+        <h3>
+          <mat-icon [matBadge]="criticalCount" 
+                   [matBadgeHidden]="criticalCount === 0"
+                   matBadgeColor="warn"
+                   matBadgeSize="small">notification_important</mat-icon>
+          <span>{{ title }}</span>
+        </h3>
+        <div class="widget-controls">
+          <button mat-icon-button (click)="refreshAlerts()" matTooltip="Actualizar alertas">
+            <mat-icon>refresh</mat-icon>
+          </button>
+          <button mat-icon-button (click)="toggleCollapse()" *ngIf="collapsible" matTooltip="Colapsar">
+            <mat-icon>{{ (widgetState$ | async)?.isCollapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
+          <button mat-icon-button (click)="closeWidget()" *ngIf="closable" matTooltip="Cerrar">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="widget-content" *ngIf="!(widgetState$ | async)?.isCollapsed" [@slideInUp]>
+        <!-- Resumen de alertas -->
+        <div class="alert-summary">
+          <div class="stat-card critical" [class.empty]="criticalCount === 0" (click)="severityFilter = 'CRITICAL'; applyFilters()">
+            <div class="stat-icon">
+              <mat-icon>error</mat-icon>
+            </div>
+            <div class="stat-content">
+              <span class="stat-count">{{ criticalCount }}</span>
+              <span class="stat-label">Críticas</span>
+            </div>
+          </div>
+          <div class="stat-card warning" [class.empty]="warningCount === 0" (click)="severityFilter = 'HIGH'; applyFilters()">
+            <div class="stat-icon">
+              <mat-icon>warning</mat-icon>
+            </div>
+            <div class="stat-content">
+              <span class="stat-count">{{ warningCount }}</span>
+              <span class="stat-label">Advertencias</span>
+            </div>
+          </div>
+          <div class="stat-card info" [class.empty]="infoCount === 0" (click)="severityFilter = 'LOW'; applyFilters()">
+            <div class="stat-icon">
+              <mat-icon>info</mat-icon>
+            </div>
+            <div class="stat-content">
+              <span class="stat-count">{{ infoCount }}</span>
+              <span class="stat-label">Información</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="alert-filters">
+          <mat-button-toggle-group [value]="severityFilter" (change)="severityFilter = $event.value; applyFilters()">
+            <mat-button-toggle value="all" matTooltip="Todas las alertas">
+              Todas
+            </mat-button-toggle>
+            <mat-button-toggle value="CRITICAL" matTooltip="Solo alertas críticas">
+              <mat-icon class="severity-critical">error</mat-icon>
+            </mat-button-toggle>
+            <mat-button-toggle value="HIGH" matTooltip="Solo alertas de alta prioridad">
+              <mat-icon class="severity-high">warning</mat-icon>
+            </mat-button-toggle>
+            <mat-button-toggle value="LOW" matTooltip="Solo alertas de baja prioridad">
+              <mat-icon class="severity-low">info</mat-icon>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+          
+          <mat-slide-toggle
+            [checked]="showResolved"
+            (change)="showResolved = $event.checked; applyFilters()"
+            color="primary">
+            Mostrar resueltas
+          </mat-slide-toggle>
+        </div>
+
+        <mat-divider></mat-divider>
+
+        <!-- Lista de alertas -->
+        <div *ngIf="alerts.length > 0" class="alert-list">
+          <div *ngIf="hasFiltersApplied()" class="filter-info">
+            {{ getFilterDescription() }}
+            <button mat-button color="primary" (click)="resetFilters()">
+              <mat-icon>clear</mat-icon> Limpiar filtros
+            </button>
+          </div>
+
+          <div *ngIf="filteredAlerts.length === 0" class="no-alerts-message">
+            <mat-icon>filter_alt</mat-icon>
+            <p>No hay alertas que coincidan con los filtros actuales</p>
+          </div>
+
+          <div *ngFor="let alert of filteredAlerts" 
+               class="alert-item"
+               [ngClass]="'severity-' + alert.severity"
+               [class.resolved]="alert.resolved">
+            <div class="alert-icon">
+              <mat-icon *ngIf="alert.severity === 'CRITICAL'">error</mat-icon>
+              <mat-icon *ngIf="alert.severity === 'HIGH'">warning</mat-icon>
+              <mat-icon *ngIf="alert.severity === 'LOW'">info</mat-icon>
+            </div>
+            <div class="alert-content">
+              <div class="alert-header">
+                <span class="alert-title">{{ alert.title }}</span>
+                <span class="alert-timestamp">{{ formatTime(alert.timestamp) }}</span>
+              </div>
+              <div class="alert-message">{{ alert.message }}</div>
+              <div class="alert-element">
+                <mat-icon class="element-icon">{{ getElementTypeIcon(alert.elementType) }}</mat-icon>
+                <span>{{ alert.elementId }}</span>
+              </div>
+              <div class="alert-status" *ngIf="alert.resolved">
+                <mat-chip color="primary" selected>Resuelta</mat-chip>
+              </div>
+            </div>
+            <div class="alert-actions">
+              <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Opciones">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item (click)="toggleResolved(alert)">
+                  <mat-icon>{{ alert.resolved ? 'restore' : 'done' }}</mat-icon>
+                  <span>{{ alert.resolved ? 'Reabrir' : 'Resolver' }}</span>
+                </button>
+                <button mat-menu-item (click)="deleteAlert(alert)">
+                  <mat-icon>delete</mat-icon>
+                  <span>Eliminar</span>
+                </button>
+              </mat-menu>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cuando no hay alertas -->
+        <div *ngIf="alerts.length === 0" class="empty-state">
+          <mat-icon>notifications_off</mat-icon>
+          <p>No hay alertas activas en el sistema</p>
+        </div>
+
+        <!-- Paginación -->
+        <mat-paginator 
+          *ngIf="alerts.length > pageSize"
+          [length]="totalFilteredAlerts"
+          [pageSize]="pageSize"
+          [pageIndex]="currentPage"
+          [pageSizeOptions]="[5, 10, 25, 50]"
+          (page)="onPageChange($event)">
+        </mat-paginator>
+
+        <!-- Acciones globales -->
+        <div class="alert-global-actions" *ngIf="alerts.length > 0">
+          <button mat-button color="warn" [disabled]="!hasResolved()" (click)="clearResolvedAlerts()">
+            <mat-icon>delete_sweep</mat-icon>
+            Eliminar resueltas
+          </button>
+          <button mat-button color="primary" (click)="exportAlerts()">
+            <mat-icon>download</mat-icon>
+            Exportar
+          </button>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .alert-management-widget {
+      width: 100%;
+      max-width: 400px;
+      min-width: 320px;
+    }
+    
+    .alert-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .stat-card {
+      padding: 8px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+    }
+    
+    .stat-card.critical {
+      background-color: rgba(244, 67, 54, 0.1);
+      color: #f44336;
+    }
+    
+    .stat-card.warning {
+      background-color: rgba(255, 152, 0, 0.1);
+      color: #ff9800;
+    }
+    
+    .stat-card.info {
+      background-color: rgba(33, 150, 243, 0.1);
+      color: #2196f3;
+    }
+    
+    .stat-card.empty {
+      opacity: 0.5;
+    }
+    
+    .stat-content {
+      text-align: center;
+    }
+    
+    .stat-count {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+    }
+    
+    .alert-filters {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .alert-list {
+      margin-top: 16px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+    
+    .alert-item {
+      display: flex;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      border-left: 4px solid #999;
+    }
+    
+    .alert-item.severity-critical {
+      border-left-color: #f44336;
+      background-color: rgba(244, 67, 54, 0.05);
+    }
+    
+    .alert-item.severity-warning {
+      border-left-color: #ff9800;
+      background-color: rgba(255, 152, 0, 0.05);
+    }
+    
+    .alert-item.severity-info {
+      border-left-color: #2196f3;
+      background-color: rgba(33, 150, 243, 0.05);
+    }
+    
+    .alert-item.resolved {
+      opacity: 0.7;
+      border-left-color: #4caf50;
+      background-color: rgba(76, 175, 80, 0.05);
+    }
+    
+    .alert-icon {
+      margin-right: 12px;
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .alert-icon .mat-icon {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .severity-critical .alert-icon .mat-icon {
+      color: #f44336;
+    }
+    
+    .severity-warning .alert-icon .mat-icon {
+      color: #ff9800;
+    }
+    
+    .severity-info .alert-icon .mat-icon {
+      color: #2196f3;
+    }
+    
+    .alert-content {
+      flex: 1;
+    }
+    
+    .alert-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .alert-title {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .alert-timestamp {
+      font-size: 12px;
+      color: #757575;
+    }
+    
+    .alert-message {
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    
+    .alert-element {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: #555;
+    }
+    
+    .element-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+      margin-right: 4px;
+    }
+    
+    .alert-status {
+      margin-top: 8px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: #757575;
+    }
+    
+    .empty-state mat-icon {
+      font-size: 48px;
+      height: 48px;
+      width: 48px;
+      opacity: 0.5;
+      margin-bottom: 16px;
+    }
+    
+    .filter-info {
+      font-size: 12px;
+      color: #757575;
+      margin-bottom: 12px;
+      padding: 8px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .no-alerts-message {
+      text-align: center;
+      padding: 24px;
+      color: #757575;
+    }
+    
+    .no-alerts-message mat-icon {
+      font-size: 36px;
+      height: 36px;
+      width: 36px;
+      opacity: 0.5;
+      margin-bottom: 8px;
+    }
+    
+    .alert-global-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+    }
+    
+    .severity-critical {
+      color: #f44336;
+    }
+    
+    .severity-warning {
+      color: #ff9800;
+    }
+    
+    .severity-info {
+      color: #2196f3;
+    }
+  `],
+  animations: [fadeAnimation, slideInUpAnimation]
 })
-export class AlertManagementWidgetComponent implements OnInit, OnDestroy {
-  /** Lista de alertas de red */
+export class AlertManagementWidgetComponent extends BaseWidgetComponent implements OnInit, OnDestroy {
+  /** Lista de todas las alertas */
   alerts: NetworkAlert[] = [];
   
-  /** Filtro de severidad actual */
-  severityFilter: 'all' | 'critical' | 'warning' | 'info' = 'all';
+  /** Lista de alertas filtradas */
+  filteredAlerts: NetworkAlert[] = [];
   
-  /** Indica si se muestran alertas resueltas */
+  /** Filtro de severidad */
+  severityFilter: 'all' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' = 'all';
+  
+  /** Mostrar alertas resueltas */
   showResolved = false;
   
-  /** Tamaño de página para la paginación */
+  /** Paginación */
   pageSize = 10;
-  
-  /** Página actual para la paginación */
   currentPage = 0;
+  totalFilteredAlerts = 0;
   
-  /** Subject para gestionar la limpieza de suscripciones */
-  private destroyed$ = new Subject<void>();
-
+  /** Indica si se están cargando datos */
+  isLoading = false;
+  
+  // Servicios inyectados
+  private monitoringService = inject(MonitoringService);
+  private snackBar = inject(MatSnackBar);
+  private logger = inject(LoggerService);
+  
+  constructor() {
+    super();
+    this.widgetId = 'alert-management-widget';
+    this.title = 'Gestión de Alertas';
+    this.position = 'top-right';
+  }
+  
+  override ngOnInit(): void {
+    super.ngOnInit();
+    this.loadAlerts();
+  }
+  
   /**
-   * Constructor del componente
-   * 
-   * @param monitoringService Servicio para acceder a datos de monitoreo
-   * @param snackBar Servicio para mostrar notificaciones
-   * @param cdr Referencia del detector de cambios
+   * Carga las alertas desde el servicio de monitoreo
    */
-  constructor(
-    private monitoringService: MonitoringService, 
-    private snackBar: MatSnackBar,
-    private cdr: ChangeDetectorRef
-  ) {}
-
-  /**
-   * Inicializa el componente y suscribe a las alertas
-   */
-  ngOnInit(): void {
-    // Suscripción al servicio de monitoreo para obtener alertas
+  private loadAlerts(): void {
+    this.isLoading = true;
+    
     this.monitoringService.getAlerts()
-      .pipe(takeUntil(this.destroyed$))
-      .subscribe(alerts => {
-        this.alerts = alerts;
-        this.cdr.markForCheck();
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(error => {
+          this.handleError('loadAlerts', error);
+          return of([]);
+        })
+      )
+      .subscribe({
+        next: (alerts) => {
+          this.alerts = alerts;
+          this.applyFilters();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          this.handleError('loadAlerts', error);
+          this.isLoading = false;
+        }
       });
   }
-
+  
   /**
-   * Limpia las suscripciones al destruir el componente
+   * Aplica los filtros actuales a la lista de alertas
    */
-  ngOnDestroy(): void {
-    this.destroyed$.next();
-    this.destroyed$.complete();
-  }
-
-  /**
-   * Obtiene el número de alertas críticas activas
-   */
-  get criticalCount(): number {
-    return this.alerts.filter(alert => alert.severity === 'critical' && !alert.resolved).length;
-  }
-
-  /**
-   * Obtiene el número de alertas de advertencia activas
-   */
-  get warningCount(): number {
-    return this.alerts.filter(alert => alert.severity === 'warning' && !alert.resolved).length;
-  }
-
-  /**
-   * Obtiene el número de alertas informativas activas
-   */
-  get infoCount(): number {
-    return this.alerts.filter(alert => alert.severity === 'info' && !alert.resolved).length;
-  }
-
-  /**
-   * Obtiene las alertas filtradas según los criterios actuales
-   * y aplica paginación
-   */
-  get filteredAlerts(): NetworkAlert[] {
-    // Filtrar por severidad y estado resuelto
-    let filtered = this.alerts;
+  applyFilters(): void {
+    let filtered = [...this.alerts];
     
+    // Filtrar por severidad
     if (this.severityFilter !== 'all') {
       filtered = filtered.filter(alert => alert.severity === this.severityFilter);
     }
     
+    // Filtrar por estado resuelto/no resuelto
     if (!this.showResolved) {
       filtered = filtered.filter(alert => !alert.resolved);
     }
     
+    // Ordenar por timestamp (más recientes primero)
+    filtered.sort((a, b) => {
+      const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : a.timestamp as number;
+      const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : b.timestamp as number;
+      return timeB - timeA;
+    });
+    
+    this.totalFilteredAlerts = filtered.length;
+    
     // Aplicar paginación
     const startIndex = this.currentPage * this.pageSize;
-    return filtered.slice(startIndex, startIndex + this.pageSize);
+    this.filteredAlerts = filtered.slice(startIndex, startIndex + this.pageSize);
   }
   
   /**
-   * Actualiza las alertas desde el servicio de monitoreo
-   */
-  refreshAlerts(): void {
-    // Implementamos utilizando métodos existentes del servicio
-    // Cargamos todas las alertas disponibles de nuevo
-    this.monitoringService.getAlerts()
-      .pipe(takeUntil(this.destroyed$))
-      .subscribe(alerts => {
-        this.alerts = alerts;
-        this.cdr.markForCheck();
-        
-        this.snackBar.open('Alertas actualizadas', 'Cerrar', {
-          duration: 2000,
-          panelClass: 'success-snackbar'
-        });
-      });
-  }
-
-  /**
-   * Cambia el estado de resolución de una alerta
-   * 
-   * @param alert Alerta a modificar
-   */
-  toggleResolved(alert: NetworkAlert): void {
-    if (alert.resolved) {
-      this.monitoringService.reopenAlert(alert.id);
-      this.snackBar.open('Alerta marcada como activa', 'Cerrar', {
-        duration: 3000,
-        panelClass: 'info-snackbar'
-      });
-    } else {
-      this.monitoringService.resolveAlert(alert.id);
-      this.snackBar.open('Alerta marcada como resuelta', 'Cerrar', {
-        duration: 3000,
-        panelClass: 'success-snackbar'
-      });
-    }
-    this.cdr.markForCheck();
-  }
-
-  /**
-   * Elimina una alerta
-   * 
-   * @param alertToDelete Alerta a eliminar
-   */
-  deleteAlert(alertToDelete: NetworkAlert): void {
-    this.monitoringService.removeAlert(alertToDelete.id);
-    this.snackBar.open('Alerta eliminada', 'Cerrar', {
-      duration: 3000,
-      panelClass: 'info-snackbar'
-    });
-    this.cdr.markForCheck();
-  }
-
-  /**
-   * Elimina todas las alertas resueltas
-   */
-  clearResolvedAlerts(): void {
-    const resolvedAlerts = this.alerts.filter(alert => alert.resolved);
-    if (resolvedAlerts.length === 0) {
-      this.snackBar.open('No hay alertas resueltas para eliminar', 'Cerrar', {
-        duration: 3000,
-        panelClass: 'warning-snackbar'
-      });
-      return;
-    }
-    
-    resolvedAlerts.forEach(alert => {
-      this.monitoringService.removeAlert(alert.id);
-    });
-    
-    this.snackBar.open(`${resolvedAlerts.length} alertas resueltas eliminadas`, 'Cerrar', {
-      duration: 3000,
-      panelClass: 'success-snackbar'
-    });
-    this.cdr.markForCheck();
-  }
-
-  /**
-   * Exporta las alertas filtradas a un archivo JSON
-   */
-  exportAlerts(): void {
-    const filteredAlerts = this.severityFilter === 'all' 
-      ? this.alerts 
-      : this.alerts.filter(alert => alert.severity === this.severityFilter);
-      
-    const alertsToExport = this.showResolved 
-      ? filteredAlerts 
-      : filteredAlerts.filter(alert => !alert.resolved);
-      
-    if (alertsToExport.length === 0) {
-      this.snackBar.open('No hay alertas para exportar', 'Cerrar', {
-        duration: 3000,
-        panelClass: 'warning-snackbar'
-      });
-      return;
-    }
-    
-    const alertsJson = JSON.stringify(alertsToExport, null, 2);
-    const blob = new Blob([alertsJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `alertas-red-${this.severityFilter !== 'all' ? this.severityFilter + '-' : ''}${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    this.snackBar.open('Alertas exportadas', 'Cerrar', {
-      duration: 3000,
-      panelClass: 'success-snackbar'
-    });
-  }
-  
-  /**
-   * Maneja el cambio de página
-   * 
-   * @param event Evento de cambio de página
+   * Gestiona el cambio de página
    */
   onPageChange(event: PageEvent): void {
     this.pageSize = event.pageSize;
     this.currentPage = event.pageIndex;
-    this.cdr.markForCheck();
+    this.applyFilters();
   }
   
   /**
-   * Restablece los filtros aplicados
+   * Resetea todos los filtros
    */
   resetFilters(): void {
     this.severityFilter = 'all';
     this.showResolved = false;
     this.currentPage = 0;
-    this.cdr.markForCheck();
+    this.applyFilters();
   }
   
   /**
-   * Verifica si hay filtros aplicados
+   * Determina si hay filtros aplicados
    */
   hasFiltersApplied(): boolean {
     return this.severityFilter !== 'all' || this.showResolved;
   }
   
   /**
-   * Obtiene la descripción de los filtros aplicados
+   * Obtiene una descripción de los filtros aplicados
    */
   getFilterDescription(): string {
-    let description = 'para mostrar';
-    
+    const parts: string[] = [];
     if (this.severityFilter !== 'all') {
-      if (this.severityFilter === 'critical') description = 'críticas';
-      if (this.severityFilter === 'warning') description = 'de advertencia';
-      if (this.severityFilter === 'info') description = 'informativas';
+      parts.push(`Severidad: ${this.getSeverityName(this.severityFilter)}`);
     }
-    
-    if (!this.showResolved) {
-      description += ' activas';
+    if (this.showResolved) {
+      parts.push('Incluyendo resueltas');
     }
-    
-    return description;
+    return parts.length ? `Filtros: ${parts.join(', ')}` : '';
   }
-
+  
   /**
-   * Obtiene el ícono correspondiente a un tipo de elemento
-   * 
-   * @param elementType Tipo de elemento
-   * @returns Nombre del ícono de Material
+   * Obtiene nombre legible para una severidad
+   */
+  getSeverityName(severity: string): string {
+    switch (severity) {
+      case 'CRITICAL':
+      case 'HIGH':
+        return 'Crítica';
+      case 'MEDIUM':
+        return 'Advertencia';
+      case 'LOW':
+        return 'Información';
+      default: return 'Todas';
+    }
+  }
+  
+  /**
+   * Verifica si hay alertas resueltas
+   */
+  hasResolved(): boolean {
+    return this.alerts.some(alert => alert.resolved);
+  }
+  
+  /**
+   * Obtiene el número de alertas críticas
+   */
+  get criticalCount(): number {
+    return this.alerts.filter(alert => (alert.severity === 'CRITICAL' || alert.severity === 'HIGH') && !alert.resolved).length;
+  }
+  
+  /**
+   * Obtiene el número de alertas de advertencia
+   */
+  get warningCount(): number {
+    return this.alerts.filter(alert => alert.severity === 'MEDIUM' && !alert.resolved).length;
+  }
+  
+  /**
+   * Obtiene el número de alertas informativas
+   */
+  get infoCount(): number {
+    return this.alerts.filter(alert => alert.severity === 'LOW' && !alert.resolved).length;
+  }
+  
+  /**
+   * Actualiza las alertas desde el servicio
+   */
+  refreshAlerts(): void {
+    this.loadAlerts();
+  }
+  
+  /**
+   * Cambia el estado resuelto de una alerta
+   */
+  toggleResolved(alert: NetworkAlert): void {
+    if (alert.resolved) {
+      this.monitoringService.reopenAlert(alert.id);
+      this.showNotification('Alerta reabierta');
+    } else {
+      this.monitoringService.resolveAlert(alert.id);
+      this.showNotification('Alerta marcada como resuelta');
+    }
+    
+    // Actualizar la lista local
+    const index = this.alerts.findIndex(a => a.id === alert.id);
+    if (index >= 0) {
+      this.alerts[index] = { ...alert, resolved: !alert.resolved };
+      this.applyFilters();
+    }
+  }
+  
+  /**
+   * Elimina una alerta
+   */
+  deleteAlert(alert: NetworkAlert): void {
+    this.monitoringService.removeAlert(alert.id);
+    
+    // Actualizar lista local
+    this.alerts = this.alerts.filter(a => a.id !== alert.id);
+    this.applyFilters();
+    
+    this.showNotification('Alerta eliminada');
+  }
+  
+  /**
+   * Elimina todas las alertas resueltas
+   */
+  clearResolvedAlerts(): void {
+    const resolvedAlerts = this.alerts.filter(alert => alert.resolved);
+    
+    if (resolvedAlerts.length === 0) {
+      this.showNotification('No hay alertas resueltas para eliminar', 'warning');
+      return;
+    }
+    
+    // Eliminar cada alerta resuelta
+    resolvedAlerts.forEach(alert => {
+      this.monitoringService.removeAlert(alert.id);
+    });
+    
+    // Actualizar lista local
+    this.alerts = this.alerts.filter(alert => !alert.resolved);
+    this.applyFilters();
+    
+    this.showNotification(`${resolvedAlerts.length} alertas resueltas eliminadas`);
+  }
+  
+  /**
+   * Exporta las alertas a JSON
+   */
+  exportAlerts(): void {
+    try {
+      const alertsToExport = this.filteredAlerts.length > 0 ? this.filteredAlerts : this.alerts;
+      const dataStr = JSON.stringify(alertsToExport, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      
+      const exportFileName = `network-alerts-${new Date().toISOString().slice(0, 10)}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileName);
+      linkElement.click();
+      
+      this.showNotification('Alertas exportadas con éxito');
+    } catch (error) {
+      this.logger.error('Error al exportar alertas', error);
+      this.showNotification('Error al exportar alertas', 'error');
+    }
+  }
+  
+  /**
+   * Muestra una notificación
+   */
+  private showNotification(message: string, type: 'success' | 'error' | 'warning' = 'success'): void {
+    const panelClass = `${type}-snackbar`;
+    this.snackBar.open(message, 'Cerrar', {
+      duration: 3000,
+      panelClass
+    });
+  }
+  
+  /**
+   * Formatea una fecha/hora para mostrar
+   */
+  formatTime(timestamp: Date | number): string {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return date.toLocaleString();
+  }
+  
+  /**
+   * Obtiene el icono correspondiente a un tipo de elemento
    */
   getElementTypeIcon(elementType: ElementType): string {
     switch (elementType) {
       case ElementType.OLT:
         return 'router';
       case ElementType.ONT:
-        return 'device_hub';
-      case ElementType.FDP:
+        return 'devices';
       case ElementType.ODF:
-        return 'cable';
+        return 'hub';
       case ElementType.SPLITTER:
         return 'call_split';
       case ElementType.EDFA:
-        return 'settings_input_hdmi';
+        return 'power';
       case ElementType.MANGA:
-        return 'settings_input_component';
-      case ElementType.TERMINAL_BOX:
-        return 'inbox';
-      case ElementType.FIBER_THREAD:
-      case ElementType.FIBER_STRAND:
-        return 'timeline';
-      case ElementType.DROP_CABLE:
-      case ElementType.DISTRIBUTION_CABLE:
-      case ElementType.FEEDER_CABLE:
-      case ElementType.BACKBONE_CABLE:
-      case ElementType.FIBER_CABLE:
-        return 'power_input';
+        return 'cable';
       case ElementType.FIBER_CONNECTION:
-      case ElementType.FIBER_SPLICE:
         return 'swap_horiz';
       default:
-        return 'device_unknown';
+        return 'device_hub';
     }
+  }
+  
+  /**
+   * Refresca los datos
+   */
+  override refreshData(): void {
+    this.refreshAlerts();
   }
 } 

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, ElementRef, Renderer2, ViewChildren, QueryList, AfterViewInit, OnInit, NO_ERRORS_SCHEMA, OnDestroy, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, ElementRef, Renderer2, ViewChildren, QueryList, AfterViewInit, OnInit, OnDestroy, inject, ChangeDetectorRef, NO_ERRORS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,6 +10,8 @@ import { PanelManagerService, PanelType } from '../../../../services/panel-manag
 import { NetworkStateService } from '../../../../services/network-state.service';
 import { LoggerService } from '../../../../../../core/services/logger.service';
 import { WidgetStateService } from '../../../../services/widget-state.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 // Importar solo los componentes de widgets que se utilizan realmente
 import { NetworkHealthWidgetComponent } from '../../monitoring/network-health-widget/network-health-widget.component';
@@ -45,13 +47,6 @@ export interface WidgetActionEvent extends WidgetEvent {
   action: string;      // Nombre de la acción (ej: 'edit', 'delete', 'locate')
   elementId?: string;  // ID del elemento asociado si aplica
   actionData?: any;    // Datos específicos de la acción
-}
-
-interface WidgetPosition {
-  id: string;
-  top: number;
-  left: number;
-  zIndex: number;
 }
 
 // Interfaces para el tipado
@@ -95,35 +90,50 @@ interface BaseLayerOption {
     MiniMapWidgetComponent,
     ElementPropertiesWidgetComponent
   ],
-  schemas: [NO_ERRORS_SCHEMA],
+  schemas: [NO_ERRORS_SCHEMA], // Temporalmente volvemos a añadir esto hasta que los widgets estén implementados correctamente
   template: `
     <div class="widgets-container" id="map-container">
       <!-- Widgets de elementos -->
       <app-element-properties-widget
+        #widgetItem
+        id="element-properties-widget"
+        class="widget-container"
         [selectedElement]="selectedElement"
         (widgetAction)="onWidgetAction($event)"
         (widgetError)="onWidgetError($event)"
         (widgetUpdate)="onWidgetUpdate($event)">
+        <div class="widget-header">Propiedades</div>
       </app-element-properties-widget>
       
       <!-- Widgets de conectividad -->
       <app-connection-status-widget
+        #widgetItem
+        id="connection-status-widget"
+        class="widget-container"
         [connectionStats]="connectionStats"
         (widgetAction)="onWidgetAction($event)"
         (widgetError)="onWidgetError($event)"
         (widgetUpdate)="onWidgetUpdate($event)">
+        <div class="widget-header">Estado de Conexiones</div>
       </app-connection-status-widget>
       
       <!-- Widgets de monitoreo -->
       <app-network-health-widget
+        #widgetItem
+        id="network-health-widget"
+        class="widget-container"
         [elementStats]="elementStats"
         (widgetAction)="onWidgetAction($event)"
         (widgetError)="onWidgetError($event)"
         (widgetUpdate)="onWidgetUpdate($event)">
+        <div class="widget-header">Salud de la Red</div>
       </app-network-health-widget>
       
       <!-- Widgets relacionados con el mapa -->
       <app-mini-map-widget
+        #widgetItem
+        id="mini-map-widget"
+        class="widget-container"
         [allElements]="allElements"
         [allConnections]="allConnections"
         [viewportOffsetX]="viewportOffsetX"
@@ -135,6 +145,7 @@ interface BaseLayerOption {
         (widgetAction)="onWidgetAction($event)"
         (widgetError)="onWidgetError($event)"
         (widgetUpdate)="onWidgetUpdate($event)">
+        <div class="widget-header">Mini Mapa</div>
       </app-mini-map-widget>
     </div>
   `,
@@ -150,11 +161,48 @@ interface BaseLayerOption {
       overflow: hidden;
     }
     
-    /* Los widgets tendrán pointer-events: auto para que sean interactivos */
-    .widgets-container ::ng-deep .widget-container {
+    .widget-container {
       pointer-events: auto;
+      position: absolute;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      background-color: white;
+      overflow: hidden;
+      min-width: 200px;
+      transition: transform 0.1s ease;
     }
-  `]
+    
+    .widget-container.widget-dragging {
+      opacity: 0.8;
+      transform: scale(1.02);
+    }
+    
+    .widget-header {
+      padding: 8px 12px;
+      background-color: #f0f0f0;
+      cursor: grab;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+      user-select: none;
+    }
+    
+    .widget-content {
+      padding: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .widget-content.collapsed {
+      display: none;
+    }
+    
+    .hidden {
+      display: none;
+    }
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDestroy {
   // Inputs para datos provenientes del mapa
@@ -162,11 +210,11 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
   @Input() selectedElement: NetworkElement | null = null;
   @Input() connectionSourceElement: NetworkElement | null = null;
   @Input() connectionTargetElement: NetworkElement | null = null;
-  @Input() elementStats: { total: number, active: number, warning: number, error: number } = { 
-    total: 0, active: 0, warning: 0, error: 0 
+  @Input() elementStats: { total: number, active: number, warning: number, error: number, maintenance: number, inactive: number } = { 
+    total: 0, active: 0, warning: 0, error: 0, maintenance: 0, inactive: 0 
   };
-  @Input() connectionStats: { total: number, active: number, warning: number, error: number } = { 
-    total: 0, active: 0, warning: 0, error: 0 
+  @Input() connectionStats: { total: number, active: number, warning: number, error: number, maintenance: number, inactive: number, fault: number } = { 
+    total: 0, active: 0, warning: 0, error: 0, maintenance: 0, inactive: 0, fault: 0 
   };
   @Input() performanceStats: { fps: number, elements: number, visible: number } = { 
     fps: 0, elements: 0, visible: 0 
@@ -257,36 +305,79 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
   currentX = 0;
   currentY = 0;
   
-  // Variables para el posicionamiento de widgets
-  widgetPositions = new Map<string, WidgetPosition>();
-  baseZIndex = 100;
-  
   // Observador de redimensionamiento para ajustar widgets cuando cambia el tamaño de la ventana
   private resizeObserver: ResizeObserver | null = null;
   
-  // Inyectar servicio de estado de widgets
-  private widgetStateService = inject(WidgetStateService);
+  // Subject para cancelar suscripciones
+  private destroy$ = new Subject<void>();
   
-  constructor(
-    private panelManager: PanelManagerService, 
-    private networkStateService: NetworkStateService,
-    private el: ElementRef,
-    private renderer: Renderer2,
-    private logger: LoggerService
-  ) {}
+  // Inyectar servicios
+  private widgetStateService = inject(WidgetStateService);
+  private logger = inject(LoggerService);
+  private panelManager = inject(PanelManagerService);
+  private networkStateService = inject(NetworkStateService);
+  private el = inject(ElementRef);
+  private renderer = inject(Renderer2);
+  private cdr = inject(ChangeDetectorRef);
   
   ngOnInit(): void {
-    // Cargar posiciones guardadas
-    this.loadWidgetPositions();
-    
     // Inicializar visibilidad según el tipo de contenedor
     this.initializeByPosition();
     
     // Inicializar el observador de redimensionamiento
+    this.setupResizeObserver();
+    
+    // Configurar estado inicial de widgets
+    this.initializeWidgetsState();
+    
+    // Suscribirse a cambios en el estado de los widgets
+    this.widgetStateService.allStates$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(states => {
+        // Actualizar UI cuando cambia el estado de los widgets
+        this.updateWidgetsFromState(states);
+        this.cdr.markForCheck(); // Notificar cambios porque usamos OnPush
+      });
+      
+    // Suscribirse a cambios en el elemento seleccionado
+    this.networkStateService.getSelectedElementAsObservable()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(element => {
+        if (this.selectedElement !== element) {
+          this.selectedElement = element;
+          this.widgetStateService.setWidgetVisibility('element-properties-widget', !!element);
+          this.cdr.markForCheck();
+        }
+      });
+  }
+  
+  ngAfterViewInit(): void {
+    // Inicializar widgets después de que la vista se haya inicializado
+    this.initWidgetDragging();
+  }
+  
+  ngOnDestroy(): void {
+    // Limpiar recursos y suscripciones al destruir el componente
+    this.logger.debug('Destruyendo contenedor de widgets');
+    
+    // Completar el subject para cancelar suscripciones
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    // Si hay un observador de redimensionamiento, desconectarlo
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+  }
+  
+  /**
+   * Configura el observador de redimensionamiento
+   */
+  private setupResizeObserver(): void {
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(entries => {
+      this.resizeObserver = new ResizeObserver(() => {
         // Cuando el contenedor cambia de tamaño, reorganizar los widgets
-        this.organizeWidgets();
+        this.widgetStateService.recalculateWidgetPositions();
       });
       
       // Observar el elemento contenedor
@@ -296,28 +387,52 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
       this.logger.warn('ResizeObserver no está disponible en este navegador');
       
       // Alternativa usando el evento resize de la ventana
-      window.addEventListener('resize', () => this.organizeWidgets());
+      window.addEventListener('resize', () => {
+        this.widgetStateService.recalculateWidgetPositions();
+      });
     }
-    
-    // Configurar estado inicial de widgets
-    this.initializeWidgetsState();
   }
   
-  ngAfterViewInit(): void {
-    // Inicializar widgets después de que la vista se haya inicializado
-    setTimeout(() => {
-      this.initWidgetDragging();
-    }, 500);
-  }
-  
-  ngOnDestroy(): void {
-    // Limpiar recursos y suscripciones al destruir el componente
-    this.logger.debug('Destruyendo contenedor de widgets');
+  /**
+   * Actualiza la UI de los widgets basándose en el estado del servicio
+   */
+  private updateWidgetsFromState(states: Record<string, any>): void {
+    // Solo actualizar cuando el componente está inicializado
+    if (!this.widgetElements) return;
     
-    // Si hay alguna suscripción, cancelarla aquí
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
+    this.widgetElements.forEach(widget => {
+      if (!widget || !widget.nativeElement) return;
+      
+      const widgetEl = widget.nativeElement as HTMLElement;
+      const widgetId = widgetEl.getAttribute('id');
+      
+      if (!widgetId || !states[widgetId]) return;
+      
+      const state = states[widgetId];
+      
+      // Aplicar visibilidad
+      if (state.isVisible !== undefined) {
+        this.renderer.setStyle(widgetEl, 'display', state.isVisible ? 'block' : 'none');
+      }
+      
+      // Aplicar posición
+      if (state.position) {
+        this.renderer.setStyle(widgetEl, 'left', `${state.position.x}px`);
+        this.renderer.setStyle(widgetEl, 'top', `${state.position.y}px`);
+        
+        if (state.zIndex !== undefined) {
+          this.renderer.setStyle(widgetEl, 'z-index', state.zIndex.toString());
+        }
+      }
+      
+      // Aplicar estado colapsado
+      if (state.isCollapsed !== undefined) {
+        const content = widgetEl.querySelector('.widget-content');
+        if (content) {
+          this.renderer.setStyle(content, 'display', state.isCollapsed ? 'none' : 'block');
+        }
+      }
+    });
   }
   
   /**
@@ -362,7 +477,7 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
   private initWidgetDragging(): void {
     if (!this.widgetElements) return;
     
-    this.widgetElements.forEach((widget, index) => {
+    this.widgetElements.forEach((widget) => {
       if (!widget || !widget.nativeElement) return;
       
       const widgetEl = widget.nativeElement as HTMLElement;
@@ -370,28 +485,36 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
       
       if (!widgetId) return;
       
-      console.log('Inicializando widget para arrastrar:', widgetId);
+      this.logger.debug('Inicializando widget para arrastre:', widgetId);
       
-      // Aplicar posición guardada si existe
-      const savedPosition = this.widgetPositions.get(widgetId);
-      if (savedPosition) {
-        this.renderer.setStyle(widgetEl, 'position', 'absolute');
-        this.renderer.setStyle(widgetEl, 'top', `${savedPosition.top}px`);
-        this.renderer.setStyle(widgetEl, 'left', `${savedPosition.left}px`);
-        this.renderer.setStyle(widgetEl, 'z-index', savedPosition.zIndex.toString());
+      // Aplicar posición desde el servicio de estado
+      const widgetState = this.widgetStateService.getCurrentWidgetState(widgetId);
+      if (widgetState && widgetState.position) {
+        this.renderer.setStyle(widgetEl, 'left', `${widgetState.position.x}px`);
+        this.renderer.setStyle(widgetEl, 'top', `${widgetState.position.y}px`);
+        
+        // Utilizar zIndex si está disponible en el estado del widget
+        const zIndex = widgetState.zIndex !== undefined ? widgetState.zIndex : 100;
+        this.renderer.setStyle(widgetEl, 'z-index', zIndex.toString());
       } else {
-        // Asignar posición predeterminada
-        this.renderer.setStyle(widgetEl, 'position', 'absolute');
+        // Posición por defecto si no hay estado guardado
+        const index = this.widgetElements.toArray().indexOf(widget);
         this.renderer.setStyle(widgetEl, 'top', `${50 + index * 20}px`);
-        this.renderer.setStyle(widgetEl, 'right', `${20}px`); // Colocar en el lado derecho
-        this.renderer.setStyle(widgetEl, 'z-index', (this.baseZIndex + index).toString());
+        this.renderer.setStyle(widgetEl, 'right', `${20}px`);
+        this.renderer.setStyle(widgetEl, 'z-index', (100 + index).toString());
+        
+        // Guardar la posición inicial en el servicio
+        this.widgetStateService.updateWidgetPosition(widgetId, {
+          x: widgetEl.offsetLeft,
+          y: widgetEl.offsetTop
+        });
       }
       
       // Encontrar el área de arrastre (header del widget)
       const dragHandle = widgetEl.querySelector('.widget-header');
       
       if (dragHandle) {
-        console.log('Widget handle encontrado para:', widgetId);
+        this.logger.debug('Widget handle encontrado para:', widgetId);
         
         // Asegurarse que el handle sea visible
         this.renderer.setStyle(dragHandle, 'cursor', 'grab');
@@ -408,7 +531,7 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
           this.onDragStart(event, widgetEl);
         });
       } else {
-        console.warn('No se encontró el handle para el widget:', widgetId);
+        this.logger.warn('No se encontró el handle para el widget:', widgetId);
       }
     });
     
@@ -431,7 +554,7 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
    * Inicia el arrastre de un widget
    */
   private onDragStart(event: MouseEvent, widget: HTMLElement): void {
-    console.log('Iniciando arrastre para:', widget.id);
+    this.logger.debug('Iniciando arrastre para:', widget.id);
     
     // Prevenir comportamiento por defecto
     event.preventDefault();
@@ -441,14 +564,14 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
       const otherWidget = widgetRef.nativeElement;
       if (!otherWidget || otherWidget !== widget) {
         if (otherWidget) {
-          const baseZ = parseInt(otherWidget.getAttribute('data-base-z') || `${this.baseZIndex}`);
+          const baseZ = parseInt(otherWidget.getAttribute('data-base-z') || '100');
           this.renderer.setStyle(otherWidget, 'z-index', baseZ.toString());
         }
       }
     });
     
     // Aumentar z-index para que el widget esté por encima durante el arrastre
-    const currentZIndex = parseInt(widget.style.zIndex || `${this.baseZIndex}`);
+    const currentZIndex = parseInt(widget.style.zIndex || '100');
     // Guardar el z-index original
     widget.setAttribute('data-base-z', currentZIndex.toString());
     
@@ -465,55 +588,6 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
     // Activar estado de arrastre
     this.isDragging = true;
     this.activeWidget = widget;
-  }
-  
-  /**
-   * Organiza automáticamente los widgets para evitar superposiciones
-   */
-  organizeWidgets(): void {
-    // Obtener todos los widgets visibles
-    setTimeout(() => {
-      const visibleWidgets = Array.from(document.querySelectorAll('.widget-panel'))
-        .filter(widget => widget.getBoundingClientRect().width > 0);
-      
-      if (visibleWidgets.length > 0) {
-        this.logger.debug(`Organizando ${visibleWidgets.length} widgets para evitar solapamientos`);
-        
-        // Asegurarse de que los widgets estén posicionados correctamente según el grid
-        visibleWidgets.forEach((widget, index) => {
-          const row = Math.floor(index / 3) + 1;
-          const col = (index % 3) + 1;
-          
-          // Establecer posición en el grid
-          (widget as HTMLElement).style.gridArea = `${row} / ${col} / auto / auto`;
-        });
-      }
-    }, 100);
-  }
-  
-  /**
-   * Guarda las posiciones de los widgets
-   */
-  private saveWidgetPositions(): void {
-    const positions = Array.from(this.widgetPositions.values());
-    localStorage.setItem('widget-positions', JSON.stringify(positions));
-  }
-  
-  /**
-   * Carga las posiciones guardadas de los widgets
-   */
-  private loadWidgetPositions(): void {
-    try {
-      const savedPositions = localStorage.getItem('widget-positions');
-      if (savedPositions) {
-        const positions: WidgetPosition[] = JSON.parse(savedPositions);
-        positions.forEach(pos => {
-          this.widgetPositions.set(pos.id, pos);
-        });
-      }
-    } catch (e) {
-      console.error('Error al cargar posiciones de widgets:', e);
-    }
   }
   
   /**
@@ -543,7 +617,7 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
     
     // Actualizar posición del widget de forma inmediata
     // Usamos transform para mejor rendimiento durante el arrastre
-    this.renderer.setStyle(this.activeWidget, 'transform', `translate3d(${this.currentX}px, ${this.currentY}px, 0)`);
+    this.renderer.setStyle(this.activeWidget, 'transform', `translate3d(${this.currentX - this.activeWidget.offsetLeft}px, ${this.currentY - this.activeWidget.offsetTop}px, 0)`);
   }
 
   /**
@@ -558,21 +632,18 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
     this.renderer.setStyle(this.activeWidget, 'left', `${this.currentX}px`);
     
     // Restaurar el z-index original
-    const baseZIndex = parseInt(this.activeWidget.getAttribute('data-base-z') || `${this.baseZIndex}`);
+    const baseZIndex = parseInt(this.activeWidget.getAttribute('data-base-z') || '100');
     this.renderer.setStyle(this.activeWidget, 'z-index', (baseZIndex + 5).toString()); // Un poco más alto que el original
     
-    // Guardar posición final
+    // Guardar posición final en el servicio de estado
     const widgetId = this.activeWidget.getAttribute('id');
     if (widgetId) {
-      this.widgetPositions.set(widgetId, {
-        id: widgetId,
-        top: this.currentY,
-        left: this.currentX,
-        zIndex: baseZIndex + 5
+      this.widgetStateService.updateWidgetPosition(widgetId, {
+        x: this.currentX,
+        y: this.currentY
       });
       
-      // Guardar posiciones
-      this.saveWidgetPositions();
+      this.widgetStateService.updateWidgetZIndex(widgetId, baseZIndex + 5);
     }
     
     // Quitar clase visual de arrastre
@@ -589,42 +660,45 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
   private initializeWidgetsState(): void {
     // Configurar visibilidad y posición inicial de algunos widgets
     this.widgetStateService.updateWidgetState('element-properties-widget', {
-      isVisible: false, // Solo visible cuando hay un elemento seleccionado
-      position: { x: 16, y: 16 }
+      isVisible: !!this.selectedElement,
+      position: { x: 16, y: 16 },
+      zIndex: 100
     });
     
     this.widgetStateService.updateWidgetState('connection-status-widget', {
       isVisible: true,
-      position: { x: 16, y: 16 }
+      position: { x: 16, y: 200 },
+      zIndex: 101
     });
     
     this.widgetStateService.updateWidgetState('network-health-widget', {
       isVisible: true,
-      position: { x: 16, y: window.innerHeight - 250 }
+      position: { x: 16, y: 400 },
+      zIndex: 102
     });
     
     this.widgetStateService.updateWidgetState('mini-map-widget', {
       isVisible: true,
-      position: { x: window.innerWidth - 250, y: window.innerHeight - 200 }
+      position: { x: window.innerWidth - 250, y: window.innerHeight - 200 },
+      zIndex: 103
     });
   }
   
   /**
    * Este método sería llamado desde el componente padre cuando se selecciona un elemento
    */
-  setSelectedElement(element: any): void {
-    this.selectedElement = element;
-    
-    // Mostrar el widget de propiedades si hay un elemento seleccionado
-    if (element) {
-      this.widgetStateService.updateWidgetState('element-properties-widget', {
-        isVisible: true,
-        isCollapsed: false
-      });
-    } else {
-      this.widgetStateService.updateWidgetState('element-properties-widget', {
-        isVisible: false
-      });
+  setSelectedElement(element: NetworkElement | null): void {
+    if (this.selectedElement !== element) {
+      // Actualizar estado local
+      this.selectedElement = element;
+      
+      // Actualizar en el servicio
+      this.networkStateService.setSelectedElement(element);
+      
+      // Mostrar/ocultar widget
+      this.widgetStateService.setWidgetVisibility('element-properties-widget', !!element);
+      
+      this.cdr.markForCheck();
     }
   }
   
@@ -636,39 +710,20 @@ export class MapWidgetsContainerComponent implements OnInit, AfterViewInit, OnDe
     this.initializeWidgetsState();
   }
 
-  // Nuevos métodos para manejar eventos de widgets
+  // Métodos para manejar eventos de widgets
   onWidgetAction(event: WidgetActionEvent): void {
-    // Propagar el evento al componente padre
     this.widgetAction.emit(event);
-    
-    // Manejar acciones específicas si es necesario
-    if (event.action === 'edit' && event.elementId) {
-      const element = this.allElements.find(e => e.id === event.elementId);
-      if (element) {
-        this.editElement.emit(element);
-      }
-    } else if (event.action === 'delete' && event.elementId) {
-      const element = this.allElements.find(e => e.id === event.elementId);
-      if (element) {
-        this.deleteElement.emit(element);
-      }
-    } else if (event.action === 'center' && event.elementId) {
-      const element = this.allElements.find(e => e.id === event.elementId);
-      if (element) {
-        this.centerOnElement.emit(element);
-      }
-    }
+    this.logger.debug('Widget action received', event);
   }
   
   onWidgetError(event: WidgetErrorEvent): void {
-    // Registrar error y propagar al componente padre
-    this.logger.error(`Error en widget ${event.source}: ${event.error.message}`, event.error.details);
     this.widgetError.emit(event);
+    this.logger.debug('Widget error received', event);
   }
   
   onWidgetUpdate(event: WidgetUpdateEvent): void {
-    // Propagar actualizaciones al componente padre
     this.widgetUpdate.emit(event);
+    this.logger.debug('Widget update received', event);
   }
   
   /**

@@ -1,6 +1,18 @@
 import { Injectable } from '@angular/core';
 import { ValidatorFn, AbstractControl, ValidationErrors, FormGroup, Validators } from '@angular/forms';
-import { ElementType, PONStandard, FiberType, ODFType, SplitterType } from '../../../shared/types/network.types';
+import { ElementType, PONStandard, FiberType } from '../../../shared/types/network.types';
+import { 
+  OLT,
+  ONT,
+  ODF,
+  EDFA,
+  Splitter,
+  Manga,
+  TerminalBox,
+  SlackFiber,
+  FiberThread,
+  Rack
+} from '../interfaces/element.interface';
 
 @Injectable({
   providedIn: 'root'
@@ -111,14 +123,47 @@ export class ElementValidatorsService {
       case ElementType.RACK:
         return {
           ...commonValidators,
-          'manufacturer': [Validators.required, Validators.maxLength(100)],
+          'manufacturer': [Validators.maxLength(100)],
           'model': [Validators.maxLength(100)],
+          'serialNumber': [Validators.maxLength(100)],
+          'installationDate': [],
           'heightUnits': [Validators.required, Validators.min(1), Validators.max(52)],
           'width': [Validators.required, Validators.min(100), Validators.max(1000)],
           'depth': [Validators.required, Validators.min(100), Validators.max(1500)],
           'totalU': [Validators.required, Validators.min(1), Validators.max(52)],
           'usedU': [Validators.required, Validators.min(0)],
           'roomName': [Validators.required, Validators.maxLength(100)]
+        };
+
+      case ElementType.MANGA:
+        return {
+          ...commonValidators,
+          'manufacturer': [Validators.maxLength(100)],
+          'model': [Validators.maxLength(100)],
+          'capacity': [Validators.required, Validators.min(1)],
+          'usedCapacity': [Validators.required, Validators.min(0)],
+          'sealType': [Validators.maxLength(50)]
+        };
+
+      case ElementType.TERMINAL_BOX:
+        return {
+          ...commonValidators,
+          'manufacturer': [Validators.maxLength(100)],
+          'model': [Validators.maxLength(100)],
+          'portCapacity': [Validators.required, Validators.min(1)],
+          'usedPorts': [Validators.required, Validators.min(0)],
+          'mountingType': [Validators.maxLength(50)]
+        };
+
+      case ElementType.SLACK_FIBER:
+        return {
+          ...commonValidators,
+          'length': [Validators.required, Validators.min(0), Validators.max(1000000)],
+          'fiberType': [Validators.required],
+          'manufacturer': [Validators.maxLength(100)],
+          'model': [Validators.maxLength(100)],
+          'installationDate': [],
+          'stockLength': [Validators.min(0)]
         };
 
       default:
@@ -225,7 +270,7 @@ export class ElementValidatorsService {
             type: 'select', 
             label: 'Tipo de ODF', 
             required: true,
-            options: Object.values(ODFType)
+            options: ['principal', 'secundario', 'modular', 'compacto']
           }
         ];
 
@@ -242,7 +287,7 @@ export class ElementValidatorsService {
             type: 'select', 
             label: 'Tipo de splitter', 
             required: true,
-            options: Object.values(SplitterType)
+            options: ['PLC', 'FBT', 'Otro']
           },
           { name: 'connectorType', type: 'text', label: 'Tipo de conector', required: false },
           { name: 'wavelengthRange', type: 'text', label: 'Rango de longitud de onda', required: false }
@@ -277,14 +322,44 @@ export class ElementValidatorsService {
 
       case ElementType.RACK:
         return [
-          { name: 'manufacturer', type: 'text', label: 'Fabricante', required: true },
+          { name: 'manufacturer', type: 'text', label: 'Fabricante', required: false },
           { name: 'model', type: 'text', label: 'Modelo', required: false },
+          { name: 'serialNumber', type: 'text', label: 'Número de serie', required: false },
+          { name: 'installationDate', type: 'date', label: 'Fecha de instalación', required: false },
           { name: 'heightUnits', type: 'number', label: 'Altura (unidades U)', required: true },
           { name: 'width', type: 'number', label: 'Ancho (mm)', required: true },
           { name: 'depth', type: 'number', label: 'Profundidad (mm)', required: true },
           { name: 'totalU', type: 'number', label: 'Total unidades U', required: true },
           { name: 'usedU', type: 'number', label: 'Unidades U utilizadas', required: true },
           { name: 'roomName', type: 'text', label: 'Nombre de sala', required: true }
+        ];
+
+      case ElementType.MANGA:
+        return [
+          { name: 'manufacturer', type: 'text', label: 'Fabricante', required: false },
+          { name: 'model', type: 'text', label: 'Modelo', required: false },
+          { name: 'capacity', type: 'number', label: 'Capacidad', required: true },
+          { name: 'usedCapacity', type: 'number', label: 'Capacidad usada', required: true },
+          { name: 'sealType', type: 'text', label: 'Tipo de sello', required: false }
+        ];
+
+      case ElementType.TERMINAL_BOX:
+        return [
+          { name: 'manufacturer', type: 'text', label: 'Fabricante', required: false },
+          { name: 'model', type: 'text', label: 'Modelo', required: false },
+          { name: 'portCapacity', type: 'number', label: 'Capacidad de puertos', required: true },
+          { name: 'usedPorts', type: 'number', label: 'Puertos usados', required: true },
+          { name: 'mountingType', type: 'text', label: 'Tipo de montaje', required: false }
+        ];
+
+      case ElementType.SLACK_FIBER:
+        return [
+          { name: 'length', type: 'number', label: 'Longitud (m)', required: true },
+          { name: 'fiberType', type: 'select', label: 'Tipo de fibra', required: false, options: Object.values(FiberType) },
+          { name: 'manufacturer', type: 'text', label: 'Fabricante', required: false },
+          { name: 'model', type: 'text', label: 'Modelo', required: false },
+          { name: 'installationDate', type: 'date', label: 'Fecha de instalación', required: false },
+          { name: 'stockLength', type: 'number', label: 'Longitud en stock', required: false }
         ];
 
       default:
@@ -453,23 +528,23 @@ export class ElementValidatorsService {
     
     // Validar que las unidades utilizadas no exceden el total
     if (usedU > totalU) {
-      return { 
-        usedUnitsExceeded: { 
-          actual: usedU, 
+      return {
+        usedUnitsExceeded: {
+          actual: usedU,
           max: totalU,
           message: `Las unidades utilizadas (${usedU}) exceden el total disponible (${totalU})`
-        } 
+        }
       };
     }
     
     // Validar que el total de unidades no excede la altura física
     if (totalU > heightUnits) {
-      return { 
-        totalUnitsExceeded: { 
-          actual: totalU, 
+      return {
+        totalUnitsExceeded: {
+          actual: totalU,
           max: heightUnits,
           message: `El total de unidades (${totalU}) excede la altura física del rack (${heightUnits}U)`
-        } 
+        }
       };
     }
     

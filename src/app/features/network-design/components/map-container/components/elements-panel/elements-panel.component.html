@@ -1,0 +1,370 @@
+<div class="elements-panel-container" 
+    [@expandCollapse]="isExpanded ? 'expanded' : 'collapsed'"
+    [ngClass]="{'left': position === 'left', 'right': position === 'right'}"
+    cdkDrag
+    cdkDragBoundary=".map-container"
+    [cdkDragDisabled]="!isDraggable"
+    (cdkDragEnded)="onPanelDragEnded($event)"
+    [style.left.px]="isDraggable && panelPosition ? panelPosition.x : null"
+    [style.top.px]="isDraggable && panelPosition ? panelPosition.y : null"
+    [style.position]="isDraggable ? 'absolute' : null">
+  
+  <!-- Header con título y botones de control -->
+  <div class="panel-header" cdkDragHandle>
+    <h3 *ngIf="isExpanded">Panel de Elementos</h3>
+    <div class="panel-controls" *ngIf="isExpanded">
+      <button mat-icon-button matTooltip="Alternar vista" (click)="toggleViewMode()">
+        <mat-icon>{{ viewMode === 'list' ? 'grid_view' : 'view_list' }}</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="Mostrar solo favoritos" (click)="toggleFavoritesFilter()">
+        <mat-icon [ngClass]="{'favorite-active': showOnlyFavorites }">{{ showOnlyFavorites ? 'star' : 'star_border' }}</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="Bloquear/Desbloquear posición" (click)="toggleDraggable()">
+        <mat-icon>{{ isDraggable ? 'lock_open' : 'lock' }}</mat-icon>
+      </button>
+      <ng-content select="[header-actions]"></ng-content>
+    </div>
+    <button mat-icon-button class="toggle-button" (click)="toggleExpansion()">
+      <mat-icon>
+        {{ isExpanded ? 
+           (position === 'left' ? 'chevron_left' : 'chevron_right') : 
+           (position === 'left' ? 'chevron_right' : 'chevron_left') 
+        }}
+      </mat-icon>
+    </button>
+  </div>
+  
+  <!-- Contenido principal (sólo visible cuando está expandido) -->
+  <div class="panel-content" *ngIf="isExpanded">
+    <!-- Barra de pestañas -->
+    <mat-tab-group [(selectedIndex)]="activeTabIndex">
+      <mat-tab label="Elementos">
+        <ng-container *ngTemplateOutlet="elementsTabContent"></ng-container>
+      </mat-tab>
+      <mat-tab label="Búsqueda">
+        <ng-container *ngTemplateOutlet="searchTabContent"></ng-container>
+      </mat-tab>
+      <mat-tab label="Filtros" *ngIf="showFilters">
+        <ng-container *ngTemplateOutlet="filtersTabContent"></ng-container>
+      </mat-tab>
+      
+      <!-- Contenido personalizado para las pestañas -->
+      <ng-content select="[additional-tabs]"></ng-content>
+    </mat-tab-group>
+    
+    <!-- Contenido personalizado para el panel -->
+    <ng-content></ng-content>
+  </div>
+</div>
+
+<!-- Plantilla para la pestaña de elementos -->
+<ng-template #elementsTabContent>
+  <div class="tab-content elements-tab">
+    <!-- Filtros rápidos por tipo -->
+    <div class="quick-filter-section">
+      <div class="filter-header">
+        <mat-icon>category</mat-icon>
+        <span>Filtrar por tipo</span>
+      </div>
+      
+      <div class="type-filter-buttons" [ngClass]="{'grid-layout': viewMode === 'grid'}">
+        <button mat-stroked-button 
+                [ngClass]="{'active': elementTypeFilter === null}" 
+                (click)="filterByType(null)">Todos</button>
+        <button mat-stroked-button *ngFor="let type of elementTypes" 
+                [ngClass]="{'active': elementTypeFilter === type}" 
+                (click)="filterByType(type)">
+          <mat-icon>{{ getElementTypeIcon(type) }}</mat-icon>
+          <span>{{ type }}</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Indicador de Carga para la lista de elementos -->
+    <div *ngIf="isLoadingElements" class="loading-indicator">
+      <mat-spinner diameter="30"></mat-spinner>
+      <span>Cargando elementos...</span>
+    </div>
+    
+    <!-- Lista de elementos -->
+    <div class="elements-list" [ngClass]="{'grid-view': viewMode === 'grid', 'list-view': viewMode === 'list'}" *ngIf="!isLoadingElements">
+      <div *ngIf="viewMode === 'list'" class="list-header">
+        <span class="element-id">ID</span>
+        <span class="element-type">Tipo</span>
+        <span class="element-name">Nombre</span>
+        <span class="element-actions"></span>
+      </div>
+      
+      <!-- Modo lista -->
+      <ng-container *ngIf="viewMode === 'list'">
+        <div class="list-wrapper" cdkDropList (cdkDropListDropped)="dropElement($event)">
+          <div class="element-item" *ngFor="let element of getCurrentPageElements()" 
+               [ngClass]="{'selected': selectedElement?.id === element.id}"
+               (click)="selectElement(element)" cdkDrag>
+            <span class="element-id">{{ element.id }}</span>
+            <span class="element-type">
+              <mat-icon [ngStyle]="{'color': getElementTypeColor(element.type)}">
+                {{ getElementTypeIcon(element.type) }}
+              </mat-icon>
+            </span>
+            <span class="element-name">{{ element.name || 'Sin nombre' }}</span>
+            <span class="element-actions">
+              <button mat-icon-button (click)="toggleFavorite(element, $event)" class="favorite-btn">
+                <mat-icon [ngClass]="{'favorite-active': isFavorite(element)}">
+                  {{ isFavorite(element) ? 'star' : 'star_border' }}
+                </mat-icon>
+              </button>
+            </span>
+          </div>
+        </div>
+      </ng-container>
+      
+      <!-- Modo cuadrícula -->
+      <ng-container *ngIf="viewMode === 'grid'">
+        <div class="grid-wrapper" cdkDropList (cdkDropListDropped)="dropElement($event)">
+          <div class="element-card" *ngFor="let element of getCurrentPageElements()" 
+               [ngClass]="{'selected': selectedElement?.id === element.id}"
+               (click)="selectElement(element)" cdkDrag>
+            <div class="card-header" [ngStyle]="{'background-color': getElementTypeColor(element.type)}">
+              <mat-icon>{{ getElementTypeIcon(element.type) }}</mat-icon>
+              <button mat-icon-button (click)="toggleFavorite(element, $event)" class="favorite-btn">
+                <mat-icon [ngClass]="{'favorite-active': isFavorite(element)}">
+                  {{ isFavorite(element) ? 'star' : 'star_border' }}
+                </mat-icon>
+              </button>
+            </div>
+            <div class="card-content">
+              <div class="card-title">{{ element.name || 'Sin nombre' }}</div>
+              <div class="card-subtitle">{{ element.type }}</div>
+              <div class="card-id">ID: {{ element.id }}</div>
+              <div class="card-status" *ngIf="element.status">
+                <mat-chip [ngClass]="element.status">{{ element.status }}</mat-chip>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+      
+      <!-- Mensaje si no hay elementos -->
+      <div class="no-elements" *ngIf="!isLoadingElements && getCurrentPageElements().length === 0">
+        <mat-icon>info</mat-icon>
+        <span>No hay elementos para mostrar</span>
+      </div>
+      
+      <!-- Paginación -->
+      <div class="pagination-controls" *ngIf="!isLoadingElements && totalPages > 1">
+        <button mat-icon-button [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">
+          <mat-icon>navigate_before</mat-icon>
+        </button>
+        <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+        <button mat-icon-button [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">
+          <mat-icon>navigate_next</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<!-- Plantilla para la pestaña de búsqueda -->
+<ng-template #searchTabContent>
+  <div class="tab-content search-tab">
+    <div class="search-section">
+      <mat-form-field appearance="outline" class="search-input">
+        <mat-label>Buscar elementos</mat-label>
+        <input matInput [formControl]="searchControl" placeholder="ID, nombre o descripción">
+        <mat-icon matPrefix>search</mat-icon>
+        <mat-spinner matSuffix diameter="20" *ngIf="isSearching"></mat-spinner>
+      </mat-form-field>
+      
+      <div class="search-results">
+        <div *ngIf="searchResults.length > 0">
+          <div class="element-item" *ngFor="let element of searchResults" 
+               [ngClass]="{'selected': selectedElement?.id === element.id}"
+               (click)="selectElement(element)">
+            <span class="element-id">{{ element.id }}</span>
+            <span class="element-type">
+              <mat-icon [ngStyle]="{'color': getElementTypeColor(element.type)}">
+                {{ getElementTypeIcon(element.type) }}
+              </mat-icon>
+            </span>
+            <span class="element-name">{{ element.name || 'Sin nombre' }}</span>
+            <span class="element-actions">
+              <button mat-icon-button (click)="toggleFavorite(element, $event)" class="favorite-btn">
+                <mat-icon [ngClass]="{'favorite-active': isFavorite(element)}">
+                  {{ isFavorite(element) ? 'star' : 'star_border' }}
+                </mat-icon>
+              </button>
+            </span>
+          </div>
+        </div>
+        
+        <div class="no-results" *ngIf="searchResults.length === 0 && searchControl.value">
+          <mat-icon>search_off</mat-icon>
+          <span>No se encontraron resultados</span>
+        </div>
+        
+        <div class="search-hint" *ngIf="!searchControl.value">
+          <mat-icon>help_outline</mat-icon>
+          <span>Ingresa un texto para buscar elementos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-template>
+
+<!-- Plantilla para la pestaña de filtros -->
+<ng-template #filtersTabContent>
+  <div class="tab-content filters-tab">
+    <!-- Indicador de carga -->
+    <div class="loading-overlay" *ngIf="isLoadingFilters">
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Aplicando filtros...</span>
+    </div>
+    
+    <!-- Formulario de filtros avanzados -->
+    <form [formGroup]="advancedFiltersForm" (ngSubmit)="applyAdvancedFilters()" class="filters-form">
+      <!-- Tipo de elemento (multi-select) -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Tipo de elemento</mat-label>
+        <mat-select formControlName="types" multiple>
+          <mat-option *ngFor="let type of elementTypes" [value]="type">
+            <mat-icon>{{ getElementTypeIcon(type) }}</mat-icon>
+            {{ type }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      
+      <!-- Estado (multi-select) -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Estado</mat-label>
+        <mat-select formControlName="statuses" multiple>
+          <mat-option *ngFor="let status of elementStatuses" [value]="status">
+            {{ status }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+      
+      <!-- Búsqueda textual -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Texto</mat-label>
+        <input matInput formControlName="text" placeholder="Nombre, descripción, notas...">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+      
+      <!-- Fechas -->
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Creado desde</mat-label>
+          <input matInput formControlName="createdFrom" [matDatepicker]="pickerFrom" placeholder="Fecha">
+          <mat-datepicker-toggle matSuffix [for]="pickerFrom"></mat-datepicker-toggle>
+          <mat-datepicker #pickerFrom></mat-datepicker>
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Creado hasta</mat-label>
+          <input matInput formControlName="createdTo" [matDatepicker]="pickerTo" placeholder="Fecha">
+          <mat-datepicker-toggle matSuffix [for]="pickerTo"></mat-datepicker-toggle>
+          <mat-datepicker #pickerTo></mat-datepicker>
+        </mat-form-field>
+      </div>
+      
+      <!-- Capacidad (numérica) -->
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Capacidad mínima</mat-label>
+          <input matInput type="number" formControlName="capacityMin" placeholder="Mín">
+        </mat-form-field>
+        
+        <mat-form-field appearance="outline" class="half-width">
+          <mat-label>Capacidad máxima</mat-label>
+          <input matInput type="number" formControlName="capacityMax" placeholder="Máx">
+        </mat-form-field>
+      </div>
+      
+      <!-- Checkbox -->
+      <div class="form-row checkbox-row">
+        <mat-checkbox formControlName="isWaterproof">Solo waterproof</mat-checkbox>
+      </div>
+      
+      <!-- Atributos personalizados dinámicos -->
+      <ng-container *ngFor="let attr of customAttributes">
+        <ng-container [ngSwitch]="attr.type">
+          <!-- Para valores booleanos -->
+          <div class="form-row checkbox-row" *ngSwitchCase="'boolean'">
+            <mat-checkbox [formControlName]="attr.key">{{ attr.label }}</mat-checkbox>
+          </div>
+          
+          <!-- Para cadenas de texto -->
+          <mat-form-field appearance="outline" class="full-width" *ngSwitchCase="'string'">
+            <mat-label>{{ attr.label }}</mat-label>
+            <ng-container *ngIf="attr.values.length <= 10; else textInput">
+              <mat-select [formControlName]="attr.key">
+                <mat-option value="">Cualquiera</mat-option>
+                <mat-option *ngFor="let val of attr.values" [value]="val">{{ val }}</mat-option>
+              </mat-select>
+            </ng-container>
+            <ng-template #textInput>
+              <input matInput [formControlName]="attr.key">
+            </ng-template>
+          </mat-form-field>
+          
+          <!-- Para valores numéricos -->
+          <mat-form-field appearance="outline" class="full-width" *ngSwitchCase="'number'">
+            <mat-label>{{ attr.label }}</mat-label>
+            <input matInput type="number" [formControlName]="attr.key">
+          </mat-form-field>
+          
+          <!-- Caso por defecto -->
+          <mat-form-field appearance="outline" class="full-width" *ngSwitchDefault>
+            <mat-label>{{ attr.label }}</mat-label>
+            <input matInput [formControlName]="attr.key">
+          </mat-form-field>
+        </ng-container>
+      </ng-container>
+      
+      <!-- Botones de acción -->
+      <div class="filter-actions">
+        <button mat-raised-button color="primary" type="submit" [disabled]="!advancedFiltersForm.dirty">
+          <mat-icon>filter_list</mat-icon>
+          Aplicar
+        </button>
+        
+        <button mat-stroked-button type="button" (click)="resetAdvancedFilters()">
+          <mat-icon>clear</mat-icon>
+          Limpiar
+        </button>
+        
+        <div class="filter-set-actions">
+          <button mat-stroked-button type="button" (click)="saveFilterSet()">
+            <mat-icon>save</mat-icon>
+            Guardar
+          </button>
+          
+          <mat-form-field appearance="outline" *ngIf="savedFilterSets.length > 0">
+            <mat-label>Cargar conjunto guardado</mat-label>
+            <mat-select (selectionChange)="loadFilterSet($event)">
+              <mat-option value="">Seleccionar...</mat-option>
+              <mat-option *ngFor="let set of savedFilterSets; let i = index" [value]="i">
+                {{ set.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>
+      
+      <!-- Filtros activos -->
+      <div class="active-filters-section" *ngIf="activeAdvancedFilters.length > 0">
+        <div class="section-title">Filtros activos</div>
+        <mat-chip-listbox>
+          <mat-chip 
+            *ngFor="let filter of activeAdvancedFilters" 
+            [removable]="true" 
+            (removed)="removeActiveFilter(filter.key)">
+            <strong>{{ filter.label }}:</strong> {{ filter.value }}
+            <mat-icon matChipRemove>cancel</mat-icon>
+          </mat-chip>
+        </mat-chip-listbox>
+      </div>
+    </form>
+  </div>
+</ng-template> 

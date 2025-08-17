@@ -1,0 +1,19 @@
+// Estilos para ElementPropertiesWidgetComponent
+:host {
+  display: block; // Los componentes personalizados a menudo necesitan display: block
+  padding: var(--spacing-md, 16px); // Asegurar fallback para la variable
+  background-color: var(--surface-color, #fff); // Añadido para consistencia de widget
+  box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.1)); // Añadido para consistencia de widget
+  border-radius: var(--widget-border-radius, 6px); // Añadido para consistencia de widget
+
+  // Estilos para el inspector de elementos
+  // (Movido desde network-design.styles.scss)
+  // Asumiendo que el host o una clase raíz dentro de este componente actuará como .element-inspector
+  // Si la clase .element-inspector se usa internamente en el template, entonces no se necesita :host aquí.
+  // Por ahora, lo aplicamos al host, presuponiendo que el widget en sí es el inspector.
+}
+
+// Si el widget usa internamente la clase .element-inspector, entonces sería:
+// .element-inspector {
+//   ...
+// } 

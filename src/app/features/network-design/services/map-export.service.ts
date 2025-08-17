@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import { jsPDF } from 'jspdf';
 import { Observable, from, of } from 'rxjs';
 import { catchError, tap, map } from 'rxjs/operators';
 import { NetworkElement, NetworkConnection } from '../../../shared/types/network.types';
@@ -7,7 +6,6 @@ import { MapService } from './map.service';
 import { LoggerService } from '../../../core/services/logger.service';
 import { NetworkStateService } from './network-state.service';
 import * as d3 from 'd3';
-import * as html2canvas from 'html2canvas';
 import { IMapExportService } from '../interfaces/map-export.interface';
 
 /**
@@ -25,6 +23,22 @@ export class MapExportService implements IMapExportService {
     private logger: LoggerService,
     private networkStateService: NetworkStateService
   ) {}
+
+  /**
+   * Carga dinámicamente jsPDF para reducir el bundle inicial
+   */
+  private async loadJsPDF(): Promise<any> {
+    const { jsPDF } = await import('jspdf');
+    return jsPDF;
+  }
+
+  /**
+   * Carga dinámicamente html2canvas para reducir el bundle inicial
+   */
+  private async loadHtml2Canvas(): Promise<any> {
+    const html2canvas = await import('html2canvas');
+    return html2canvas.default;
+  }
   
   /**
    * Inicializa el servicio de exportación
@@ -105,6 +119,9 @@ export class MapExportService implements IMapExportService {
       // Uso una promesa para manejar la operación asíncrona con jsPDF
       return from(new Promise<boolean>(async (resolve) => {
         try {
+          // Cargar jsPDF dinámicamente
+          const jsPDF = await this.loadJsPDF();
+          
           // Obtener la representación SVG del mapa
           const svgElement = document.querySelector('.map-content svg') as SVGElement;
           if (!svgElement) {
@@ -370,13 +387,15 @@ export class MapExportService implements IMapExportService {
     
     this.logger.debug('Generando informe del mapa en PDF');
     
-    try {
-      // Crear el PDF con orientación horizontal
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
+    // Usar async/await para cargar jsPDF dinámicamente
+    this.loadJsPDF().then(jsPDF => {
+      try {
+        // Crear el PDF con orientación horizontal
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
       
       // Añadir metadatos
       pdf.setProperties({
@@ -478,13 +497,13 @@ export class MapExportService implements IMapExportService {
           
           // Contar conexiones para este elemento
           const elementConnections = connections.filter(
-            conn => conn.sourceId === element.id || conn.targetId === element.id
+            conn => conn.sourceElementId === element.id || conn.targetElementId === element.id
           ).length;
           
-          pdf.text(element.id.slice(0, 12), 17, y);
-          pdf.text(element.name.slice(0, 25), 50, y);
+          pdf.text(element.id?.slice(0, 12) || 'N/A', 17, y);
+          pdf.text(element.name?.slice(0, 25) || 'Sin nombre', 50, y);
           pdf.text(this.getElementTypeName(element.type), 120, y);
-          pdf.text(element.status, 160, y);
+          pdf.text(element.status || 'Desconocido', 160, y);
           pdf.text(elementConnections.toString(), 200, y);
           
           y += 7;
@@ -534,10 +553,13 @@ export class MapExportService implements IMapExportService {
       pdf.save(outputFileName);
       
       this.logger.info(`Informe del mapa generado como PDF: ${outputFileName}`);
-    } catch (error) {
-      this.logger.error('Error al generar informe del mapa:', error);
-      throw error;
-    }
+      } catch (error) {
+        this.logger.error('Error al generar informe del mapa:', error);
+        throw error;
+      }
+    }).catch(error => {
+      this.logger.error('Error al cargar jsPDF:', error);
+    });
   }
   
   /**

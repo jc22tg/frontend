@@ -106,7 +106,7 @@ const ROUTE_TITLE_MAP: Record<string, string> = {
         </mat-toolbar>
         
         <div class="main-content">
-          <ng-content></ng-content>
+          <router-outlet></router-outlet>
         </div>
       </div>
     </div>

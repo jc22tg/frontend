@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, take, tap, catchError } from 'rxjs/operators';
-import { NetworkConnection, ElementStatus } from '../../../shared/types/network.types';
+import { NetworkConnection, ElementStatus, ConnectionType, ConnectionStatus } from '../../../shared/types/network.types';
 import { LoggerService } from '../../../core/services/logger.service';
 import { NetworkDesignService } from '../../../features/network-design/services/network-design.service';
 import { NetworkStateService } from '../../../features/network-design/services/network-state.service';
@@ -11,8 +11,8 @@ import { NetworkStateService } from '../../../features/network-design/services/n
  */
 export interface D3Link {
   id: string;
-  sourceId: string;
-  targetId: string;
+  sourceElementId: string;
+  targetElementId: string;
   source: string | { id: string; x?: number; y?: number };
   target: string | { id: string; x?: number; y?: number };
   type?: string;
@@ -46,38 +46,50 @@ export class MapConnectionService {
     this.logger.debug('Cargando conexiones de red');
     
     // Usar directamente los datos mock de MOCK_CONNECTIONS para pruebas
-    const mockConnections = [
+    const mockConnections: NetworkConnection[] = [
       {
         id: 'conn-001',
-        sourceId: 'olt-001',
-        targetId: 'splitter-001',
-        type: 'fiber',
-        status: ElementStatus.ACTIVE,
-        value: 2
+        name: 'OLT-Splitter 1',
+        sourceElementId: 'olt-001',
+        targetElementId: 'splitter-001',
+        type: ConnectionType.FIBER,
+        status: ConnectionStatus.ACTIVE,
+        capacity: 10,
+        utilizationPercentage: 20,
+        description: 'Conexión OLT a Splitter'
       },
       {
         id: 'conn-002',
-        sourceId: 'splitter-001',
-        targetId: 'fdp-001',
-        type: 'fiber',
-        status: ElementStatus.ACTIVE,
-        value: 2
+        name: 'Splitter-FDP 1',
+        sourceElementId: 'splitter-001',
+        targetElementId: 'fdp-001',
+        type: ConnectionType.FIBER,
+        status: ConnectionStatus.ACTIVE,
+        capacity: 10,
+        utilizationPercentage: 20,
+        description: 'Conexión Splitter a FDP'
       },
       {
         id: 'conn-003',
-        sourceId: 'fdp-001',
-        targetId: 'ont-001',
-        type: 'fiber',
-        status: ElementStatus.ACTIVE,
-        value: 1
+        name: 'FDP-ONT 1',
+        sourceElementId: 'fdp-001',
+        targetElementId: 'ont-001',
+        type: ConnectionType.FIBER,
+        status: ConnectionStatus.ACTIVE,
+        capacity: 1,
+        utilizationPercentage: 10,
+        description: 'Conexión FDP a ONT'
       },
       {
         id: 'conn-004',
-        sourceId: 'olt-001',
-        targetId: 'edfa-001',
-        type: 'fiber',
-        status: ElementStatus.ACTIVE,
-        value: 3
+        name: 'OLT-EDFA 1',
+        sourceElementId: 'olt-001',
+        targetElementId: 'edfa-001',
+        type: ConnectionType.FIBER,
+        status: ConnectionStatus.ACTIVE,
+        capacity: 40,
+        utilizationPercentage: 30,
+        description: 'Conexión OLT a EDFA'
       }
     ];
     
@@ -154,7 +166,7 @@ export class MapConnectionService {
     return this.connections$.pipe(
       map(connections => 
         connections.filter(
-          conn => conn.sourceId === elementId || conn.targetId === elementId
+          conn => conn.sourceElementId === elementId || conn.targetElementId === elementId
         )
       )
     );
@@ -184,8 +196,8 @@ export class MapConnectionService {
       map(connections => {
         const connection = connections.find(
           conn => 
-            (conn.sourceId === sourceId && conn.targetId === targetId) ||
-            (conn.sourceId === targetId && conn.targetId === sourceId)
+            (conn.sourceElementId === sourceId && conn.targetElementId === targetId) ||
+            (conn.sourceElementId === targetId && conn.targetElementId === sourceId)
         );
         return connection || null;
       })
@@ -203,14 +215,15 @@ export class MapConnectionService {
   createConnection(
     sourceId: string, 
     targetId: string, 
-    type = 'fiber', 
+    type: ConnectionType = ConnectionType.FIBER, 
     properties?: Partial<NetworkConnection>
   ): Observable<NetworkConnection> {
     const newConnection: NetworkConnection = {
       id: `conn-${Date.now()}`,
-      sourceId,
-      targetId,
-      status: ElementStatus.ACTIVE,
+      name: `Conexión ${sourceId}-${targetId}`,
+      sourceElementId: sourceId,
+      targetElementId: targetId,
+      status: ConnectionStatus.ACTIVE,
       type,
       ...(properties || {})
     };
@@ -229,20 +242,18 @@ export class MapConnectionService {
   /**
    * Obtiene color para la línea según el estado (compatibilidad)
    */
-  getLinkColor(status: ElementStatus): string {
+  getLinkColor(status: ConnectionStatus): string {
     switch (status) {
-      case ElementStatus.ACTIVE:
+      case ConnectionStatus.ACTIVE:
         return '#4CAF50';
-      case ElementStatus.WARNING:
+      case ConnectionStatus.DEGRADED:
         return '#FF9800';
-      case ElementStatus.CRITICAL:
+      case ConnectionStatus.FAILED:
         return '#F44336';
-      case ElementStatus.INACTIVE:
+      case ConnectionStatus.INACTIVE:
         return '#9E9E9E';
-      case ElementStatus.MAINTENANCE:
+      case ConnectionStatus.PLANNED:
         return '#2196F3';
-      case ElementStatus.FAULT:
-        return '#D32F2F';
       default:
         return '#999999';
     }

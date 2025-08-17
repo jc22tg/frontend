@@ -2,8 +2,11 @@ import { Injectable, NgZone } from '@angular/core';
 import { Observable, Subject, of } from 'rxjs';
 import { take, catchError, takeUntil } from 'rxjs/operators';
 import { ElementService } from '../../services/element.service';
-import { NetworkElement, ElementType } from '../../../../shared/types/network.types';
+import { NetworkElement, ElementType, NetworkConnection } from '../../../../shared/types/network.types';
 import { LoggerService } from '../../../../core/services/logger.service';
+import { ElementFilterDto } from './map-element-filter.dto';
+import { HttpClient } from '@angular/common/http';
+import * as L from 'leaflet';
 
 /**
  * Interfaz para la respuesta de carga de elementos
@@ -46,11 +49,24 @@ export class MapElementManagerService {
   
   /** Mapa de elementos por tipo para filtrado rápido */
   private elementsByType = new Map<ElementType, NetworkElement[]>();
+
+  /** Subject para notificar cambios en elementos */
+  private elementsChanged$ = new Subject<void>();
+  
+  /** Subject para notificar cambios en conexiones */
+  private connectionsChanged$ = new Subject<void>();
+  
+  /** Subject para notificar selección de elemento */
+  private elementSelected$ = new Subject<NetworkElement>();
+  
+  /** Conexiones actualmente cargadas */
+  private loadedConnections: NetworkConnection[] = [];
   
   constructor(
     private elementService: ElementService,
     private logger: LoggerService,
-    private zone: NgZone
+    private zone: NgZone,
+    private http: HttpClient
   ) {}
   
   /**
@@ -133,6 +149,9 @@ export class MapElementManagerService {
                   success: true
                 });
                 result.complete();
+                
+                // Notificar cambio de elementos
+                this.elementsChanged$.next();
               });
             }
           };
@@ -154,8 +173,12 @@ export class MapElementManagerService {
       // Añadir a la lista principal
       this.loadedElements.push(element);
       
-      // Añadir al mapa por ID
-      this.elementsById.set(element.id, element);
+      // Solo añadir al mapa por ID si tiene un ID válido
+      if (element.id) {
+        this.elementsById.set(element.id, element);
+      } else {
+        this.logger.warn('Elemento sin ID ignorado para mapeo ID:', element);
+      }
       
       // Añadir al mapa por tipo
       if (!this.elementsByType.has(element.type)) {
@@ -188,6 +211,7 @@ export class MapElementManagerService {
    * @returns Array con todos los elementos
    */
   getAllElements(): NetworkElement[] {
+    this.logger.debug('[MapElementManagerService] getAllElements solicitados');
     return [...this.loadedElements];
   }
   
@@ -213,7 +237,7 @@ export class MapElementManagerService {
     const search = searchText.toLowerCase();
     return this.loadedElements.filter(element => {
       // Buscar en ID
-      if (element.id.toLowerCase().includes(search)) {
+      if (element.id && element.id.toLowerCase().includes(search)) {
         return true;
       }
       
@@ -242,11 +266,225 @@ export class MapElementManagerService {
   }
   
   /**
+   * Actualiza un elemento existente
+   * @param updatedElement Elemento actualizado
+   * @returns Booleano indicando si se actualizó correctamente
+   */
+  updateElement(updatedElement: NetworkElement): boolean {
+    // Verificar si el elemento tiene ID
+    if (!updatedElement.id) {
+      this.logger.warn('No se puede actualizar un elemento sin ID:', updatedElement);
+      return false;
+    }
+
+    // Verificar si el elemento existe
+    if (!this.elementsById.has(updatedElement.id)) {
+      this.logger.warn(`Elemento con ID ${updatedElement.id} no existe para actualizar`);
+      return false;
+    }
+    
+    // Obtener elemento original
+    const originalElement = this.elementsById.get(updatedElement.id)!;
+    
+    // Fusionar con el elemento actualizado, manteniendo algunas propiedades originales
+    const mergedElement = {
+      ...originalElement,
+      ...updatedElement,
+      // Mantener timestamp de creación original
+      createdAt: originalElement.createdAt || new Date(),
+      // Actualizar timestamp de modificación
+      updatedAt: new Date()
+    };
+    
+    // Actualizar en el mapa y en el arreglo
+    this.elementsById.set(updatedElement.id, mergedElement);
+    
+    // Encontrar y reemplazar en el arreglo
+    const index = this.loadedElements.findIndex(el => el.id === updatedElement.id);
+    if (index !== -1) {
+      this.loadedElements[index] = mergedElement;
+    } else {
+      this.logger.warn(`Elemento ${updatedElement.id} no encontrado en el arreglo para actualizar`);
+    }
+    
+    // Notificar cambio
+    this.elementsChanged$.next();
+    
+    this.logger.debug(`Elemento actualizado: ${updatedElement.id}`);
+    return true;
+  }
+  
+  /**
+   * Añade un elemento a la colección
+   */
+  addElement(element: NetworkElement): void {
+    // Asegurarse de que el elemento tiene un ID
+    if (!element.id) {
+      this.logger.warn('Elemento sin ID no puede ser añadido:', element);
+      // Generar un ID si no tiene
+      element.id = `element-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      this.logger.debug('ID generado para el elemento:', element.id);
+    }
+
+    // Almacenar por ID para rápida referencia
+    this.elementsById.set(element.id, element);
+    
+    // Añadir al arreglo para iteraciones
+    this.loadedElements.push(element);
+    
+    // Emitir evento de elementos actualizados
+    this.elementsChanged$.next();
+    
+    this.logger.debug(`Elemento añadido: ${element.id}, total: ${this.loadedElements.length}`);
+  }
+  
+  /**
+   * Elimina un elemento
+   * @param elementId ID del elemento a eliminar
+   * @returns Booleano indicando si se eliminó correctamente
+   */
+  removeElement(elementId: string): boolean {
+    // Verificar que existe
+    if (!this.elementsById.has(elementId)) {
+      return false;
+    }
+    
+    try {
+      // Obtener el elemento
+      const element = this.elementsById.get(elementId)!;
+      
+      // Eliminar de la colección por tipo
+      const typeElements = this.elementsByType.get(element.type);
+      if (typeElements) {
+        const index = typeElements.findIndex(e => e.id === elementId);
+        if (index >= 0) {
+          typeElements.splice(index, 1);
+        }
+      }
+      
+      // Eliminar de la lista principal
+      const mainIndex = this.loadedElements.findIndex(e => e.id === elementId);
+      if (mainIndex >= 0) {
+        this.loadedElements.splice(mainIndex, 1);
+      }
+      
+      // Eliminar del mapa por ID
+      this.elementsById.delete(elementId);
+      
+      // Notificar cambio
+      this.elementsChanged$.next();
+      
+      return true;
+    } catch (error) {
+      this.logger.error('Error al eliminar elemento:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Selecciona un elemento
+   * @param elementId ID del elemento a seleccionar
+   */
+  selectElement(elementId: string): void {
+    const element = this.elementsById.get(elementId);
+    if (element) {
+      this.zone.run(() => {
+        this.elementSelected$.next(element);
+      });
+    }
+  }
+  
+  /**
+   * Observable para cambios en elementos
+   */
+  get elementsChanged(): Observable<void> {
+    return this.elementsChanged$.asObservable();
+  }
+  
+  /**
+   * Observable para cambios en conexiones
+   */
+  get connectionsChanged(): Observable<void> {
+    return this.connectionsChanged$.asObservable();
+  }
+  
+  /**
+   * Observable para selección de elementos
+   */
+  get elementSelected(): Observable<NetworkElement> {
+    return this.elementSelected$.asObservable();
+  }
+  
+  /**
    * Limpia recursos al destruir el servicio
    */
   destroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.clear();
+  }
+  
+  /**
+   * Obtiene elementos filtrados desde el backend usando filtros avanzados
+   */
+  getElementsByFilters(filters: ElementFilterDto) {
+    // Reemplaza la URL por la del endpoint real de tu backend
+    return this.http.post<NetworkElement[]>('/api/elements/filter', filters);
+  }
+
+  getElementsInBounds(bounds: L.LatLngBounds): NetworkElement[] {
+    return this.loadedElements.filter(element => {
+      if (!element.position) return false;
+      const latLng = L.latLng(element.position.lat, element.position.lng);
+      return bounds.contains(latLng);
+    });
+  }
+
+  /**
+   * Obtiene todas las conexiones cargadas
+   * @returns Array con todas las conexiones
+   */
+  getAllConnections(): NetworkConnection[] {
+    this.logger.debug('[MapElementManagerService] getAllConnections solicitados');
+    return [...this.loadedConnections];
+  }
+
+  /**
+   * Añade una conexión a la colección
+   * (Método simplificado para pruebas iniciales)
+   */
+  addConnection(connection: NetworkConnection): void {
+    // TODO: Añadir validación, asegurar que no exista, etc.
+    this.loadedConnections.push(connection);
+    this.logger.debug(`[MapElementManagerService] Conexión añadida entre ${connection.sourceElementId} y ${connection.targetElementId}. Total: ${this.loadedConnections.length}`);
+    this.connectionsChanged$.next(); // Notificar que las conexiones han cambiado
+  }
+
+  /**
+   * Actualiza una conexión existente.
+   * @param updatedConnection La conexión con los datos actualizados.
+   * @returns boolean Verdadero si la conexión fue encontrada y actualizada, falso en caso contrario.
+   */
+  updateConnection(updatedConnection: NetworkConnection): boolean {
+    if (!updatedConnection.id) {
+      this.logger.warn('[MapElementManagerService] No se puede actualizar una conexión sin ID:', updatedConnection);
+      return false;
+    }
+    const index = this.loadedConnections.findIndex(conn => conn.id === updatedConnection.id);
+    if (index !== -1) {
+      // Conservar createdAt si no se proporciona en updatedConnection
+      const originalConnection = this.loadedConnections[index];
+      this.loadedConnections[index] = {
+        ...originalConnection, // Mantener propiedades originales como createdAt
+        ...updatedConnection,   // Sobrescribir con las actualizadas
+        updatedAt: new Date() // Establecer siempre la fecha de actualización
+      };
+      this.logger.debug(`[MapElementManagerService] Conexión actualizada: ${updatedConnection.id}`);
+      this.connectionsChanged$.next();
+      return true;
+    } else {
+      this.logger.warn(`[MapElementManagerService] Conexión con ID ${updatedConnection.id} no encontrada para actualizar.`);
+      return false;
+    }
   }
 } 

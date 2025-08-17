@@ -4,7 +4,7 @@ import { ElementType, ElementStatus } from '../../../shared/types/network.types'
 /**
  * Colores asociados a cada tipo de elemento
  */
-export const ELEMENT_COLORS: Record<ElementType | 'default', string> = {
+export const ELEMENT_COLORS: Partial<Record<ElementType, string>> & { default: string } = {
   [ElementType.OLT]: '#E57373',
   [ElementType.ONT]: '#81C784',
   [ElementType.FDP]: '#64B5F6',
@@ -17,6 +17,7 @@ export const ELEMENT_COLORS: Record<ElementType | 'default', string> = {
   [ElementType.FIBER_CABLE]: '#7986CB',
   [ElementType.FIBER_STRAND]: '#4FC3F7',
   [ElementType.FIBER_THREAD]: '#4FC3F7',
+  [ElementType.SLACK_FIBER]: '#80DEEA',
   [ElementType.DROP_CABLE]: '#9575CD',
   [ElementType.DISTRIBUTION_CABLE]: '#7E57C2',
   [ElementType.FEEDER_CABLE]: '#673AB7',
@@ -31,6 +32,39 @@ export const ELEMENT_COLORS: Record<ElementType | 'default', string> = {
   [ElementType.WAVELENGTH_ROUTER]: '#26A69A',
   [ElementType.OPTICAL_SWITCH]: '#7CB342',
   [ElementType.ROADM]: '#AB47BC',
+  [ElementType.CUSTOM]: '#607D8B',
+  [ElementType.CABINET]: '#795548',
+  [ElementType.CHAMBER]: '#8D6E63',
+  [ElementType.POLE]: '#BDBDBD',
+  [ElementType.BUILDING]: '#546E7A',
+  [ElementType.SITE]: '#455A64',
+  [ElementType.NODE]: '#37474F',
+  [ElementType.PATCH_PANEL]: '#00BCD4',
+  [ElementType.FIBER_CLOSURE]: '#26A69A',
+  [ElementType.SWITCH]: '#F44336',
+  [ElementType.MULTIPLEXER]: '#9C27B0',
+  [ElementType.DEMULTIPLEXER]: '#8E24AA',
+  [ElementType.REPEATER]: '#3F51B5',
+  [ElementType.ATTENUATOR]: '#EC407A',
+  [ElementType.CONNECTOR]: '#9E9D24',
+  [ElementType.CROSS_CONNECT]: '#AFB42B',
+  [ElementType.SUBSCRIBER]: '#1976D2',
+  [ElementType.SERVICE_POINT]: '#0097A7',
+  [ElementType.AGGREGATION_POINT]: '#00796B',
+  [ElementType.SPLICE_BOX]: '#43A047',
+  [ElementType.NAP]: '#7CB342',
+  [ElementType.FAT]: '#C0CA33',
+  [ElementType.DISTRIBUTION_BOX]: '#FDD835',
+  [ElementType.ACCESS_POINT]: '#FFB300',
+  [ElementType.HUB]: '#FB8C00',
+  [ElementType.GATEWAY]: '#F4511E',
+  [ElementType.ROUTE]: '#78909C',
+  [ElementType.SERVICE_AREA]: '#AED581',
+  [ElementType.MDU_BUILDING]: '#B2DFDB',
+  [ElementType.DUCT]: '#B0BEC5',
+  [ElementType.WSS]: '#90A4AE',
+  [ElementType.RF_OVERLAY_SYSTEM]: '#FFD600',
+  [ElementType.MONITORING_SYSTEM]: '#00B8D4',
   [ElementType.OPTICAL_AMPLIFIER]: '#EF6C00',
   default: '#78909C'
 };
@@ -38,7 +72,7 @@ export const ELEMENT_COLORS: Record<ElementType | 'default', string> = {
 /**
  * Colores asociados a cada estado de elemento
  */
-export const STATUS_COLORS: Record<ElementStatus | 'default', string> = {
+export const STATUS_COLORS: Partial<Record<ElementStatus, string>> & { default: string } = {
   [ElementStatus.ACTIVE]: '#4CAF50',
   [ElementStatus.INACTIVE]: '#9E9E9E',
   [ElementStatus.UNKNOWN]: '#9E9E9E',
@@ -48,15 +82,17 @@ export const STATUS_COLORS: Record<ElementStatus | 'default', string> = {
   [ElementStatus.MAINTENANCE]: '#42A5F5',
   [ElementStatus.PLANNED]: '#8D6E63',
   [ElementStatus.BUILDING]: '#FBC02D',
-  [ElementStatus.RESERVED]: '#7CB342',
+  [ElementStatus.RESERVE]: '#7CB342',
   [ElementStatus.DECOMMISSIONED]: '#78909C',
+  [ElementStatus.ERROR]: '#D32F2F',
+  [ElementStatus.PLANNING]: '#9575CD',
   default: '#9E9E9E'
 };
 
 /**
  * Iconos asociados a cada tipo de elemento (Material Icons)
  */
-export const ELEMENT_ICONS: Record<ElementType | 'default', string> = {
+export const ELEMENT_ICONS: Partial<Record<ElementType, string>> & { default: string } = {
   [ElementType.OLT]: 'router',
   [ElementType.ONT]: 'devices',
   [ElementType.FDP]: 'settings_input_component',
@@ -69,6 +105,7 @@ export const ELEMENT_ICONS: Record<ElementType | 'default', string> = {
   [ElementType.FIBER_CABLE]: 'cable',
   [ElementType.FIBER_STRAND]: 'fiber_manual_record',
   [ElementType.FIBER_THREAD]: 'fiber_manual_record',
+  [ElementType.SLACK_FIBER]: 'waves',
   [ElementType.DROP_CABLE]: 'swap_horiz',
   [ElementType.DISTRIBUTION_CABLE]: 'compare_arrows',
   [ElementType.FEEDER_CABLE]: 'sync_alt',
@@ -83,6 +120,39 @@ export const ELEMENT_ICONS: Record<ElementType | 'default', string> = {
   [ElementType.WAVELENGTH_ROUTER]: 'settings_input_hdmi',
   [ElementType.OPTICAL_SWITCH]: 'switch_right',
   [ElementType.ROADM]: 'swap_calls',
+  [ElementType.CUSTOM]: 'extension',
+  [ElementType.CABINET]: 'inventory_2',
+  [ElementType.CHAMBER]: 'architecture',
+  [ElementType.POLE]: 'candlestick_chart',
+  [ElementType.BUILDING]: 'apartment',
+  [ElementType.SITE]: 'location_on',
+  [ElementType.NODE]: 'hub',
+  [ElementType.PATCH_PANEL]: 'dashboard',
+  [ElementType.FIBER_CLOSURE]: 'all_inbox',
+  [ElementType.SWITCH]: 'swap_horiz',
+  [ElementType.MULTIPLEXER]: 'call_merge',
+  [ElementType.DEMULTIPLEXER]: 'call_split',
+  [ElementType.REPEATER]: 'repeat',
+  [ElementType.ATTENUATOR]: 'tune',
+  [ElementType.CONNECTOR]: 'link',
+  [ElementType.CROSS_CONNECT]: 'compare_arrows',
+  [ElementType.SUBSCRIBER]: 'person',
+  [ElementType.SERVICE_POINT]: 'room_service',
+  [ElementType.AGGREGATION_POINT]: 'merge_type',
+  [ElementType.SPLICE_BOX]: 'inbox',
+  [ElementType.NAP]: 'network_cell',
+  [ElementType.FAT]: 'router',
+  [ElementType.DISTRIBUTION_BOX]: 'inventory',
+  [ElementType.ACCESS_POINT]: 'wifi',
+  [ElementType.HUB]: 'hub',
+  [ElementType.GATEWAY]: 'vpn_lock',
+  [ElementType.ROUTE]: 'alt_route',
+  [ElementType.SERVICE_AREA]: 'map',
+  [ElementType.MDU_BUILDING]: 'apartment',
+  [ElementType.DUCT]: 'alt_route',
+  [ElementType.WSS]: 'settings_ethernet',
+  [ElementType.RF_OVERLAY_SYSTEM]: 'settings_input_antenna',
+  [ElementType.MONITORING_SYSTEM]: 'monitor_heart',
   [ElementType.OPTICAL_AMPLIFIER]: 'trending_up',
   default: 'device_unknown'
 };
@@ -90,7 +160,7 @@ export const ELEMENT_ICONS: Record<ElementType | 'default', string> = {
 /**
  * Etiquetas descriptivas para cada tipo de elemento
  */
-export const ELEMENT_LABELS: Record<ElementType | 'default', string> = {
+export const ELEMENT_LABELS: Partial<Record<ElementType, string>> & { default: string } = {
   [ElementType.OLT]: 'Terminal de Línea Óptica',
   [ElementType.ONT]: 'Terminal de Red Óptica',
   [ElementType.FDP]: 'Punto de Distribución',
@@ -103,6 +173,7 @@ export const ELEMENT_LABELS: Record<ElementType | 'default', string> = {
   [ElementType.FIBER_CABLE]: 'Cable de Fibra',
   [ElementType.FIBER_STRAND]: 'Hilo de Fibra',
   [ElementType.FIBER_THREAD]: 'Hilo de Fibra',
+  [ElementType.SLACK_FIBER]: 'Flojo de Fibra',
   [ElementType.DROP_CABLE]: 'Cable de Acometida',
   [ElementType.DISTRIBUTION_CABLE]: 'Cable de Distribución',
   [ElementType.FEEDER_CABLE]: 'Cable Alimentador',
@@ -117,6 +188,39 @@ export const ELEMENT_LABELS: Record<ElementType | 'default', string> = {
   [ElementType.WAVELENGTH_ROUTER]: 'Router de Longitudes de Onda',
   [ElementType.OPTICAL_SWITCH]: 'Conmutador Óptico',
   [ElementType.ROADM]: 'Multiplexor Óptico Reconfigurable',
+  [ElementType.CUSTOM]: 'Elemento Personalizado',
+  [ElementType.CABINET]: 'Gabinete',
+  [ElementType.CHAMBER]: 'Cámara/Pozo',
+  [ElementType.POLE]: 'Poste',
+  [ElementType.BUILDING]: 'Edificio',
+  [ElementType.SITE]: 'Sitio/Local',
+  [ElementType.NODE]: 'Nodo',
+  [ElementType.PATCH_PANEL]: 'Panel de Parcheo',
+  [ElementType.FIBER_CLOSURE]: 'Cierre de Fibra',
+  [ElementType.SWITCH]: 'Switch',
+  [ElementType.MULTIPLEXER]: 'Multiplexor',
+  [ElementType.DEMULTIPLEXER]: 'Demultiplexor',
+  [ElementType.REPEATER]: 'Repetidor',
+  [ElementType.ATTENUATOR]: 'Atenuador',
+  [ElementType.CONNECTOR]: 'Conector',
+  [ElementType.CROSS_CONNECT]: 'Cruzada',
+  [ElementType.SUBSCRIBER]: 'Abonado/Cliente',
+  [ElementType.SERVICE_POINT]: 'Punto de Servicio',
+  [ElementType.AGGREGATION_POINT]: 'Punto de Agregación',
+  [ElementType.SPLICE_BOX]: 'Caja de Empalme',
+  [ElementType.NAP]: 'Punto de Acceso a la Red',
+  [ElementType.FAT]: 'Terminal de Acceso de Fibra',
+  [ElementType.DISTRIBUTION_BOX]: 'Caja de Distribución',
+  [ElementType.ACCESS_POINT]: 'Punto de Acceso',
+  [ElementType.HUB]: 'Concentrador',
+  [ElementType.GATEWAY]: 'Pasarela',
+  [ElementType.ROUTE]: 'Ruta',
+  [ElementType.SERVICE_AREA]: 'Área de Servicio',
+  [ElementType.MDU_BUILDING]: 'Edificio MDU',
+  [ElementType.DUCT]: 'Ducto/Canalización',
+  [ElementType.WSS]: 'Switch Selectivo de Longitud de Onda',
+  [ElementType.RF_OVERLAY_SYSTEM]: 'Sistema RF Overlay',
+  [ElementType.MONITORING_SYSTEM]: 'Sistema de Monitorización',
   [ElementType.OPTICAL_AMPLIFIER]: 'Amplificador Óptico',
   default: 'Elemento Desconocido'
 };
@@ -124,7 +228,7 @@ export const ELEMENT_LABELS: Record<ElementType | 'default', string> = {
 /**
  * Símbolos D3 para cada tipo de elemento
  */
-export const ELEMENT_SYMBOLS: Record<ElementType | 'default', string> = {
+export const ELEMENT_SYMBOLS: Partial<Record<ElementType, string>> & { default: string } = {
   [ElementType.OLT]: generateSymbol(d3.symbolSquare, 15 * 2.5),
   [ElementType.ONT]: generateSymbol(d3.symbolCircle, 15),
   [ElementType.FDP]: generateSymbol(d3.symbolTriangle, 15 * 1.5),
@@ -137,6 +241,7 @@ export const ELEMENT_SYMBOLS: Record<ElementType | 'default', string> = {
   [ElementType.TERMINAL_BOX]: generateSymbol(d3.symbolDiamond, 15 * 1.5),
   [ElementType.FIBER_CONNECTION]: generateSymbol(d3.symbolTriangle, 15),
   [ElementType.FIBER_THREAD]: generateSymbol(d3.symbolCircle, 15 * 0.8),
+  [ElementType.SLACK_FIBER]: generateSymbol(d3.symbolWye, 15 * 1.5),
   [ElementType.DROP_CABLE]: generateSymbol(d3.symbolSquare, 15 * 1.4),
   [ElementType.DISTRIBUTION_CABLE]: generateSymbol(d3.symbolSquare, 15 * 1.6),
   [ElementType.FEEDER_CABLE]: generateSymbol(d3.symbolSquare, 15 * 1.8),
@@ -151,6 +256,39 @@ export const ELEMENT_SYMBOLS: Record<ElementType | 'default', string> = {
   [ElementType.WAVELENGTH_ROUTER]: generateSymbol(d3.symbolWye, 15 * 1.8),
   [ElementType.OPTICAL_SWITCH]: generateSymbol(d3.symbolCross, 15 * 1.8),
   [ElementType.ROADM]: generateSymbol(d3.symbolStar, 15 * 1.8),
+  [ElementType.CUSTOM]: generateSymbol(d3.symbolCircle, 15 * 1.4),
+  [ElementType.CABINET]: generateSymbol(d3.symbolSquare, 15 * 2.0),
+  [ElementType.CHAMBER]: generateSymbol(d3.symbolSquare, 15 * 1.8),
+  [ElementType.POLE]: generateSymbol(d3.symbolWye, 15 * 2.0),
+  [ElementType.BUILDING]: generateSymbol(d3.symbolSquare, 15 * 2.8),
+  [ElementType.SITE]: generateSymbol(d3.symbolDiamond, 15 * 2.2),
+  [ElementType.NODE]: generateSymbol(d3.symbolTriangle, 15 * 2.0),
+  [ElementType.PATCH_PANEL]: generateSymbol(d3.symbolSquare, 15 * 2.0),
+  [ElementType.FIBER_CLOSURE]: generateSymbol(d3.symbolSquare, 15 * 1.6),
+  [ElementType.SWITCH]: generateSymbol(d3.symbolDiamond, 15 * 1.8),
+  [ElementType.MULTIPLEXER]: generateSymbol(d3.symbolStar, 15 * 1.7),
+  [ElementType.DEMULTIPLEXER]: generateSymbol(d3.symbolStar, 15 * 1.7),
+  [ElementType.REPEATER]: generateSymbol(d3.symbolWye, 15 * 1.5),
+  [ElementType.ATTENUATOR]: generateSymbol(d3.symbolCross, 15 * 1.5),
+  [ElementType.CONNECTOR]: generateSymbol(d3.symbolCircle, 15 * 1.0),
+  [ElementType.CROSS_CONNECT]: generateSymbol(d3.symbolWye, 15 * 1.5),
+  [ElementType.SUBSCRIBER]: generateSymbol(d3.symbolDiamond, 15 * 1.4),
+  [ElementType.SERVICE_POINT]: generateSymbol(d3.symbolCircle, 15 * 1.2),
+  [ElementType.AGGREGATION_POINT]: generateSymbol(d3.symbolDiamond, 15 * 1.5),
+  [ElementType.SPLICE_BOX]: generateSymbol(d3.symbolSquare, 15 * 1.5),
+  [ElementType.NAP]: generateSymbol(d3.symbolDiamond, 15 * 1.4),
+  [ElementType.FAT]: generateSymbol(d3.symbolSquare, 15 * 1.6),
+  [ElementType.DISTRIBUTION_BOX]: generateSymbol(d3.symbolSquare, 15 * 1.5),
+  [ElementType.ACCESS_POINT]: generateSymbol(d3.symbolCircle, 15 * 1.2),
+  [ElementType.HUB]: generateSymbol(d3.symbolCircle, 15 * 2.0),
+  [ElementType.GATEWAY]: generateSymbol(d3.symbolDiamond, 15 * 1.8),
+  [ElementType.ROUTE]: generateSymbol(d3.symbolSquare, 15 * 1.2),
+  [ElementType.SERVICE_AREA]: generateSymbol(d3.symbolCircle, 15 * 1.2),
+  [ElementType.MDU_BUILDING]: generateSymbol(d3.symbolSquare, 15 * 1.2),
+  [ElementType.DUCT]: generateSymbol(d3.symbolSquare, 15 * 1.2),
+  [ElementType.WSS]: generateSymbol(d3.symbolDiamond, 15 * 1.2),
+  [ElementType.RF_OVERLAY_SYSTEM]: generateSymbol(d3.symbolCircle, 15 * 1.2),
+  [ElementType.MONITORING_SYSTEM]: generateSymbol(d3.symbolCircle, 15 * 1.2),
   [ElementType.OPTICAL_AMPLIFIER]: generateSymbol(d3.symbolDiamond, 15 * 1.6),
   default: generateSymbol(d3.symbolCircle, 15)
 };

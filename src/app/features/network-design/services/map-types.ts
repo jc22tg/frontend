@@ -46,6 +46,8 @@ export interface GeoTransform {
 export interface MapConfig {
   container: HTMLElement | string;
   initialZoom?: number;
+  minZoom?: number;
+  maxZoom?: number;
   isDarkMode?: boolean;
   geoTransform?: GeoTransform;
   onZoomChange?: (zoom: number) => void;

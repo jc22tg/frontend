@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { NetworkElement, ElementType, ElementStatus, FiberConnection } from '../../../shared/types/network.types';
+import { NetworkElement, ElementType, ElementStatus, /* FiberConnection, */ NetworkConnection, ConnectionStatus } from '../../../shared/types/network.types';
+import { FiberConnection } from '../../../shared/models/fiber-connection.model';
+import { LoggerService } from '../../../core/services/logger.service';
 
 export interface SearchFilters {
   type?: ElementType;
@@ -16,6 +18,21 @@ export interface SearchFilters {
     lng: number;
     radius: number;
   };
+}
+
+export interface ConnectionSearchFilters {
+  type?: ElementType;
+  search?: string;
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
+  location?: {
+    lat: number;
+    lng: number;
+    radius: number;
+  };
+  status?: ConnectionStatus;
 }
 
 @Injectable({
@@ -46,7 +63,7 @@ export class SearchService {
       if (filters.status && element.status !== filters.status) return false;
       if (filters.search) {
         const search = filters.search.toLowerCase();
-        return element.name.toLowerCase().includes(search) ||
+        return (element.name?.toLowerCase().includes(search) ?? false) ||
                (element.id ? element.id.toLowerCase().includes(search) : false) ||
                (element.description ? element.description.toLowerCase().includes(search) : false);
       }
@@ -58,14 +75,16 @@ export class SearchService {
   }
 
   // Métodos para búsqueda de conexiones
-  searchConnections(connections: FiberConnection[], filters: SearchFilters): FiberConnection[] {
+  searchConnections(connections: NetworkConnection[], filters: ConnectionSearchFilters): NetworkConnection[] {
     return connections.filter(connection => {
       if (filters.status && connection.status !== filters.status) return false;
       if (filters.search) {
         const search = filters.search.toLowerCase();
-        return connection.id.toString().includes(search) ||
-               connection.sourceId.toString().includes(search) ||
-               connection.targetId.toString().includes(search);
+        return (connection.id?.toLowerCase().includes(search) ?? false) ||
+               (connection.sourceElementId?.toLowerCase().includes(search) ?? false) ||
+               (connection.targetElementId?.toLowerCase().includes(search) ?? false) ||
+               (connection.name?.toLowerCase().includes(search) ?? false) ||
+               (connection.description?.toLowerCase().includes(search) ?? false);
       }
       return true;
     });
@@ -131,9 +150,9 @@ export class SearchService {
   searchByDateRange(elements: NetworkElement[], startDate: Date, endDate: Date): NetworkElement[] {
     return elements.filter(element => {
       // Si no hay fechas de mantenimiento, se excluye
-      if (!element.lastMaintenance && !element.nextMaintenance) return false;
+      if (!element.lastMaintenanceDate && !element.nextMaintenanceDate) return false;
       
-      const elementDate = element.lastMaintenance || element.nextMaintenance || new Date();
+      const elementDate = element.lastMaintenanceDate || element.nextMaintenanceDate || new Date();
       return elementDate >= startDate && elementDate <= endDate;
     });
   }
@@ -155,5 +174,38 @@ export class SearchService {
     this.clearSearchHistory();
     this.clearCurrentFilters();
     this.savedFiltersSubject.next([]);
+  }
+
+  /**
+   * Filtra conexiones según los criterios proporcionados
+   */
+  filterConnections(connections: NetworkConnection[], filters: any = {}): NetworkConnection[] {
+    return connections.filter(connection => {
+      // Filtrar por tipo de conexión
+      if (filters.type && connection.type !== filters.type) return false;
+      
+      // Filtrar por estado de conexión
+      if (filters.status && connection.status !== filters.status) {
+        if (typeof filters.status === 'string' && 
+            typeof connection.status === 'string' &&
+            filters.status.toLowerCase() === connection.status.toLowerCase()) {
+          // Permitir si los valores de texto coinciden
+        } else {
+          return false;
+        }
+      }
+      
+      // Filtrar por texto de búsqueda (restaurado a una lógica más simple)
+      if (filters.search) {
+        const search = filters.search.toLowerCase();
+        return (connection.id?.toLowerCase().includes(search) ?? false) ||
+               (connection.name?.toLowerCase().includes(search) ?? false) || 
+               (connection.sourceElementId?.toLowerCase().includes(search) ?? false) ||
+               (connection.targetElementId?.toLowerCase().includes(search) ?? false) ||
+               (connection.description?.toLowerCase().includes(search) ?? false);
+      }
+      
+      return true;
+    });
   }
 } 

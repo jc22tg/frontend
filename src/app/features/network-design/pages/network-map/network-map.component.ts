@@ -1,9 +1,10 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
-import { NetworkMapComponent } from '../../components/network-map/network-map.component';
+import { MapContainerComponent } from '../../components/map-container/map-container.component';
 import { NetworkStateService } from '../../services/network-state.service';
-import { ElementType, NetworkElement, NetworkConnection, ElementStatus, createPosition } from '../../../../shared/types/network.types';
+import { ElementType, NetworkElement, NetworkConnection, ElementStatus } from '../../../../shared/types/network.types';
+import { createPosition } from '../../../../shared/types/geo-position';
 import { LoggerService } from '../../../../core/services/logger.service';
 import { BehaviorSubject, Observable, Subject, combineLatest, of } from 'rxjs';
 import { map, takeUntil, distinctUntilChanged, startWith, take } from 'rxjs/operators';
@@ -19,7 +20,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NgZone, ChangeDetectorRef } from '@angular/core';
 
 // Lazy load el componente de diálogo para evitar circular dependencies
-const ElementPropertiesDialogComponent = () => import('../../components/element-properties-dialog/element-properties-dialog.component')
+const ElementPropertiesDialogComponent = () => import('../../components/elements/element-properties-dialog/element-properties-dialog.component')
   .then(m => m.ElementPropertiesDialogComponent);
 
 @Component({
@@ -27,7 +28,7 @@ const ElementPropertiesDialogComponent = () => import('../../components/element-
   standalone: true,
   imports: [
     CommonModule,
-    NetworkMapComponent,
+    MapContainerComponent,
     MatProgressSpinnerModule,
     MatSnackBarModule,
     MatButtonModule,
@@ -49,14 +50,15 @@ const ElementPropertiesDialogComponent = () => import('../../components/element-
         </button>
       </div>
       
-      <app-network-map
-        #mapComponent
-        [loading]="loading"
-        [mapReady]="mapReady"
-        (mapStateChanged)="handleMapStateChange($event)"
-        (elementSelected)="handleElementSelected($event)"
-        (connectionSelected)="handleConnectionSelected($event)">
-      </app-network-map>
+      <app-map-container
+        #mapContainer
+        [darkMode]="false"
+        [showControls]="true"
+        [showMiniMap]="true"
+        [showLayerControl]="true"
+        [initialZoom]="16"
+        [initialCenter]="[19.783750, -70.676666]">
+      </app-map-container>
     </div>
   `,
   styles: [`
@@ -263,7 +265,7 @@ export class NetworkMapPageComponent implements OnInit, OnDestroy {
     // Puedes abrir un diálogo para mostrar detalles del elemento
     if (element && element.id) {
       // Usar inyección dinámica para evitar dependencias circulares
-      import('../../components/element-properties-dialog/element-properties-dialog.component').then(module => {
+      import('../../components/elements/element-properties-dialog/element-properties-dialog.component').then(module => {
         this.dialog.open(module.ElementPropertiesDialogComponent, {
           data: { elementId: element.id },
           width: '500px',
@@ -282,7 +284,7 @@ export class NetworkMapPageComponent implements OnInit, OnDestroy {
     this.logger.debug(`Conexión seleccionada: ${connection.id}`);
     
     // Mostrar notificación sobre la conexión seleccionada
-    this.snackBar.open(`Conexión entre ${connection.sourceId} y ${connection.targetId}`, 'Cerrar', {
+    this.snackBar.open(`Conexión entre ${connection.sourceElementId} y ${connection.targetElementId}`, 'Cerrar', {
       duration: 3000
     });
   }

@@ -104,7 +104,7 @@ export class ElementManagementComponent implements OnInit, OnDestroy {
   }
 
   onDeleteElement(element: NetworkElement): void {
-    if (confirm(`¿Está seguro de eliminar el elemento ${element.name}?`)) {
+    if (element.id && confirm(`¿Está seguro de eliminar el elemento ${element.name}?`)) {
       this.elementManagementService.deleteElement(element.id);
     }
   }

@@ -89,7 +89,7 @@ export class NetworkMapStateService {
       // Filtrar por búsqueda
       if (searchTerm && !(
         element.name?.toLowerCase().includes(searchTerm) ||
-        element.id.toLowerCase().includes(searchTerm) ||
+        element.id?.toLowerCase().includes(searchTerm) ||
         element.description?.toLowerCase().includes(searchTerm)
       )) {
         return false;
@@ -104,8 +104,8 @@ export class NetworkMapStateService {
     const visibleElements = new Set(this.filteredElements().map(e => e.id));
     
     return connections.filter(connection => 
-      visibleElements.has(connection.sourceId) && 
-      visibleElements.has(connection.targetId)
+      visibleElements.has(connection.sourceElementId) && 
+      visibleElements.has(connection.targetElementId)
     );
   });
   
@@ -398,7 +398,7 @@ export class NetworkMapStateService {
     // Eliminar conexiones asociadas
     this._connections.update(connections => 
       connections.filter(connection => 
-        connection.sourceId !== elementId && connection.targetId !== elementId
+        connection.sourceElementId !== elementId && connection.targetElementId !== elementId
       )
     );
   }

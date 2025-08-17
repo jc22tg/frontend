@@ -7,41 +7,38 @@ import {
   MatOptionSelectionChange,
   _countGroupLabelsBeforeOption,
   _getOptionScrollPosition
-} from "./chunk-RPVZYNY7.js";
+} from "./chunk-BPAK7ZSQ.js";
 import {
   MatPseudoCheckboxModule
-} from "./chunk-TJFXYFZX.js";
+} from "./chunk-ANGXVPAD.js";
 import {
-  MatLine,
-  MatLineModule,
-  setLines
-} from "./chunk-S2YN5U6Q.js";
+  _MatInternalFormField
+} from "./chunk-L73KGZBI.js";
 import {
   DateAdapter,
   MAT_DATE_FORMATS,
   MAT_DATE_LOCALE,
   MAT_DATE_LOCALE_FACTORY
-} from "./chunk-WWCLZPMY.js";
+} from "./chunk-GPJGTCK6.js";
 import {
-  _ErrorStateTracker
-} from "./chunk-EIKSUSSA.js";
-import {
-  ErrorStateMatcher,
-  ShowOnDirtyErrorStateMatcher
-} from "./chunk-FK7OJCKX.js";
-import {
-  MatRippleLoader
-} from "./chunk-B6DKBEUU.js";
+  MatLine,
+  MatLineModule,
+  setLines
+} from "./chunk-S2JO26US.js";
 import {
   MatPseudoCheckbox
-} from "./chunk-M3F6YPZA.js";
-import "./chunk-SZS4RJEH.js";
+} from "./chunk-MJ2TMNCR.js";
+import {
+  ErrorStateMatcher,
+  ShowOnDirtyErrorStateMatcher,
+  _ErrorStateTracker
+} from "./chunk-G73WR6WK.js";
+import {
+  MatRippleLoader
+} from "./chunk-SDR4NC6H.js";
 import {
   MatRippleModule
-} from "./chunk-IUAPF5JB.js";
-import {
-  _MatInternalFormField
-} from "./chunk-UGCITFTS.js";
+} from "./chunk-IZX3BAEW.js";
 import {
   MAT_RIPPLE_GLOBAL_OPTIONS,
   MatRipple,
@@ -49,26 +46,25 @@ import {
   RippleRenderer,
   RippleState,
   defaultRippleAnimationConfig
-} from "./chunk-AQ3C3XL6.js";
+} from "./chunk-GQ26P5RW.js";
+import "./chunk-FPYIRBEI.js";
+import "./chunk-42FJBLFI.js";
 import {
   _StructuralStylesLoader
-} from "./chunk-EVQUVBAU.js";
-import "./chunk-5NH6PEPZ.js";
-import "./chunk-UCL4LZVP.js";
-import "./chunk-IFTZZKWL.js";
-import "./chunk-TRES2BGH.js";
+} from "./chunk-2WB23UKO.js";
+import "./chunk-JXBCBRYI.js";
 import {
   MATERIAL_SANITY_CHECKS,
   MatCommonModule
-} from "./chunk-WNB2LB2T.js";
-import "./chunk-YCGZSIWM.js";
-import "./chunk-M3HR6BUY.js";
-import "./chunk-AHK4RYKX.js";
-import "./chunk-LLSYBTIE.js";
-import "./chunk-STPTZZ47.js";
-import "./chunk-45D34AXQ.js";
-import "./chunk-NAN6RB5O.js";
-import "./chunk-ABKXCPE2.js";
+} from "./chunk-I4CGKVLR.js";
+import "./chunk-2O4WY5GE.js";
+import "./chunk-LUNF6DAX.js";
+import "./chunk-P6YAWLXJ.js";
+import "./chunk-NPSCLYFX.js";
+import "./chunk-DG6N4IH3.js";
+import "./chunk-UUZ3YRWZ.js";
+import "./chunk-L7ZI23PG.js";
+import "./chunk-PJPTQFM3.js";
 import "./chunk-D5HA4SGY.js";
 import "./chunk-MI7JQR32.js";
 import {
@@ -90,7 +86,7 @@ import {
 } from "./chunk-X7L4HDFA.js";
 
 // node_modules/@angular/material/fesm2022/core.mjs
-var VERSION = new Version("19.2.9");
+var VERSION = new Version("19.2.16");
 var AnimationCurves = class {
   static STANDARD_CURVE = "cubic-bezier(0.4,0.0,0.2,1)";
   static DECELERATION_CURVE = "cubic-bezier(0.0,0.0,0.2,1)";

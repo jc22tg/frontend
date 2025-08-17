@@ -1,21 +1,21 @@
 import { createAction, props } from '@ngrx/store';
 import {
-  FDP,
-  OLT,
-  ONT,
-  EDFA,
-  Splitter,
-  Manga,
-  FiberConnection,
+  FDPElement,
+  OLTElement,
+  ONTElement,
+  EDFAElement,
+  SplitterElement,
+  MangaElement,
   NetworkAlert,
-} from '../../../shared/models/network.model';
+} from '../../../shared/types/network.types';
+import { FiberConnection } from '../../../shared/models/fiber-connection.model';
 
 // FDPs
 export const loadFDPs = createAction('[Network] Load FDPs');
 
 export const loadFDPsSuccess = createAction(
   '[Network] Load FDPs Success',
-  props<{ fdps: FDP[] }>()
+  props<{ fdps: FDPElement[] }>()
 );
 
 export const loadFDPsFailure = createAction(
@@ -28,7 +28,7 @@ export const loadOLTs = createAction('[Network] Load OLTs');
 
 export const loadOLTsSuccess = createAction(
   '[Network] Load OLTs Success',
-  props<{ olts: OLT[] }>()
+  props<{ olts: OLTElement[] }>()
 );
 
 export const loadOLTsFailure = createAction(
@@ -41,7 +41,7 @@ export const loadONTs = createAction('[Network] Load ONTs');
 
 export const loadONTsSuccess = createAction(
   '[Network] Load ONTs Success',
-  props<{ onts: ONT[] }>()
+  props<{ onts: ONTElement[] }>()
 );
 
 export const loadONTsFailure = createAction(
@@ -54,7 +54,7 @@ export const loadEDFAs = createAction('[Network] Load EDFAs');
 
 export const loadEDFAsSuccess = createAction(
   '[Network] Load EDFAs Success',
-  props<{ edfas: EDFA[] }>()
+  props<{ edfas: EDFAElement[] }>()
 );
 
 export const loadEDFAsFailure = createAction(
@@ -67,7 +67,7 @@ export const loadSplitters = createAction('[Network] Load Splitters');
 
 export const loadSplittersSuccess = createAction(
   '[Network] Load Splitters Success',
-  props<{ splitters: Splitter[] }>()
+  props<{ splitters: SplitterElement[] }>()
 );
 
 export const loadSplittersFailure = createAction(
@@ -80,7 +80,7 @@ export const loadMangas = createAction('[Network] Load Mangas');
 
 export const loadMangasSuccess = createAction(
   '[Network] Load Mangas Success',
-  props<{ mangas: Manga[] }>()
+  props<{ mangas: MangaElement[] }>()
 );
 
 export const loadMangasFailure = createAction(

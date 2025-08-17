@@ -19,27 +19,34 @@ import { DashboardFacade } from '../../facades/dashboard.facade';
     MatTooltipModule
   ],
   template: `
-    <div class="stats-grid">
-      <div class="stat-card" *ngFor="let stat of stats">
-        <div class="stat-icon" [style.color]="stat.color || '#1976d2'">
-          <mat-icon>{{stat.icon || 'trending_up'}}</mat-icon>
-        </div>
-        <div class="stat-content">
-          <h3>{{stat.title}}</h3>
-          <p class="stat-value">{{stat.value}}</p>
-          <div class="stat-trend" *ngIf="stat.trend !== undefined" 
-               [ngClass]="{'positive': stat.trend > 0, 'neutral': stat.trend === 0, 'negative': stat.trend < 0}"
-               [matTooltip]="getTrendTooltip(stat)">
-            <mat-icon class="trend-icon">
-              {{stat.trend > 0 ? 'trending_up' : (stat.trend < 0 ? 'trending_down' : 'trending_flat')}}
-            </mat-icon>
-            <span>{{getFormattedTrend(stat.trend)}}</span>
+    <div class="stat-cards-wrapper">
+      <div class="stats-grid">
+        <div class="stat-card" *ngFor="let stat of stats">
+          <div class="stat-icon" [style.color]="stat.color || '#1976d2'">
+            <mat-icon>{{stat.icon || 'trending_up'}}</mat-icon>
+          </div>
+          <div class="stat-content">
+            <h3>{{stat.title}}</h3>
+            <p class="stat-value">{{stat.value}}</p>
+            <div class="stat-trend" *ngIf="stat.trend !== undefined" 
+                [ngClass]="{'positive': stat.trend > 0, 'neutral': stat.trend === 0, 'negative': stat.trend < 0}"
+                [matTooltip]="getTrendTooltip(stat)">
+              <mat-icon class="trend-icon">
+                {{stat.trend > 0 ? 'trending_up' : (stat.trend < 0 ? 'trending_down' : 'trending_flat')}}
+              </mat-icon>
+              <span>{{getFormattedTrend(stat.trend)}}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   `,
   styles: [`
+    .stat-cards-wrapper {
+      width: 100%;
+      padding: 0;
+    }
+    
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

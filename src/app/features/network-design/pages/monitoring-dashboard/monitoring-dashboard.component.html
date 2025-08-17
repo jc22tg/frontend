@@ -10,7 +10,17 @@
     
     <!-- Widget de Mini-Mapa -->
     <div class="widget-item">
-      <app-mini-map-widget *ngIf="elements.length > 0"></app-mini-map-widget>
+      <app-mini-map-widget
+        [title]="'Mini Mapa de Red'"
+        [height]="200"
+        [zoomLevel]="12"
+        [centerCoordinates]="{ lat: 19.78375, lng: -70.67667 }"
+        [showActions]="true"
+        [openMapButtonText]="'Ver mapa completo'"
+        (fullMapRequested)="onFullMapRequested($event)"
+        (mapClicked)="onMiniMapClicked($event)"
+        (errorOccurred)="onMiniMapError($event)">
+      </app-mini-map-widget>
     </div>
     
     <!-- Widget de Métricas -->

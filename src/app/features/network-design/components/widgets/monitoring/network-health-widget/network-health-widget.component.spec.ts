@@ -125,7 +125,9 @@ describe('NetworkHealthWidgetComponent', () => {
       total: 10, 
       active: 8, 
       warning: 1, 
-      error: 1 
+      error: 1, 
+      maintenance: 0, 
+      inactive: 0 
     };
     
     // Call refreshData to trigger the error

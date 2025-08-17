@@ -173,7 +173,7 @@ export class HardwareDetectionService {
   private hasMemoryConstraints(): boolean {
     // En navegadores que lo soportan
     if ('deviceMemory' in navigator) {
-      // @ts-ignore: deviceMemory no está en la definición estándar de Navigator
+      // @ts-expect-error: deviceMemory no está en la definición estándar de Navigator
       return navigator.deviceMemory < 4; // Menos de 4GB se considera limitado
     }
 

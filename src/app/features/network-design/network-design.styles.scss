@@ -15,32 +15,42 @@
  */
 
 @use "@angular/material" as mat;
+@use 'sass:color';
+@use 'sass:meta';
 
-// Variables de tema
+// Variables de tema (Fuente única de verdad)
 $primary-color: #3F51B5; // Indigo 500
 $accent-color: #FF4081; // Pink A200
 $warn-color: #F44336; // Red 500
 $background-color: #F5F5F5; // Grey 100
 $text-color: #212121; // Grey 900
 
-// Variables de espaciado
-$spacing-xs: 4px; // Espaciado extra pequeño
-$spacing-sm: 8px; // Espaciado pequeño
-$spacing-md: 16px; // Espaciado medio
-$spacing-lg: 24px; // Espaciado grande
-$spacing-xl: 32px; // Espaciado extra grande
+// Variables de espaciado (Tokens de Diseño)
+$spacing-unit: 4px; // Unidad base para espaciados consistentes
+$spacing-xxs: 0.125rem; // 2px (Nuevo)
+$spacing-xs: 0.25rem;  // 4px
+$spacing-sm: 0.5rem;   // 8px
+$spacing-md: 0.75rem;  // 12px 
+$spacing-lg: 1rem;     // 16px
+$spacing-xl: 1.5rem;   // 24px
+$spacing-xxl: 2rem;    // 32px
 
-// Variables de sombras
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1); // Sombra pequeña
-$shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1); // Sombra media
-$shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1); // Sombra grande
+// Variables de sombras (Fuente única de verdad)
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
 
-// Variables de bordes
+// Variables de bordes (Fuente única de verdad)
 $border-radius-sm: 2px; // Radio de borde pequeño
 $border-radius-md: 4px; // Radio de borde medio
 $border-radius-lg: 8px; // Radio de borde grande
+$border-radius-round: 50%; // NUEVO para círculos perfectos
+$border-color: #e0e0e0; // Añadido desde la segunda sección de variables
+$border-width-normal: 1px; // NUEVO
+$border-width-strong: 4px; // NUEVO
+$border-radius-pill: 20px; // NUEVO para botones/elementos tipo pastilla
 
-// Colores específicos para tipos de elementos
+// Colores específicos para tipos de elementos (Fuente única de verdad)
 $olt-color: #4CAF50;
 $ont-color: #2196F3;
 $odf-color: #FFC107;
@@ -48,6 +58,35 @@ $edfa-color: #9C27B0;
 $splitter-color: #FF5722;
 $manga-color: #607D8B;
 $terminal-box-color: #FF9800;
+$slack-fiber-color: #80DEEA; // Renombrado desde SLACK_FIBER para consistencia de nombre
+
+// Tipografía (Fuente única de verdad - valores en REM, px son comentarios para referencia con root 16px)
+$font-family-base: 'Roboto', 'Segoe UI', sans-serif;
+$font-size-xxs: 0.625rem;  // 10px 
+$font-size-xs:  0.75rem;   // 12px
+$font-size-sm:  0.875rem;  // 14px
+$font-size-md:  1rem;      // 16px
+$font-size-lg:  1.125rem;  // 18px
+$font-size-xl:  1.25rem;   // 20px
+$font-size-xxl: 1.5rem;    // 24px
+$font-size-display: 2.5rem; // 40px (RE-AÑADIDO/ASEGURADO)
+
+// Variables para estados (de la segunda sección de variables)
+$status-active-color: #4caf50;
+$status-active-bg: #e8f5e9;
+$status-inactive-color: #757575;
+$status-inactive-bg: #f5f5f5;
+$status-fault-color: #c62828;
+$status-fault-bg: #ffebee;
+$status-warning-color: #ff8f00; // Segunda definición era #ff9800, unificando
+$status-warning-bg: #fff8e1;
+$status-maintenance-color: #1565c0;
+$status-maintenance-bg: #e3f2fd;
+
+// Breakpoints SASS (asegurar que estén activos)
+$breakpoint-tablet: 768px;
+$breakpoint-mobile: 480px;
+
 
 /**
  * Define las variables CSS globales
@@ -55,12 +94,27 @@ $terminal-box-color: #FF9800;
 :root {
   // Colores
   --primary-color: #{$primary-color};
+  @if meta.type-of($primary-color) == color {
+    --primary-rgb: #{color.channel($primary-color, 'red')}, #{color.channel($primary-color, 'green')}, #{color.channel($primary-color, 'blue')};
+  } @else {
+    --primary-rgb: 63, 81, 181;
+  }
+  --primary-color-hover: #{color.adjust($primary-color, $lightness: -8%)};
   --accent-color: #{$accent-color};
   --warn-color: #{$warn-color};
-  --background-color: #{$background-color};
-  --text-color: #{$text-color};
+  --background-color: #{$background-color}; // Color de fondo principal para modo claro
+  --surface-color: #ffffff; // Color de superficie general para elementos como cards, paneles en modo claro
+  --surface-lighter: #f9f9f9; // Superficie un poco más oscura que el fondo, o más clara que surface-color
+  --surface-darker: #eeeeee; // Superficie un poco más oscura
+  --text-color: #{$text-color}; // Color de texto principal para modo claro
+  --text-secondary-color: #{color.adjust($text-color, $lightness: -25%)}; // Texto secundario, un poco más claro o grisáceo
+  --text-hint-color: #{color.adjust($text-color, $lightness: -45%)};
+  --text-disabled-color: #{color.adjust($text-color, $lightness: -65%)};
+  --primary-contrast-color: white; // Color del texto sobre fondos primarios
+  --accent-contrast-color: white; // Color del texto sobre fondos de acento
+  --warn-contrast-color: white; // Color del texto sobre fondos de advertencia
 
-  // Colores de elementos
+  // Colores de elementos (específicos del módulo)
   --olt-color: #{$olt-color};
   --ont-color: #{$ont-color};
   --odf-color: #{$odf-color};
@@ -68,15 +122,21 @@ $terminal-box-color: #FF9800;
   --splitter-color: #{$splitter-color};
   --manga-color: #{$manga-color};
   --terminal-box-color: #{$terminal-box-color};
+  --slack-fiber-color: #{$slack-fiber-color};
+
 
   // Espaciado
+  --spacing-unit: #{$spacing-unit};
+  --spacing-xxs: #{$spacing-xxs};
   --spacing-xs: #{$spacing-xs};
   --spacing-sm: #{$spacing-sm};
   --spacing-md: #{$spacing-md};
   --spacing-lg: #{$spacing-lg};
   --spacing-xl: #{$spacing-xl};
+  --spacing-xxl: #{$spacing-xxl};
 
   // Sombras
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.05); // Nueva sombra extra pequeña
   --shadow-sm: #{$shadow-sm};
   --shadow-md: #{$shadow-md};
   --shadow-lg: #{$shadow-lg};
@@ -85,61 +145,200 @@ $terminal-box-color: #FF9800;
   --border-radius-sm: #{$border-radius-sm};
   --border-radius-md: #{$border-radius-md};
   --border-radius-lg: #{$border-radius-lg};
+  --border-radius-round: #{$border-radius-round}; // NUEVO
+  --border-color: #{$border-color};
+  --border-width-normal: #{$border-width-normal}; // NUEVO
+  --border-width-strong: #{$border-width-strong}; // NUEVO
+  --border-radius-pill: #{$border-radius-pill}; // NUEVO
+  --border-color-light: #{color.adjust($border-color, $lightness: 10%)};
+  --border-color-dark: #{color.adjust($border-color, $lightness: -10%)};
 
-  // Colores de estados
-  --color-success: #4caf50;
-  --color-warning: #ff9800;
-  --color-danger: #f44336;
-  --color-info: #2196f3;
+  // Colores de estados (generales)
+  --color-success: #{$status-active-color};
+  --color-warning: #{$status-warning-color};
+  --color-danger: #{$status-fault-color};
+  --color-info: #{$ont-color};
+  --color-neutral: #9e9e9e; // Añadido para estados desconocidos o neutrales
+
+  // Colores de fondo para estados
+  --color-success-bg: #{$status-active-bg};
+  --color-warning-bg: #{$status-warning-bg};
+  --color-danger-bg: #{$status-fault-bg};
+  --color-info-bg: #{color.adjust($ont-color, $lightness: 40%)};
+  --color-maintenance-bg: #{$status-maintenance-bg};
+  --status-inactive-fg: #{$status-inactive-color};
+  --status-inactive-bg: #{$status-inactive-bg};
+
+  // Colores de texto contrastantes para fondos de estado (si no son blancos/negros por defecto)
+  --color-success-contrast: #{if(color.channel($status-active-color, "lightness", $space: hsl) > 50, $text-color, white)};
+  --color-warning-contrast: #{if(color.channel($status-warning-color, "lightness", $space: hsl) > 50, $text-color, white)};
+  --color-danger-contrast: #{if(color.channel($status-fault-color, "lightness", $space: hsl) > 50, $text-color, white)};
+  --color-info-contrast: #{if(color.channel($ont-color, "lightness", $space: hsl) > 50, $text-color, white)};
+  --color-maintenance-contrast: #{if(color.channel($status-maintenance-color, "lightness", $space: hsl) > 50, $text-color, white)};
 
   // Tipografía
-  --font-family: 'Roboto', sans-serif;
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 24px;
+  --font-family: '#{$font-family-base}';
+  --font-size-xxs: #{$font-size-xxs};
+  --font-size-xs: #{$font-size-xs};
+  --font-size-sm: #{$font-size-sm};
+  --font-size-md: #{$font-size-md};
+  --font-size-lg: #{$font-size-lg};
+  --font-size-xl: #{$font-size-xl};
+  --font-size-xxl: #{$font-size-xxl};
+  --font-size-display: #{$font-size-display}; // RE-AÑADIDO/ASEGURADO
+
 
   // Transiciones
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 300ms ease-in-out;
   --transition-slow: 500ms ease-in-out;
 
-  // Colores de estado para elementos
-  --status-active: #4caf50;
-  --status-inactive: #f44336;
-  --status-maintenance: #ff9800;
-  --status-planning: #2196f3;
-  --status-unknown: #9e9e9e;
+  // Colores de estado para elementos (más semánticos)
+  --status-active: #{$status-active-color};
+  --status-inactive: #{$status-inactive-color};
+  --status-maintenance: #{$status-maintenance-color};
+  --status-planning: #{$ont-color};
+  --status-unknown: var(--color-neutral);
+  --status-fault: #{$status-fault-color};
 
-  // Variables para modo oscuro
-  --dark-bg-primary: #262626;
-  --dark-bg-secondary: #333333;
-  --dark-border-color: #444444;
-  --dark-text-primary: #e0e0e0;
-  --dark-text-secondary: #b0b0b0;
+
+  // Variables para overlays y superficies transparentes (claras)
+  --surface-overlay-light: rgba(255, 255, 255, 0.85);
+  --surface-overlay-light-strong: rgba(255, 255, 255, 0.95);
+  --border-color-semitransparent: rgba(0, 0, 0, 0.1); // NUEVO
+
+  // Variables para botones y acciones
+  --primary-bg-subtle: #{rgba($primary-color, 0.15)}; // NUEVO
+  --surface-action-hover: #{color.adjust(white, $blackness: 5%)}; // NUEVO (gris muy claro para hover de acciones)
+  --surface-button: var(--surface-color); // NUEVO
+  --surface-button-hover: var(--surface-action-hover); // NUEVO
+  --text-color-button: var(--text-color); // NUEVO
+
+
+  // Scrollbar (NUEVO)
+  --scrollbar-track-color: #f1f1f1;
+  --scrollbar-thumb-color: #c1c1c1;
+  --scrollbar-thumb-hover-color: #a8a8a8;
+
+  // Z-indexes
+  --z-index-map-base: 1;
+  --z-index-map-elements: 5;
+  --z-index-map-widgets-overlay: 50;
+  --z-index-map-overlay: 100; // NUEVA: Para overlays simples en el mapa como map-error-message
+  
+  --z-index-network-design-panels: 900;
+  --z-index-debug-info: 999; // NUEVA: Para información de debug como performance-info
+  
+  --z-index-floating-panel-base: 1000;
+  --z-index-performance-widget: 1000;
+  --z-index-elements-panel: 1001;
+  --z-index-layer-control: 1001;
+  --z-index-sidebar: 1005;
+  --z-index-map-legend: 1005;
+  --z-index-sidebar-mobile: 1010;
+
+  --z-index-loading-overlay: 1050;
+  --z-index-dialog: 1075;
+  --z-index-toolbar: 1100;
+  --z-index-tooltip: 1150;
+  --z-index-map-controls: 1201;
+
+  // Nuevas variables para tamaños de UI y componentes específicos
+  --toolbar-height: 46px;
+  --toolbar-button-height: 30px;
+  --toolbar-button-height-mobile: 32px;
+  --action-button-height: 40px;
+  --menu-item-height: 42px;
+  
+  --icon-size-sm: 18px; // Icono pequeño, ej. en botones de toolbar
+  --icon-size-md: 20px; // Icono mediano, ej. en items de menú
+
+  --tooltip-bg-color: rgba(33, 33, 33, 0.95);
+  --primary-ripple-color: rgba(var(--primary-rgb), 0.1);
+}
+
+// Definición del tema oscuro
+:root.dark-theme, body.dark-theme { // Usar body.dark-theme si es la convención del proyecto
+  $dark-surface-color: #1e1e1e; // Variable SASS para el color de superficie oscuro
+  $dark-text-color: #e0e0e0;
+  $dark-border-color: #444444;
+
+  --background-color: #121212; // Fondo muy oscuro para el tema general
+  --surface-color: #{$dark-surface-color};    // Color para superficies como cards, paneles
+  --surface-lighter: #{color.adjust($dark-surface-color, $lightness: 5%)}; // Un poco más claro que surface-color
+  --surface-darker: #121212;  // Puede ser igual al background o un poco más oscuro que surface-color
+  --text-color: #{$dark-text-color};       // Texto principal claro
+  --text-secondary-color: #{color.adjust($dark-text-color, $lightness: -15%)}; // Texto secundario
+  --text-hint-color: #{color.adjust($dark-text-color, $lightness: -30%)};
+  --text-disabled-color: #{color.adjust($dark-text-color, $lightness: -45%)};
+  --border-color: #{$dark-border-color};    // Bordes más oscuros
+  --border-color-light: #{color.adjust($dark-border-color, $lightness: 10%)};
+  --border-color-dark: #{color.adjust($dark-border-color, $lightness: -10%)};
+
+  // Colores primarios y de acento pueden necesitar ajustes para el contraste en tema oscuro
+  // Si los colores base (Indigo, Pink) funcionan bien, no se necesita redefinirlos.
+  // Si no, se podrían definir variantes oscuras:
+  // --primary-color: [nuevo valor para oscuro];
+  // --accent-color: [nuevo valor para oscuro];
+  
+  // Colores de estado (generalmente los colores base como success, warning, danger son vibrantes y funcionan en ambos temas)
+  // Pero sus fondos sí necesitan cambiar:
+  --color-success-bg: #{color.adjust($status-active-bg, $lightness: -60%)}; // Hacerlos mucho más oscuros
+  --color-warning-bg: #{color.adjust($status-warning-bg, $lightness: -60%)};
+  --color-danger-bg: #{color.adjust($status-fault-bg, $lightness: -60%)};
+  --color-info-bg: #{color.adjust(color.adjust($ont-color, $lightness: 40%), $lightness: -60%)};
+  --color-maintenance-bg: #{color.adjust($status-maintenance-bg, $lightness: -60%)};
+
+  // Sombras pueden necesitar ser menos pronunciadas o usar un color diferente
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.5);
+  --shadow-lg: 0 4px 6px rgba(0,0,0,0.5);
+
+  // Variables para overlays y superficies transparentes (oscuras)
+  --surface-overlay-light: rgba(40, 40, 40, 0.85); // "Light" aquí se refiere a la opacidad, el color base es oscuro
+  --surface-overlay-light-strong: rgba(30, 30, 30, 0.95);
+  --border-color-semitransparent: rgba(255, 255, 255, 0.1); // NUEVO
+
+  // Añadir las variables de estado inactivo para el tema oscuro aquí
+  --status-inactive-fg: #{color.adjust($status-inactive-color, $lightness: 55%)};
+  --status-inactive-bg: #383838;
+
+  // Variables para botones y acciones en tema oscuro
+  --primary-bg-subtle: #{rgba($primary-color, 0.25)}; // Ligeramente más opaco para contraste
+  --surface-action-hover: #{color.adjust($dark-surface-color, $lightness: 10%)}; // Más claro que la superficie oscura
+  --surface-button: var(--surface-color);
+  --surface-button-hover: var(--surface-action-hover);
+  --text-color-button: var(--text-color);
+
+
+  // Scrollbar para tema oscuro (NUEVO)
+  --scrollbar-track-color: #333333;
+  --scrollbar-thumb-color: #666666;
+  --scrollbar-thumb-hover-color: #888888;
 }
 
 /**
  * Mixins para patrones de UI reutilizables
  */
 
-// Mixin para paneles de información
-@mixin info-panel {
-  position: absolute;
-  background-color: white;
+// Mixin para paneles de información / widgets (consolidado)
+// Este mixin define una estructura completa de panel.
+@mixin standard-panel($has-actions: true) {
+  background-color: var(--surface-color);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 1000;
   overflow: hidden;
-  
-  .panel-header {
+  display: flex;
+  flex-direction: column;
+
+  .panel-header, .widget-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: var(--spacing-md);
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #e0e0e0;
+    background-color: var(--surface-lighter);
+    border-bottom: 1px solid var(--border-color);
     
     h3 {
       margin: 0;
@@ -149,50 +348,53 @@ $terminal-box-color: #FF9800;
     }
   }
   
-  .panel-content {
+  .panel-content, .widget-content {
     padding: var(--spacing-md);
+    flex-grow: 1;
+    overflow-y: auto;
+    color: var(--text-color);
   }
   
-  .panel-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-top: 1px solid #e0e0e0;
+  @if $has-actions {
+    .panel-actions, .widget-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-top: 1px solid var(--border-color);
+    }
   }
-  
+
   .info-row {
     display: flex;
     margin-bottom: var(--spacing-sm);
-    
-    .info-label {
-      width: 100px;
-      font-weight: 500;
-      color: #666;
-    }
-    
-    .info-value {
-      flex: 1;
-    }
+    .info-label { width: 100px; font-weight: 500; color: var(--text-secondary-color); }
+    .info-value { flex: 1; color: var(--text-color);}
   }
 }
 
+// ELIMINAR @mixin info-panel original si standard-panel lo reemplaza
+// ELIMINAR @mixin widget-container, widget-header, widget-content originales
+
 // Mixin para acciones del mapa (botones de herramientas)
 @mixin map-action-button {
-  background-color: white;
-  color: var(--text-color);
+  background-color: var(--surface-button);
+  color: var(--text-color-button);
   border-radius: 50%;
   width: 36px;
   height: 36px;
   transition: all var(--transition-fast);
+  border: 1px solid var(--border-color);
   
   &:hover {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: var(--surface-button-hover);
+    border-color: var(--border-color-dark);
   }
   
   &.active-tool {
-    background-color: rgba(63, 81, 181, 0.15);
+    background-color: var(--primary-bg-subtle);
     color: var(--primary-color);
+    border-color: var(--primary-color);
   }
   
   .mat-icon {
@@ -206,11 +408,12 @@ $terminal-box-color: #FF9800;
 // Mixin para leyenda del mapa
 @mixin map-legend {
   position: absolute;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: var(--surface-overlay-light);
   padding: var(--spacing-sm);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-md);
-  z-index: 1000;
+  z-index: var(--z-index-map-legend);
+  color: var(--text-color);
   
   .legend-header {
     display: flex;
@@ -218,12 +421,13 @@ $terminal-box-color: #FF9800;
     align-items: center;
     margin-bottom: var(--spacing-sm);
     padding-bottom: var(--spacing-xs);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid var(--border-color-semitransparent);
     
     h4 {
       margin: 0;
       font-size: var(--font-size-sm);
       font-weight: 500;
+      color: var(--text-color);
     }
   }
   
@@ -238,12 +442,14 @@ $terminal-box-color: #FF9800;
       height: 12px;
       border-radius: 2px;
       margin-right: var(--spacing-sm);
+      border: 1px solid var(--border-color-semitransparent);
     }
     
     .legend-label {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: var(--text-secondary-color);
     }
   }
 }
@@ -254,15 +460,18 @@ $terminal-box-color: #FF9800;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  z-index: 10;
+  z-index: var(--z-index-map-controls);
   
   button {
     box-shadow: var(--shadow-md);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-    
+    background-color: var(--surface-button);
+    color: var(--text-color-button);
+
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--shadow-lg);
+      background-color: var(--surface-button-hover);
     }
     
     &:active {
@@ -282,52 +491,55 @@ $terminal-box-color: #FF9800;
  * Clases generales reutilizables
  */
 
-// Clase general para paneles de componentes
-.component-panel {
-  position: absolute;
-  z-index: 100;
-  max-width: 350px;
-  max-height: 80vh;
-  overflow-y: auto;
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-lg);
-  background: white;
-  
-  .panel-close-btn {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    z-index: 10;
-    background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    line-height: 28px;
-    padding: 0;
-    min-width: auto;
-    
-    .mat-icon {
-      font-size: var(--font-size-md);
-      width: 16px;
-      height: 16px;
-      line-height: 16px;
-    }
-  }
+// Clase general para paneles que usan el mixin standard-panel
+.standard-panel-ui {
+  @include standard-panel($has-actions: true);
 }
 
-// Elemento de información con etiqueta
-.info-item {
+.simple-panel-ui {
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-md);
+  color: var(--text-color);
+}
+
+// Panel lateral común para toda la aplicación
+// Reemplaza los estilos redundantes en múltiples componentes
+.side-panel {
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-sm, 4px);
+  box-shadow: var(--shadow-sm, 0 2px 10px rgba(0,0,0,0.08));
+  height: 100%;
+  width: var(--side-panel-width, 320px);
   display: flex;
-  margin-bottom: var(--spacing-sm);
+  flex-direction: column;
+  overflow: hidden;
   
-  .info-label {
-    width: 100px;
-    font-weight: 500;
-    color: #666;
+  // Breakpoints estandarizados
+  @media (max-width: 768px) {
+    width: var(--side-panel-width-tablet, 280px);
   }
   
-  .info-value {
+  @media (max-width: 600px) {
+    width: var(--side-panel-width-mobile, 100%);
+    max-width: 100vw;
+  }
+  
+  // Elementos comunes
+  .panel-header {
+    height: var(--panel-header-height, 44px);
+    min-height: var(--panel-header-height, 44px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));
+  }
+  
+  .panel-content {
     flex: 1;
+    overflow: auto;
   }
 }
 
@@ -341,87 +553,6 @@ $terminal-box-color: #FF9800;
   transition: background-color var(--transition-normal);
 }
 
-// Soporte para modo oscuro en los componentes
-.dark-mode {
-  background-color: var(--dark-bg-primary);
-  color: var(--dark-text-primary);
-  
-  .component-panel {
-    background-color: var(--dark-bg-secondary);
-    color: var(--dark-text-primary);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  }
-  
-  .info-panel {
-    background-color: var(--dark-bg-secondary);
-    
-    .panel-header {
-      background-color: var(--dark-bg-primary);
-      border-bottom-color: var(--dark-border-color);
-      
-      h3 {
-        color: var(--dark-text-primary);
-      }
-    }
-    
-    .panel-content {
-      .info-row {
-        .info-label {
-          color: var(--dark-text-secondary);
-        }
-        
-        .info-value {
-          color: var(--dark-text-primary);
-        }
-      }
-    }
-    
-    .panel-actions {
-      border-top-color: var(--dark-border-color);
-    }
-  }
-  
-  .map-action-button {
-    background-color: var(--dark-bg-secondary);
-    color: var(--dark-text-primary);
-    
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.08);
-    }
-    
-    &.active-tool {
-      background-color: rgba(63, 81, 181, 0.3);
-      color: var(--accent-color);
-    }
-  }
-  
-  .map-legend {
-    background-color: rgba(40, 40, 40, 0.9);
-    
-    .legend-header {
-      border-bottom-color: rgba(255, 255, 255, 0.1);
-      
-      h4 {
-        color: var(--dark-text-primary);
-      }
-    }
-    
-    .legend-item {
-      color: var(--dark-text-secondary);
-    }
-  }
-  
-  .zoom-controls button {
-    background-color: var(--dark-bg-secondary);
-    color: var(--dark-text-primary);
-  }
-  
-  .panel-close-btn {
-    background-color: rgba(51, 51, 51, 0.7);
-    color: var(--dark-text-primary);
-  }
-}
-
 /**
  * Estilos para el contenedor principal del diseño de red
  */
@@ -430,19 +561,22 @@ $terminal-box-color: #FF9800;
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background-color: var(--background-color);
-  color: var(--text-color);
+  // background-color: var(--background-color);
+  // color: var(--text-color);
 
   /**
    * Estilos para el contenedor principal
    */
+  // COMENTADO: .network-design__container - Su rol es ahora asumido/clarificado por .network-design__main
+  /*
   &__container {
     display: flex;
     flex-direction: column;
     height: 100%;
-    background-color: #fff;
-    padding: 20px;
+    background-color: var(--surface-color);
+    padding: var(--spacing-lg);
   }
+  */
 
   /**
    * Estilos para la barra de herramientas
@@ -450,7 +584,7 @@ $terminal-box-color: #FF9800;
   &__toolbar {
     padding: 0 var(--spacing-md);
     background-color: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast-color);
     box-shadow: var(--shadow-md);
   }
 
@@ -463,7 +597,7 @@ $terminal-box-color: #FF9800;
     justify-content: space-between;
     padding: var(--spacing-md);
     background-color: var(--primary-color);
-    color: #fff;
+    color: var(--primary-contrast-color);
     box-shadow: var(--shadow-md);
 
     h1 {
@@ -476,6 +610,8 @@ $terminal-box-color: #FF9800;
   /**
    * Estilos para el contenido principal
    */
+  // COMENTADO: .network-design__content - Sus responsabilidades se mueven a .network-design__main
+  /*
   &__content {
     flex: 1;
     display: flex;
@@ -483,57 +619,59 @@ $terminal-box-color: #FF9800;
     position: relative;
     padding: var(--spacing-md);
   }
+  */
 
   /**
-   * Estilos para el contenedor del mapa
-   */
-  &__map {
-    flex: 1;
-    position: relative;
-    border-radius: var(--border-radius-md);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-  }
-
-  /**
-   * Estilos para la barra lateral
-   */
-  &__sidebar {
-    width: 300px;
-    padding: var(--spacing-md);
-    background-color: white;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-md);
-    margin-left: var(--spacing-md);
-    overflow-y: auto;
-    border-right: 1px solid #e0e0e0;
-
-    @media (max-width: 768px) {
-      width: 100%;
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100%;
-      z-index: 1000;
-      transform: translateX(-100%);
-      transition: transform var(--transition-normal);
-
-      &--open {
-        transform: translateX(0);
-      }
-    }
-  }
-
-  /**
-   * Estilos para el área principal
+   * Estilos para el área principal (AHORA EL CONTENEDOR PRINCIPAL DEL MAPA/SIDEBAR)
    */
   &__main {
     flex: 1;
+    display: flex;
     overflow: hidden;
     position: relative;
+    padding: var(--spacing-md);
+    background-color: var(--surface-color);
 
     @media (max-width: 768px) {
       margin-left: 0;
+      padding: var(--spacing-sm);
+    }
+
+    .network-design__map {
+      flex: 1;
+      position: relative;
+      border-radius: var(--border-radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      background-color: var(--surface-darker);
+    }
+
+    .network-design__sidebar {
+      width: 300px;
+      padding: var(--spacing-md);
+      background-color: var(--surface-color);
+      border-radius: var(--border-radius-md);
+      box-shadow: var(--shadow-md);
+      margin-left: var(--spacing-md);
+      overflow-y: auto;
+      border-right: 1px solid var(--border-color);
+
+      @media (max-width: 768px) {
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform var(--transition-normal);
+        margin-left: 0;
+        border-right: none;
+
+        &--open {
+          transform: translateX(0);
+        }
+      }
     }
   }
 
@@ -542,8 +680,8 @@ $terminal-box-color: #FF9800;
    */
   &__footer {
     padding: var(--spacing-md);
-    background-color: #f5f5f5;
-    border-top: 1px solid #e0e0e0;
+    background-color: var(--surface-lighter);
+    border-top: 1px solid var(--border-color);
     font-size: var(--font-size-sm);
     color: var(--text-color);
   }
@@ -554,7 +692,7 @@ $terminal-box-color: #FF9800;
   &__element {
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-md);
-    background-color: white;
+    background-color: var(--surface-color);
     border-radius: var(--border-radius-md);
     box-shadow: var(--shadow-sm);
     transition: box-shadow var(--transition-fast);
@@ -569,123 +707,40 @@ $terminal-box-color: #FF9800;
   }
 }
 
-/**
- * Estilos para los elementos del mapa
- */
-.map-element {
-  cursor: pointer;
-  transition: transform 0.2s ease-in-out;
-
-  &:hover {
-    transform: scale(1.1);
-  }
+// Clases de estado globales (refactorizadas para usar variables CSS directamente)
+.status-badge-base {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  // text-transform: uppercase; // Comentado para coincidir con el mixin original, se puede añadir si se prefiere
 }
 
-/**
- * Estilos para las conexiones del mapa
- */
-.map-connection {
-  stroke-width: 2;
-  transition: stroke-width 0.2s ease-in-out;
-
-  &:hover {
-    stroke-width: 3;
-  }
+.status-active {
+  @extend .status-badge-base;
+  background-color: var(--color-success-bg);
+  color: var(--color-success-contrast);
 }
-
-/**
- * Estilos para el inspector de elementos
- */
-.element-inspector {
-  position: absolute;
-  top: var(--spacing-md);
-  right: var(--spacing-md);
-  width: 300px;
-  background-color: white;
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-md);
-  z-index: 1000;
-  padding: var(--spacing-md);
+.status-inactive {
+  @extend .status-badge-base;
+  background-color: var(--status-inactive-bg);
+  color: var(--status-inactive-fg);
 }
-
-/**
- * Componentes comunes - elemento de red
- */
-.network-element {
-  /**
-   * Elemento de red
-   */
-  &__container {
-    padding: var(--spacing-md);
-    background-color: #fff;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--transition-fast);
-
-    &:hover {
-      box-shadow: var(--shadow-md);
-    }
-  }
-
-  /**
-   * Encabezado del elemento
-   */
-  &__header {
-    display: flex;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
-
-    h3 {
-      margin: 0;
-      font-size: var(--font-size-lg);
-      color: var(--primary-color);
-    }
-  }
-
-  /**
-   * Contenido del elemento
-   */
-  &__content {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
-
-  /**
-   * Acciones del elemento
-   */
-  &__actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
-  }
+.status-fault {
+  @extend .status-badge-base;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-contrast);
 }
-
-/**
- * Clases para diálogos y componentes flotantes
- */
-.dialog-container {
-  padding: var(--spacing-md);
-  max-width: 800px;
-  max-height: 80vh;
+.status-warning {
+  @extend .status-badge-base;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-contrast);
 }
-
-.dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-}
-
-.dialog-content {
-  overflow-y: auto;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
+.status-maintenance {
+  @extend .status-badge-base;
+  background-color: var(--color-maintenance-bg);
+  color: var(--color-maintenance-contrast);
 }
 
 /**
@@ -704,18 +759,18 @@ $terminal-box-color: #FF9800;
     text-transform: uppercase;
 
     &--active {
-      background-color: var(--color-success);
-      color: #fff;
+      background-color: var(--color-success-bg);
+      color: var(--color-success-contrast);
     }
 
     &--inactive {
-      background-color: var(--color-danger);
-      color: #fff;
+      background-color: var(--status-inactive-bg);
+      color: var(--status-inactive-fg);
     }
 
     &--maintenance {
-      background-color: var(--color-warning);
-      color: #fff;
+      background-color: var(--color-maintenance-bg);
+      color: var(--color-maintenance-contrast);
     }
   }
 
@@ -744,227 +799,67 @@ $terminal-box-color: #FF9800;
   }
 }
 
-// Variables de colores para la aplicación de diseño de red
-$primary-color: #2196f3;
-$secondary-color: #ff9800;
-$success-color: #4caf50;
-$warning-color: #ff9800;
-$error-color: #f44336;
-$info-color: #2196f3;
+// Mixin para estilos de tarjeta/item de elemento de red (antes .network-element BEM)
+@mixin network-element-card-style {
+  // Estilos del contenedor principal de la tarjeta del elemento
+  // Aplicar a la clase raíz o al :host del componente que representa la tarjeta.
+  // Ejemplo: .network-element-card o :host si el componente es la tarjeta.
+  padding: var(--spacing-md);
+  background-color: var(--background-color); // Usar variable CSS con fallback
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast);
+  margin-bottom: var(--spacing-md); // Opcional, el layout padre podría manejar el espaciado entre tarjetas
 
-// Variables para estados
-$status-active-color: #4caf50;
-$status-active-bg: #e8f5e9;
-$status-inactive-color: #757575;
-$status-inactive-bg: #f5f5f5;
-$status-fault-color: #c62828;
-$status-fault-bg: #ffebee;
-$status-warning-color: #ff8f00;
-$status-warning-bg: #fff8e1;
-$status-maintenance-color: #1565c0;
-$status-maintenance-bg: #e3f2fd;
-
-// Variables para sombreados
-$shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
-$shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
-$shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.1);
-
-// Variables para tipografía
-$font-family-base: 'Roboto', 'Segoe UI', sans-serif;
-$font-size-xs: 10px;
-$font-size-sm: 12px;
-$font-size-md: 14px;
-$font-size-lg: 16px;
-$font-size-xl: 18px;
-$font-size-xxl: 24px;
-
-// Variables para bordes
-$border-radius-sm: 4px;
-$border-radius-md: 8px;
-$border-radius-lg: 12px;
-$border-color: #e0e0e0;
-
-// Variables para el mapa
-$map-background-color: #f5f5f5;
-$map-grid-color: rgba(0, 0, 0, 0.05);
-$map-element-highlight-color: rgba(33, 150, 243, 0.5);
-
-// Mixins para estilos comunes
-@mixin widget-container {
-  background-color: white;
-  border-radius: $border-radius-md;
-  box-shadow: $shadow-light;
-  margin-bottom: $spacing-md;
-  overflow: hidden;
-}
-
-@mixin widget-header {
-  display: flex;
-  align-items: center;
-  padding: $spacing-sm $spacing-md;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid $border-color;
-  
-  h3 {
-    margin: 0 0 0 $spacing-sm;
-    flex-grow: 1;
-    font-size: $font-size-md;
-    font-weight: 500;
+  &:hover {
+    box-shadow: var(--shadow-md);
   }
-}
 
-@mixin widget-content {
-  padding: $spacing-md;
-}
-
-@mixin status-badge($color, $bg-color) {
-  background-color: $bg-color;
-  color: $color;
-  padding: $spacing-xs $spacing-sm;
-  border-radius: $border-radius-sm;
-  font-size: $font-size-sm;
-  font-weight: 500;
-}
-
-// Clases para estados de elementos
-.status-active {
-  @include status-badge($status-active-color, $status-active-bg);
-}
-
-.status-inactive {
-  @include status-badge($status-inactive-color, $status-inactive-bg);
-}
-
-.status-fault {
-  @include status-badge($status-fault-color, $status-fault-bg);
-}
-
-.status-warning {
-  @include status-badge($status-warning-color, $status-warning-bg);
-}
-
-.status-maintenance {
-  @include status-badge($status-maintenance-color, $status-maintenance-bg);
-}
-
-// Estilos para el contenedor de tarjetas
-.card-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: $spacing-md;
-  margin: $spacing-md 0;
-}
-
-// Estilos para botones de acción
-.action-button {
-  display: flex;
-  align-items: center;
-  gap: $spacing-xs;
-  
-  mat-icon {
-    font-size: $font-size-md;
-    width: $font-size-md;
-    height: $font-size-md;
+  &.selected, &--selected { // Para soportar clase .selected o modificador BEM
+    border-left: 4px solid var(--primary-color);
+    // Considerar también un ligero cambio de background o box-shadow más pronunciado para selección
   }
-}
 
-// Clases de utilidad
-.flex-row {
-  display: flex;
-  flex-direction: row;
-}
-
-.flex-column {
-  display: flex;
-  flex-direction: column;
-}
-
-.gap-sm {
-  gap: $spacing-sm;
-}
-
-.gap-md {
-  gap: $spacing-md;
-}
-
-.mt-1 {
-  margin-top: $spacing-sm;
-}
-
-.mt-2 {
-  margin-top: $spacing-md;
-}
-
-.mb-1 {
-  margin-bottom: $spacing-sm;
-}
-
-.mb-2 {
-  margin-bottom: $spacing-md;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.fw-bold {
-  font-weight: 500;
-}
-
-.w-100 {
-  width: 100%;
-}
-
-.h-100 {
-  height: 100%;
-}
-
-// Estilos para el modo oscuro
-@mixin dark-theme {
-  --bg-color: #303030;
-  --text-color: #ffffff;
-  --border-color: #424242;
-  --card-bg-color: #424242;
-  --hover-color: rgba(255, 255, 255, 0.1);
-  
-  // Redefine los estados para modo oscuro
-  .status-active {
-    background-color: rgba(76, 175, 80, 0.2);
+  // Estilos para el encabezado de la tarjeta del elemento
+  // Usar con una clase como .element-card__header o similar dentro del template del componente.
+  .element-card__header {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    h3 {
+      margin: 0;
+      font-size: var(--font-size-lg);
+      color: var(--primary-color);
+      // Considerar permitir que el color del h3 venga del tipo de elemento, si es necesario
+    }
+    // Podría incluir un icono del tipo de elemento aquí
+    .element-type-icon {
+      margin-right: var(--spacing-sm);
+      // Estilos para el icono
+    }
   }
-  
-  .status-inactive {
-    background-color: rgba(117, 117, 117, 0.2);
-  }
-  
-  .status-fault {
-    background-color: rgba(244, 67, 54, 0.2);
-  }
-  
-  .status-warning {
-    background-color: rgba(255, 152, 0, 0.2);
-  }
-  
-  .status-maintenance {
-    background-color: rgba(33, 150, 243, 0.2);
-  }
-  
-  // Ajusta el fondo de los contenedores de widgets
-  .widget-container {
-    background-color: var(--card-bg-color);
-    border: 1px solid var(--border-color);
-  }
-  
-  .widget-header {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid var(--border-color);
-  }
-}
 
-// Aplicar el tema oscuro cuando esté activo
-.dark-theme {
-  @include dark-theme;
+  // Estilos para el contenido de la tarjeta del elemento
+  // Usar con una clase como .element-card__content.
+  .element-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    // Estilos para listas de propiedades, etc.
+    .property-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--font-size-sm);
+      span:first-child { color: var(--text-secondary-color); }
+    }
+  }
+
+  // Estilos para las acciones de la tarjeta del elemento
+  // Usar con una clase como .element-card__actions.
+  .element-card__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    justify-content: flex-end; // Común para acciones
+  }
 }

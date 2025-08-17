@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { NetworkElement, NetworkConnection } from '../../../shared/types/network.types';
-import { D3Node, D3LinkData, MapConfig } from '../types/network.types';
+import { D3Node, D3LinkData, MapConfig } from '../services/map-types';
 import { MapPosition } from '../services/map-position.service';
 
 /**

@@ -1,27 +1,25 @@
 import { Injectable } from '@angular/core';
 import * as d3 from 'd3';
 import { LoggerService } from '../../../core/services/logger.service';
-import { NetworkElement, NetworkConnection, ElementType, ElementStatus } from '../../../shared/types/network.types';
-import { D3Node, D3LinkData } from '../types/network.types';
+import { NetworkElement, NetworkConnection, ElementType, ElementStatus, ConnectionStatus, ConnectionType, PONStandard } from '../../../shared/types/network.types';
+import { GeographicPosition } from '../../../shared/types/geo-position';
+import { D3Node, D3LinkData } from './map-types';
 import { IMapRenderService } from '../interfaces/map-render.interface';
 
 // Extender la interfaz D3Node para que implemente SimulationNodeDatum y permitir propiedades adicionales
-interface ExtendedD3Node extends d3.SimulationNodeDatum {
-  id: string; // ID es requerido para D3
-  name?: string; // Nombre del nodo
-  type?: string; // Tipo del elemento
-  status?: string; // Estado del elemento
-  x?: number; // Posición X
-  y?: number; // Posición Y
+interface ExtendedD3Node extends d3.SimulationNodeDatum, NetworkElement {
+  id: string; // ID es requerido para D3, ya está en NetworkElement
+  position: GeographicPosition; // Asegurar que position esté definida
+  x?: number; // Posición X para D3
+  y?: number; // Posición Y para D3
   fx?: number | null; // Posición X fija (si existe)
   fy?: number | null; // Posición Y fija (si existe)
   vx?: number; // Velocidad en X
   vy?: number; // Velocidad en Y
-  index?: number; // Índice en el arreglo de nodos
   fixed?: boolean; // Si el nodo está fijo
   isPreview?: boolean; // Si es un nodo de vista previa
   color?: string; // Color del nodo
-  data?: any; // Datos adicionales
+  data?: any; // Datos adicionales (podría ser el NetworkElement original)
 }
 
 @Injectable({
@@ -183,28 +181,22 @@ export class MapRenderService implements IMapRenderService {
    */
   convertToD3Nodes(elements: NetworkElement[]): D3Node[] {
     return elements.map(element => {
-      // Obtener coordenadas del elemento
       const x = element.position?.coordinates?.[0] || 0;
       const y = element.position?.coordinates?.[1] || 0;
       
-      // Convierte coordenadas geográficas (si están en ese formato) a píxeles
-      // Este es un mapeo simplificado, en una implementación real
-      // se usaría una proyección cartográfica adecuada
-      const screenX = this.width / 2 + x * 10000;
-      const screenY = this.height / 2 - y * 10000;
+      // Mapeo simplificado, ajustar si es necesario una proyección real
+      const screenX = this.width / 2 + x * (this.width / 360); // Ejemplo de escalado
+      const screenY = this.height / 2 - y * (this.height / 180); // Ejemplo de escalado
       
-      return {
-        id: element.id,
-        name: element.name,
-        type: element.type,
-        status: element.status,
+      const d3Node: D3Node = {
+        ...element, // Copiar todas las propiedades de NetworkElement, incluyendo id, name, type, status, position
         x: screenX,
         y: screenY,
-        fx: element.metadata?.fixed ? screenX : undefined,
-        fy: element.metadata?.fixed ? screenY : undefined,
-        color: this.getElementColor(element.type, element.status),
-        data: element
-      } as ExtendedD3Node;
+        fx: element.metadata?.fixed ? screenX : null,
+        fy: element.metadata?.fixed ? screenY : null,
+        // vx, vy son gestionados por la simulación D3
+      };
+      return d3Node;
     });
   }
   
@@ -212,76 +204,31 @@ export class MapRenderService implements IMapRenderService {
    * Convierte conexiones de red a enlaces D3
    */
   convertToD3Links(connections: NetworkConnection[], elements: NetworkElement[]): D3LinkData[] {
-    // Crear un mapa para búsqueda rápida de elementos por ID
     const elementMap = new Map(elements.map(e => [e.id, e]));
     
-    return connections.map(connection => {
-      // Obtener elementos fuente y destino
-      const source = elementMap.get(connection.sourceId);
-      const target = elementMap.get(connection.targetId);
+    return connections.reduce((acc, connection) => {
+      const sourceNode = elementMap.get(connection.sourceElementId);
+      const targetNode = elementMap.get(connection.targetElementId);
       
-      if (!source || !target) {
-        this.logger.warn(`No se pudo encontrar elemento para la conexión: ${connection.id}`);
-        return {
-          source: connection.sourceId,
-          target: connection.targetId,
-          id: connection.id,
-          type: connection.type,
-          status: connection.status,
-          strength: 0.1,
-          distance: 100,
-          color: '#999',
-          width: 1
-        };
+      if (!sourceNode || !targetNode) {
+        this.logger.warn(`Elemento fuente o destino no encontrado para la conexión: ${connection.id ?? 'N/A'}. Saltando conexión.`);
+        return acc; // No incluir este enlace si falta un nodo
       }
-      
-      // Configurar propiedades visuales según el tipo de conexión
-      let color = '#999';
-      const distance = 100;
-      let width = 1;
-      let dashed = false;
-      
-      switch (connection.status) {
-        case ElementStatus.ACTIVE:
-          color = '#4CAF50';
-          width = 2;
-          break;
-        case ElementStatus.INACTIVE:
-          color = '#9E9E9E';
-          dashed = true;
-          break;
-        case ElementStatus.MAINTENANCE:
-          color = '#FF9800';
-          width = 2;
-          dashed = true;
-          break;
-        case ElementStatus.FAULT:
-          color = '#F44336';
-          width = 3;
-          break;
-        case ElementStatus.PLANNED:
-          color = '#2196F3';
-          dashed = true;
-          break;
-      }
-      
-      // Calcular la fuerza del enlace
-      const strength = this.getLinkStrength(connection);
-      
-      return {
-        source: connection.sourceId,
-        target: connection.targetId,
-        id: connection.id,
-        type: connection.type,
-        status: connection.status,
-        strength,
-        distance,
-        color,
-        width,
-        dashed,
-        data: connection
+
+      // Crear el D3LinkData con todas las propiedades requeridas
+      const linkData: D3LinkData = {
+        ...connection, // Copia propiedades de NetworkConnection (id, name, type, status, properties, etc.)
+        source: sourceNode.id!, // D3LinkData espera D3Node o string (id) para source/target en la simulación
+        target: targetNode.id!,
+        sourceId: connection.sourceElementId, // Asegurar que sourceId esté presente
+        targetId: connection.targetElementId, // Asegurar que targetId esté presente
+        value: connection.properties?.weight || this.getLinkStrength(connection) || 1, // Calcular o asignar un valor por defecto
+        // name ya debería estar en connection si es parte de NetworkConnection
       };
-    });
+      
+      acc.push(linkData);
+      return acc;
+    }, [] as D3LinkData[]);
   }
   
   /**
@@ -289,13 +236,13 @@ export class MapRenderService implements IMapRenderService {
    */
   getLinkStrength(connection: NetworkConnection): number {
     switch (connection.type) {
-      case 'fiber':
+      case ConnectionType.FIBER:
         return 0.2;
-      case 'copper':
+      case ConnectionType.COPPER:
         return 0.3;
-      case 'wireless':
+      case ConnectionType.WIRELESS:
         return 0.1;
-      case 'logical':
+      case ConnectionType.LOGICAL:
         return 0.05;
       default:
         return 0.15;
@@ -335,15 +282,15 @@ export class MapRenderService implements IMapRenderService {
     // Si hay un estado definido, priorizar ese color
     if (status) {
       switch (status) {
-        case ElementStatus.ACTIVE:
+        case ConnectionStatus.ACTIVE:
           return '#4CAF50'; // Verde
-        case ElementStatus.INACTIVE:
+        case ConnectionStatus.INACTIVE:
           return '#9E9E9E'; // Gris
-        case ElementStatus.FAULT:
+        case ConnectionStatus.FAILED:
           return '#F44336'; // Rojo
-        case ElementStatus.MAINTENANCE:
+        case ConnectionStatus.DEGRADED:
           return '#FF9800'; // Naranja
-        case ElementStatus.PLANNED:
+        case ConnectionStatus.PLANNED:
           return '#2196F3'; // Azul
       }
     }
@@ -366,6 +313,8 @@ export class MapRenderService implements IMapRenderService {
         return '#009688'; // Verde azulado
       case ElementType.TERMINAL_BOX:
         return '#607D8B'; // Azul grisáceo
+      case ElementType.SLACK_FIBER:
+        return '#80DEEA'; // Turquesa claro
       default:
         return '#673AB7'; // Índigo (color por defecto)
     }
@@ -463,5 +412,71 @@ export class MapRenderService implements IMapRenderService {
           d.fy = null;
         }
       });
+  }
+  
+  /**
+   * Obtiene el estilo para una conexión según su estado
+   */
+  private getConnectionStyleByStatus(connection: NetworkConnection): any {
+    let color = '#2196f3';
+    let strokeWidth = 1;
+    let dashArray = '';
+    let strokeOpacity = 0.8;
+    
+    switch (connection.status) {
+      case ConnectionStatus.ACTIVE:
+        color = '#4caf50';
+        strokeWidth = 2;
+        break;
+      case ConnectionStatus.INACTIVE:
+        color = '#9e9e9e';
+        strokeWidth = 1;
+        dashArray = '3,3';
+        strokeOpacity = 0.5;
+        break;
+      case ConnectionStatus.DEGRADED:
+        color = '#ff9800';
+        strokeWidth = 2;
+        dashArray = '5,2';
+        break;
+      case ConnectionStatus.FAILED:
+        color = '#f44336';
+        strokeWidth = 2;
+        break;
+      case ConnectionStatus.PLANNED:
+        color = '#9c27b0';
+        strokeWidth = 1.5;
+        dashArray = '5,5';
+        strokeOpacity = 0.6;
+        break;
+      default:
+        color = '#2196f3';
+        strokeWidth = 1;
+    }
+    
+    return {
+      stroke: color,
+      strokeWidth,
+      strokeOpacity,
+      strokeDasharray: dashArray
+    };
+  }
+
+  /**
+   * Obtiene el color para un tipo de conexión
+   */
+  private getConnectionColorByType(connection: NetworkConnection): string {
+    switch (connection.type) {
+      case ConnectionType.FIBER:
+        return '#03a9f4'; // Azul para fibra
+      case ConnectionType.COPPER:
+        return '#ff5722'; // Naranja para cobre
+      case ConnectionType.WIRELESS:
+        return '#8bc34a'; // Verde para inalámbrico
+      case ConnectionType.LOGICAL:
+        return '#9c27b0'; // Púrpura para lógico
+      default:
+        return '#2196f3'; // Azul por defecto
+    }
   }
 } 

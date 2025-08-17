@@ -1,18 +1,18 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { NetworkElement, ElementType, ElementStatus, FiberConnection } from '../../../shared/types/network.types';
+import { NetworkElement, ElementType, ElementStatus, NetworkConnection } from '../../../shared/types/network.types';
 import { ElementRepository } from '../repositories/element.repository';
 import { SearchService, SearchFilters } from '../services/search.service';
 import { MetricsService } from '../services/metrics.service';
-import { ConnectionService } from '@features/network-design/services/connection.service';
+import { ConnectionService } from '../services/connection.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class NetworkFacade {
   private selectedElementSubject = new BehaviorSubject<NetworkElement | null>(null);
-  private selectedConnectionSubject = new BehaviorSubject<FiberConnection | null>(null);
+  private selectedConnectionSubject = new BehaviorSubject<NetworkConnection | null>(null);
 
   constructor(
     private elementRepository: ElementRepository,
@@ -65,21 +65,21 @@ export class NetworkFacade {
   }
 
   // Métodos para conexiones
-  getConnections(): Observable<FiberConnection[]> {
+  getConnections(): Observable<NetworkConnection[]> {
     return this.connectionService.getConnections();
   }
 
-  getConnectionsByElement(elementId: string): Observable<FiberConnection[]> {
+  getConnectionsByElement(elementId: string): Observable<NetworkConnection[]> {
     return this.connectionService.getConnectionsByElementId(elementId);
   }
 
-  createConnection(connection: FiberConnection): void {
+  createConnection(connection: NetworkConnection): void {
     if (this.connectionService.validateConnection(connection)) {
       this.connectionService.addConnection(connection);
     }
   }
 
-  updateConnection(connection: FiberConnection): void {
+  updateConnection(connection: NetworkConnection): void {
     if (this.connectionService.validateConnection(connection)) {
       this.connectionService.updateConnection(connection);
     }
@@ -98,11 +98,11 @@ export class NetworkFacade {
     this.selectedElementSubject.next(element);
   }
 
-  getSelectedConnection(): Observable<FiberConnection | null> {
+  getSelectedConnection(): Observable<NetworkConnection | null> {
     return this.selectedConnectionSubject.asObservable();
   }
 
-  selectConnection(connection: FiberConnection | null): void {
+  selectConnection(connection: NetworkConnection | null): void {
     this.selectedConnectionSubject.next(connection);
   }
 

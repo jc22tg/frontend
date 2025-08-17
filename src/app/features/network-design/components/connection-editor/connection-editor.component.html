@@ -1,258 +1,114 @@
-<div class="dialog-container">
-  <div class="dialog-header" [ngClass]="{'create': mode === 'create', 'edit': mode === 'edit'}">
+<div class="dialog-container debug-container">
+  <!-- Encabezado fijo -->
+  <div class="dialog-header fixed-header" [ngClass]="{'create': mode === 'create', 'edit': mode === 'edit'}">
     <div class="header-icon">
-      <mat-icon>{{ mode === 'create' ? 'add_link' : 'edit_link' }}</mat-icon>
+      <mat-icon color="primary">{{ mode === 'create' ? 'add_link' : 'edit_link' }}</mat-icon>
     </div>
     <div class="header-content">
-      <h2 mat-dialog-title>{{ mode === 'create' ? 'Crear Conexión' : 'Editar Conexión' }}</h2>
+      <h2 mat-dialog-title class="small-title">{{ mode === 'create' ? 'Crear Conexión' : 'Editar Conexión' }}</h2>
       <p class="subtitle">{{ mode === 'create' ? 'Defina una nueva conexión entre elementos' : 'Modifique los detalles de la conexión existente' }}</p>
     </div>
   </div>
   
   <mat-divider></mat-divider>
   
-  <div mat-dialog-content class="dialog-content">
+  <!-- Área scrollable -->
+  <div class="form-content debug-content scrollable-content">
     <form [formGroup]="connectionForm" (ngSubmit)="onSave()">
-      <div class="form-section">
-        <h3 class="section-title">
-          <mat-icon>settings_ethernet</mat-icon>
-          <span>Elementos de la conexión</span>
-        </h3>
+      <div class="debug-card">
+        <h3>Elementos de la Conexión</h3>
         
-        <!-- Elemento Origen -->
-        <div class="form-field">
-          <mat-form-field appearance="outline" class="full-width">
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="full-width">
             <mat-label>Elemento Origen</mat-label>
-            <mat-select formControlName="sourceId" required>
-              <mat-select-trigger *ngIf="sourceElement">
-                <div class="element-option">
-                  <mat-icon class="element-icon">{{ getElementTypeIcon(sourceElement.type) }}</mat-icon>
-                  <span>{{ sourceElement.name }}</span>
-                  <span class="element-type">{{ getElementTypeName(sourceElement.type) }}</span>
-                </div>
-              </mat-select-trigger>
+            <mat-select formControlName="sourceElementId" required>
               <mat-option *ngFor="let element of availableElements" [value]="element.id">
-                <div class="element-option">
-                  <mat-icon class="element-icon">{{ getElementTypeIcon(element.type) }}</mat-icon>
-                  <span>{{ element.name }}</span>
-                  <span class="element-type">{{ getElementTypeName(element.type) }}</span>
-                </div>
+                {{ element.name }}
               </mat-option>
             </mat-select>
-            <mat-icon matSuffix>device_hub</mat-icon>
-            <mat-error *ngIf="connectionForm.get('sourceId')?.hasError('required')">Elemento origen es requerido</mat-error>
           </mat-form-field>
         </div>
-
-        <!-- Icono de conexión -->
-        <div class="connection-icon-container">
-          <mat-icon class="connection-icon">arrow_downward</mat-icon>
-        </div>
-
-        <!-- Elemento Destino -->
-        <div class="form-field">
-          <mat-form-field appearance="outline" class="full-width">
+        
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="full-width">
             <mat-label>Elemento Destino</mat-label>
-            <mat-select formControlName="targetId" required>
-              <mat-select-trigger *ngIf="targetElement">
-                <div class="element-option">
-                  <mat-icon class="element-icon">{{ getElementTypeIcon(targetElement.type) }}</mat-icon>
-                  <span>{{ targetElement.name }}</span>
-                  <span class="element-type">{{ getElementTypeName(targetElement.type) }}</span>
-                </div>
-              </mat-select-trigger>
+            <mat-select formControlName="targetElementId" required>
               <mat-option *ngFor="let element of getAvailableTargets()" [value]="element.id">
-                <div class="element-option">
-                  <mat-icon class="element-icon">{{ getElementTypeIcon(element.type) }}</mat-icon>
-                  <span>{{ element.name }}</span>
-                  <span class="element-type">{{ getElementTypeName(element.type) }}</span>
-                </div>
+                {{ element.name }}
               </mat-option>
             </mat-select>
-            <mat-icon matSuffix>device_hub</mat-icon>
-            <mat-error *ngIf="connectionForm.get('targetId')?.hasError('required')">Elemento destino es requerido</mat-error>
           </mat-form-field>
         </div>
       </div>
-
-      <div class="form-section">
-        <h3 class="section-title">
-          <mat-icon>settings</mat-icon>
-          <span>Propiedades de la conexión</span>
-        </h3>
+      
+      <div class="debug-card">
+        <h3>Configuración Principal</h3>
         
         <div class="form-row">
-          <!-- Estado de la Conexión -->
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>Estado</mat-label>
             <mat-select formControlName="status" required>
-              <mat-option [value]="ElementStatus.ACTIVE">
-                <div class="status-option">
-                  <span class="status-dot active"></span>
-                  <span>Activo</span>
-                </div>
-              </mat-option>
-              <mat-option [value]="ElementStatus.INACTIVE">
-                <div class="status-option">
-                  <span class="status-dot inactive"></span>
-                  <span>Inactivo</span>
-                </div>
-              </mat-option>
-              <mat-option [value]="ElementStatus.MAINTENANCE">
-                <div class="status-option">
-                  <span class="status-dot maintenance"></span>
-                  <span>Mantenimiento</span>
-                </div>
-              </mat-option>
-              <mat-option [value]="ElementStatus.FAULT">
-                <div class="status-option">
-                  <span class="status-dot fault"></span>
-                  <span>Falla</span>
-                </div>
-              </mat-option>
-              <mat-option [value]="ElementStatus.PLANNED">
-                <div class="status-option">
-                  <span class="status-dot planned"></span>
-                  <span>Planificado</span>
-                </div>
-              </mat-option>
-              <mat-option [value]="ElementStatus.BUILDING">
-                <div class="status-option">
-                  <span class="status-dot building"></span>
-                  <span>En construcción</span>
-                </div>
-              </mat-option>
-              <mat-option [value]="ElementStatus.DECOMMISSIONED">
-                <div class="status-option">
-                  <span class="status-dot decommissioned"></span>
-                  <span>Fuera de servicio</span>
-                </div>
-              </mat-option>
+              <mat-option [value]="ElementStatus.ACTIVE">Activo</mat-option>
+              <mat-option [value]="ElementStatus.INACTIVE">Inactivo</mat-option>
             </mat-select>
-            <mat-icon matSuffix>fiber_manual_record</mat-icon>
-            <mat-error *ngIf="connectionForm.get('status')?.hasError('required')">Estado es requerido</mat-error>
           </mat-form-field>
 
-          <!-- Tipo de Fibra -->
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>Tipo de Fibra</mat-label>
             <mat-select formControlName="fiberType">
               <mat-option [value]="FiberType.SINGLE_MODE">Monomodo</mat-option>
               <mat-option [value]="FiberType.MULTI_MODE">Multimodo</mat-option>
-              <mat-option [value]="FiberType.SINGLE_MODE_RIBBON">Cinta</mat-option>
             </mat-select>
-            <mat-icon matSuffix>category</mat-icon>
           </mat-form-field>
         </div>
 
         <div class="form-row">
-          <!-- Longitud de la Conexión (metros) -->
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>Longitud (metros)</mat-label>
             <input matInput type="number" formControlName="length" min="0">
-            <span matSuffix>m</span>
-            <mat-icon matSuffix>straighten</mat-icon>
-            <mat-error *ngIf="connectionForm.get('length')?.hasError('min')">Valor debe ser mayor o igual a 0</mat-error>
-            <mat-error *ngIf="connectionForm.get('length')?.hasError('pattern')">Formato inválido</mat-error>
           </mat-form-field>
 
-          <!-- Capacidad (Gbps) -->
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="fill">
             <mat-label>Capacidad</mat-label>
             <input matInput type="number" formControlName="capacity" min="0">
-            <span matSuffix>Gbps</span>
-            <mat-icon matSuffix>speed</mat-icon>
-            <mat-error *ngIf="connectionForm.get('capacity')?.hasError('min')">Valor debe ser mayor o igual a 0</mat-error>
-            <mat-error *ngIf="connectionForm.get('capacity')?.hasError('pattern')">Formato inválido</mat-error>
           </mat-form-field>
         </div>
       </div>
-
-      <div class="form-section">
-        <h3 class="section-title">
-          <mat-icon>description</mat-icon>
-          <span>Información adicional</span>
-        </h3>
-        
-        <!-- Etiqueta/Nombre -->
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Etiqueta</mat-label>
-          <input matInput formControlName="label">
-          <mat-icon matSuffix>label</mat-icon>
-          <mat-hint>Identificador de la conexión en el mapa</mat-hint>
-        </mat-form-field>
-
-        <!-- Descripción -->
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Descripción</mat-label>
-          <textarea matInput formControlName="description" rows="3"></textarea>
-          <mat-icon matSuffix>notes</mat-icon>
-          <mat-hint>Detalles adicionales sobre la conexión</mat-hint>
-        </mat-form-field>
-      </div>
       
-      <!-- Resumen de la conexión -->
-      <div class="connection-summary" *ngIf="sourceElement && targetElement" [@fadeAnimation]>
-        <h3 class="section-title">
-          <mat-icon>preview</mat-icon>
-          <span>Resumen de la conexión</span>
-        </h3>
+      <div class="debug-card">
+        <h3>Información Adicional</h3>
         
-        <div class="summary-content">
-          <div class="connection-preview">
-            <div class="preview-element">
-              <mat-icon>{{ getElementTypeIcon(sourceElement.type) }}</mat-icon>
-              <span>{{ sourceElement.name }}</span>
-            </div>
-            
-            <div class="connection-line">
-              <div class="line" [ngClass]="getStatusClass()"></div>
-              <div class="connection-details">
-                <mat-chip-set>
-                  <mat-chip *ngIf="connectionForm.get('length')?.value">
-                    {{ connectionForm.get('length')?.value }}m
-                  </mat-chip>
-                  <mat-chip *ngIf="connectionForm.get('capacity')?.value">
-                    {{ connectionForm.get('capacity')?.value }}Gbps
-                  </mat-chip>
-                  <mat-chip *ngIf="connectionForm.get('fiberType')?.value">
-                    {{ getFiberTypeName(connectionForm.get('fiberType')?.value) }}
-                  </mat-chip>
-                </mat-chip-set>
-              </div>
-            </div>
-            
-            <div class="preview-element">
-              <mat-icon>{{ getElementTypeIcon(targetElement.type) }}</mat-icon>
-              <span>{{ targetElement.name }}</span>
-            </div>
-          </div>
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Etiqueta</mat-label>
+            <input matInput formControlName="label">
+          </mat-form-field>
+        </div>
+        
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Descripción</mat-label>
+            <textarea matInput formControlName="description" rows="2"></textarea>
+          </mat-form-field>
         </div>
       </div>
+      
+      <!-- Agregar un espacio vacío para asegurar scroll adecuado -->
+      <div class="space-buffer"></div>
     </form>
   </div>
   
   <mat-divider></mat-divider>
   
-  <div mat-dialog-actions class="dialog-actions">
-    <button 
-      mat-stroked-button 
-      (click)="onCancel()"
-      [disabled]="loading"
-      class="cancel-button"
-    >
+  <!-- Botones fijos -->
+  <div class="dialog-actions fixed-footer">
+    <button mat-stroked-button (click)="onCancel()" [disabled]="loading">
       Cancelar
     </button>
-    <button 
-      mat-flat-button 
-      color="primary" 
-      [disabled]="connectionForm.invalid || loading"
-      (click)="onSave()"
-      class="save-button"
-    >
+    <button mat-flat-button color="primary" [disabled]="connectionForm.invalid || loading" (click)="onSave()">
       <mat-icon>{{ mode === 'create' ? 'add' : 'save' }}</mat-icon>
       {{ mode === 'create' ? 'Crear' : 'Actualizar' }}
-      <mat-spinner *ngIf="loading" diameter="20" class="button-spinner"></mat-spinner>
+      <mat-spinner *ngIf="loading" diameter="18" class="button-spinner"></mat-spinner>
     </button>
   </div>
 </div> 

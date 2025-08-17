@@ -1,9 +1,12 @@
-import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, Input, OnInit, Output, EventEmitter, OnDestroy, NgZone, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Subscription } from 'rxjs';
+import { MapService } from '../../.././../features/network-design/services/map.service';
+import * as L from 'leaflet';
 
 @Component({
   selector: 'app-mini-map-widget',
@@ -24,8 +27,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
         </button>
       </mat-card-header>
       <mat-card-content>
-        <div class="map-container" [style.height.px]="height">
-          <!-- Aquí se renderizaría el mapa -->
+        <div #mapContainer class="map-container" [style.height.px]="height">
           <div *ngIf="loading" class="loading-indicator">
             <mat-spinner diameter="30"></mat-spinner>
           </div>
@@ -34,11 +36,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
             <mat-icon color="warn">error</mat-icon>
             <span>{{ errorMessage }}</span>
             <button mat-button color="primary" (click)="refreshMap()">Reintentar</button>
-          </div>
-          
-          <div *ngIf="!mapLoaded && !loading && !error" class="map-placeholder">
-            <mat-icon>map</mat-icon>
-            <span>Cargando mapa...</span>
           </div>
         </div>
       </mat-card-content>
@@ -64,22 +61,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
       overflow: hidden;
     }
 
-    .map-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #9e9e9e;
-    }
-
-    .map-placeholder mat-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      margin-bottom: 8px;
-    }
-    
     .loading-indicator {
       position: absolute;
       top: 0;
@@ -90,7 +71,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
       justify-content: center;
       align-items: center;
       background-color: rgba(255, 255, 255, 0.7);
-      z-index: 1;
+      z-index: 999;
     }
     
     .error-message {
@@ -106,7 +87,9 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     }
   `]
 })
-export class MiniMapWidgetComponent implements OnInit {
+export class MiniMapWidgetComponent implements OnInit, OnDestroy {
+  @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
+  
   @Input() height = 200;
   @Input() showActions = true;
   @Input() title = 'Vista Miniatura';
@@ -115,64 +98,166 @@ export class MiniMapWidgetComponent implements OnInit {
   @Input() zoomLevel = 12;
   
   @Output() mapReady = new EventEmitter<boolean>();
-  @Output() errorOccurred = new EventEmitter<Error>();
+  @Output() errorOccurred = new EventEmitter<any>();
   @Output() mapClicked = new EventEmitter<{lat: number, lng: number}>();
-  @Output() fullMapRequested = new EventEmitter<void>();
+  @Output() fullMapRequested = new EventEmitter<{center?: L.LatLng, zoom?: number} | null>();
   
   mapLoaded = false;
   loading = false;
   error = false;
   errorMessage = 'Error al cargar el mapa.';
   
-  constructor() {}
+  private map: L.Map | null = null;
+  private mapReadySubscription: Subscription | null = null;
+  private defaultCoordinates = { lat: 19.78374989863946, lng: -70.67666561349361 }; // República Dominicana
+  
+  constructor(
+    private mapService: MapService,
+    private zone: NgZone,
+    private el: ElementRef
+  ) {}
   
   ngOnInit(): void {
     this.loadMap();
   }
   
+  ngOnDestroy(): void {
+    if (this.mapReadySubscription) {
+      this.mapReadySubscription.unsubscribe();
+    }
+    
+    // Limpiar recursos del mapa
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+  }
+  
   refreshMap(): void {
     this.mapLoaded = false;
     this.error = false;
+    
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+    
     this.loadMap();
   }
   
   openFullMap(): void {
-    // Emitir evento para informar al componente padre
-    this.fullMapRequested.emit();
+    // Guardar estado actual del mapa si existe
+    const currentState = this.map ? {
+      center: this.map.getCenter(),
+      zoom: this.map.getZoom()
+    } : null;
+    
+    // Emitir evento para informar al componente padre, incluyendo el estado del mapa
+    this.fullMapRequested.emit(currentState);
     
     // Mostrar indicación visual al usuario
     this.loading = true;
     
     // Mensaje detallado en consola para ayudar en depuración
     console.log('[MiniMapWidget] Evento fullMapRequested emitido para abrir mapa completo');
+    console.log('[MiniMapWidget] Estado actual del mapa:', currentState);
     
-    // Simular tiempo de carga
+    // Simular brevemente carga para mejor feedback visual
     setTimeout(() => {
       this.loading = false;
-    }, 500);
+    }, 300);
   }
   
   private loadMap(): void {
     this.loading = true;
     
-    // Simulación de carga del mapa
-    setTimeout(() => {
+    // Asegurarse de que el elemento contenedor existe
+    if (!this.mapContainer || !this.mapContainer.nativeElement) {
+      this.handleError(new Error('Contenedor del mapa no encontrado'));
+      return;
+    }
+    
+    // Ejecutar fuera de la zona Angular para mejor rendimiento
+    this.zone.runOutsideAngular(() => {
       try {
-        // Simulación de éxito al cargar el mapa
-        this.mapLoaded = true;
-        this.loading = false;
-        this.error = false;
-        this.mapReady.emit(true);
+        // Crear mapa Leaflet directamente
+        // Nota: No usamos MapService.initialize() aquí porque es más eficiente
+        // crear una instancia simple directamente para el mini-mapa
+        const container = this.mapContainer.nativeElement;
+        const coords = this.centerCoordinates || this.defaultCoordinates;
         
-        // Si se hubiera implementado un mapa real, se inicializaría aquí
-        // Por ejemplo, utilizando Leaflet o Google Maps
+        // Crear el mapa
+        this.map = L.map(container, {
+          center: [coords.lat, coords.lng],
+          zoom: this.zoomLevel,
+          zoomControl: false,
+          attributionControl: false,
+          dragging: true,
+          scrollWheelZoom: false, // Desactivar zoom con rueda para mini-mapa
+          doubleClickZoom: false
+        });
+        
+        // Añadir capa base (simplificada para el mini-mapa)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          minZoom: 3,
+          maxZoom: 18
+        }).addTo(this.map);
+        
+        // Añadir marcador en la ubicación actual (siempre mostrar un marcador)
+        const marker = L.marker([coords.lat, coords.lng], {
+          title: 'Ubicación actual',
+          alt: 'Marcador de ubicación'
+        }).addTo(this.map);
+        
+        // Añadir un pequeño popup con información
+        marker.bindPopup(`
+          <strong>Coordenadas</strong><br>
+          Lat: ${coords.lat.toFixed(6)}<br>
+          Lng: ${coords.lng.toFixed(6)}
+        `).openPopup();
+        
+        // Configurar eventos
+        this.setupMapEvents();
+        
+        // Volver a la zona Angular para actualizar estado
+        this.zone.run(() => {
+          this.mapLoaded = true;
+          this.loading = false;
+          this.error = false;
+          this.mapReady.emit(true);
+        });
       } catch (error) {
-        this.handleError(error);
+        // Volver a la zona Angular para manejar el error
+        this.zone.run(() => {
+          this.handleError(error);
+        });
       }
-    }, 1500);
+    });
+  }
+  
+  private setupMapEvents(): void {
+    if (!this.map) return;
+    
+    // Evento de clic en el mapa
+    this.map.on('click', (e: L.LeafletMouseEvent) => {
+      this.zone.run(() => {
+        this.mapClicked.emit({
+          lat: e.latlng.lat,
+          lng: e.latlng.lng
+        });
+      });
+    });
+    
+    // Invalidar tamaño para asegurar renderizado correcto
+    setTimeout(() => {
+      if (this.map) {
+        this.map.invalidateSize();
+      }
+    }, 100);
   }
   
   private handleError(error: any): void {
+    console.error('[MiniMapWidget] Error al cargar el mapa:', error);
     this.loading = false;
     this.error = true;
     this.mapLoaded = false;

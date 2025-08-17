@@ -5,44 +5,61 @@ import {
   MonitoringData, 
   ElementType, 
   ElementStatus, 
-  GeographicPosition, 
-  OLT, 
-  Splitter, 
-  ONT, 
   PONStandard, 
   SplitterType, 
   SplitterOutputType, 
-  Accessibility, 
-  FiberType, 
-  FiberThread, 
-  FiberStrand, 
   StrandColor,
   CableType,
   ConnectorType,
   SpliceType,
-  NetworkCapacity,
+  NetworkAlert
+} from '../../../shared/types/network.types';
+import { GeographicPosition } from '../../../shared/types/geo-position';
+import { OLT, Splitter, ONT, FiberThread, FiberStrand } from '../../../shared/types/network-elements';
+import {
   QoSProfile,
   AlarmThreshold,
-  MaintenanceRecord,
   SLATerms,
   CustomerService,
   OpticalMeasurements,
   RedundancyConfig,
   NetworkDocumentation,
-  NetworkAlert
-} from '../../../shared/types/network.types';
+  MaintenanceRecord,
+  NetworkCapacity,
+  Accessibility
+} from '../../../shared/types/network-aux.types';
 
+/**
+ * Servicio local para la gestión y simulación de elementos de red y datos de monitoreo.
+ * Proporciona datos de ejemplo y operaciones CRUD en memoria para elementos de red,
+ * así como generación de datos de monitoreo simulados.
+ * Utilizado principalmente para pruebas, desarrollo y prototipado sin backend real.
+ */
 @Injectable({
   providedIn: 'root'
 })
+/**
+ * Servicio que gestiona elementos de red y datos de monitoreo de forma local (en memoria).
+ */
 export class NetworkLocalService {
+  /**
+   * Lista de elementos de red simulados.
+   */
   private elements: NetworkElement[] = [];
+  /**
+   * Lista de hilos de fibra simulados.
+   */
   private fiberStrands: FiberStrand[] = [];
 
   constructor() {
     this.initializeLocalData();
   }
 
+  /**
+   * Inicializa los datos locales de ejemplo para elementos de red, hilos de fibra,
+   * perfiles QoS, umbrales de alarma, términos SLA, servicios de cliente, mediciones ópticas,
+   * configuración de redundancia y documentación de red.
+   */
   private initializeLocalData(): void {
     // Crear perfiles QoS
     const qosProfiles: QoSProfile[] = [
@@ -257,415 +274,62 @@ export class NetworkLocalService {
     this.elements = [
       {
         id: '1',
-        code: 'OLT-001',
         name: 'OLT Principal',
         type: ElementType.OLT,
         status: ElementStatus.ACTIVE,
-        position: { 
-          coordinates: [-99.1332, 19.4326],
-          lat: 19.4326,
-          lng: -99.1332
-        },
+        position: { coordinates: [-99.1332, 19.4326], lat: 19.4326, lng: -99.1332 },
         description: 'OLT principal del centro de datos',
-        model: 'ZXA10 C320',
-        manufacturer: 'ZTE',
-        portCount: 16,
-        slotCount: 4,
-        ponPorts: 16,
-        distributionPorts: 4,
-        uplinkPorts: 4,
-        supportedPONStandards: [PONStandard.GPON, PONStandard.XGS_PON],
-        accessibility: {
-          needsPermission: true,
-          isLocked: true,
-          hasRestrictedAccess: true,
-          accessNotes: 'Acceso solo para personal autorizado'
-        },
-        networkCapacity: {
-          totalBandwidth: 100000,
-          usedBandwidth: 45000,
-          availableBandwidth: 55000,
-          maxSubscribers: 1000,
-          currentSubscribers: 450
-        },
-        qosProfiles: qosProfiles,
-        alarmThresholds: alarmThresholds,
-        performanceHistory: {
-          bandwidth: [],
-          latency: [],
-          packetLoss: [],
-          temperature: [],
-          power: [],
-          signalStrength: [],
-          errorRate: []
-        },
-        redundancy: redundancyConfig,
-        maintenanceHistory: [
-          {
-            id: 'MNT-002',
-            date: new Date('2024-01-15'),
-            type: 'preventive',
-            description: 'Mantenimiento preventivo trimestral',
-            technician: 'Juan Pérez',
-            technicianId: 'TECH-001',
-            cost: 1000,
-            parts: [
-              {
-                id: 'PART-002',
-                name: 'Ventilador de repuesto',
-                quantity: 1,
-                cost: 200
-              }
-            ],
-            beforeMetrics: {
-              signalStrength: -15, // Valor típico para OLT
-              attenuation: 0.2,
-              temperature: 35
-            },
-            afterMetrics: {
-              signalStrength: -14, // Mejora típica después de mantenimiento
-              attenuation: 0.15,
-              temperature: 30
-            },
-            photos: ['photo3.jpg', 'photo4.jpg'],
-            notes: 'Mantenimiento realizado según plan'
-          }
-        ],
-        documentation: networkDocumentation,
-        technicalSpecs: {
-          firmwareVersion: 'V2.1.0',
-          hardwareVersion: 'HW1.0',
-          maxPowerConsumption: 500,
-          operatingTemperature: {
-            min: 0,
-            max: 45,
-            optimal: 25
-          },
-          humidityRange: {
-            min: 10,
-            max: 90
-          },
-          rackUnits: 4,
-          weight: 15
-        },
-        security: {
-          accessControl: true,
-          authentication: ['password', 'certificate'],
-          encryption: ['AES-256'],
-          lastSecurityAudit: new Date('2024-01-15'),
-          securityVulnerabilities: [
-            {
-              id: 'VULN-001',
-              severity: 'low',
-              description: 'Versión de firmware desactualizada',
-              status: 'resolved',
-              resolutionDate: new Date('2024-01-20')
-            }
-          ]
-        },
-        powerSupply: {
-          primary: true,
-          backup: true,
-          batteryStatus: 100,
-          lastMaintenance: new Date('2024-01-15')
-        },
         createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-03-15')
-      } as OLT,
+        updatedAt: new Date('2024-03-15'),
+        properties: {
+          code: 'OLT-001',
+          model: 'ZXA10 C320',
+          manufacturer: 'ZTE',
+          portCount: 16
+        }
+      },
       {
         id: '2',
-        code: 'SPL-001',
         name: 'Splitter Principal',
         type: ElementType.SPLITTER,
         status: ElementStatus.ACTIVE,
-        position: { coordinates: [-99.1333, 19.4327] },
+        position: { coordinates: [-99.1333, 19.4327], lat: 19.4327, lng: -99.1333 },
         description: 'Splitter 1:32 para distribución',
-        splitterType: SplitterType.DISTRIBUTION,
-        splitRatio: '1:32',
-        insertionLossDb: 15.5, // Pérdida típica para splitter 1:32
-        level: 1,
-        totalPorts: 32,
-        usedPorts: 16,
-        supportedPONStandards: [PONStandard.GPON, PONStandard.XGS_PON],
-        wavelengthRangeSupport: {
-          min: 1260,
-          max: 1650,
-          optimizedFor: [1310, 1490, 1550]
-        },
-        outputType: SplitterOutputType.BALANCED,
-        accessibility: {
-          needsPermission: true,
-          isLocked: true,
-          hasRestrictedAccess: true,
-          accessNotes: 'Acceso solo para personal autorizado'
-        },
-        physicalLocation: {
-          building: 'Centro de Datos Principal',
-          room: 'Sala de Equipos',
-          rack: 'Rack-01',
-          position: 'U-23'
-        },
-        maintenanceHistory: [
-          {
-            id: 'MNT-003',
-            date: new Date('2024-01-15'),
-            type: 'preventive',
-            description: 'Mantenimiento preventivo trimestral',
-            technician: 'Juan Pérez',
-            technicianId: 'TECH-001',
-            cost: 300,
-            parts: [
-              {
-                id: 'PART-003',
-                name: 'Conector SC',
-                quantity: 4,
-                cost: 100
-              }
-            ],
-            beforeMetrics: {
-              signalStrength: -20, // Valor típico para splitter
-              attenuation: 0.2,
-              temperature: 25
-            },
-            afterMetrics: {
-              signalStrength: -19, // Mejora típica después de mantenimiento
-              attenuation: 0.15,
-              temperature: 24
-            },
-            photos: ['photo5.jpg', 'photo6.jpg'],
-            notes: 'Mantenimiento realizado según plan'
-          }
-        ],
-        documentation: networkDocumentation,
-        technicalSpecs: {
-          insertionLoss: 15.5,
-          returnLoss: 50,
-          directivity: 55,
-          uniformity: 0.5,
-          polarizationDependentLoss: 0.1,
-          operatingTemperature: {
-            min: -40,
-            max: 85
-          },
-          humidityRange: {
-            min: 0,
-            max: 95
-          }
-        },
-        qualityMetrics: {
-          lastTestDate: new Date('2024-02-15'),
-          testResults: [
-            {
-              portNumber: 1,
-              insertionLoss: 15.5,
-              returnLoss: 50,
-              uniformity: 0.5
-            }
-          ],
-          testEquipment: 'OTDR EXFO FTB-200',
-          testTechnician: 'Carlos Rodríguez'
-        },
         createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-03-15')
-      } as Splitter,
+        updatedAt: new Date('2024-03-15'),
+        properties: {
+          splitRatio: '1:32',
+          insertionLossDb: 15.5
+        }
+      },
       {
         id: '3',
-        code: 'ONT-001',
         name: 'ONT Cliente 1',
         type: ElementType.ONT,
         status: ElementStatus.ACTIVE,
-        position: { coordinates: [-99.1334, 19.4328] },
+        position: { coordinates: [-99.1334, 19.4328], lat: 19.4328, lng: -99.1334 },
         description: 'ONT para cliente residencial',
-        serialNumber: 'ONT123456',
-        model: 'ZXHN F670',
-        manufacturer: 'ZTE',
-        ponStandard: PONStandard.GPON,
-        bandwidth: {
-          downstreamCapacity: 2.5, // Capacidad típica para GPON
-          upstreamCapacity: 1.25
-        },
-        accessibility: {
-          needsPermission: false,
-          isLocked: false,
-          hasRestrictedAccess: false,
-          accessNotes: 'Acceso para el cliente'
-        },
-        customerService: customerService,
-        maintenanceHistory: [
-          {
-            id: 'MNT-004',
-            date: new Date('2024-01-15'),
-            type: 'preventive',
-            description: 'Mantenimiento preventivo trimestral',
-            technician: 'Juan Pérez',
-            technicianId: 'TECH-001',
-            cost: 200,
-            parts: [
-              {
-                id: 'PART-004',
-                name: 'Conector SC',
-                quantity: 1,
-                cost: 25
-              }
-            ],
-            beforeMetrics: {
-              signalStrength: -25, // Valor típico para ONT
-              attenuation: 0.2,
-              temperature: 25
-            },
-            afterMetrics: {
-              signalStrength: -24, // Mejora típica después de mantenimiento
-              attenuation: 0.15,
-              temperature: 24
-            },
-            photos: ['photo7.jpg', 'photo8.jpg'],
-            notes: 'Mantenimiento realizado según plan'
-          }
-        ],
-        documentation: networkDocumentation,
-        technicalSpecs: {
-          firmwareVersion: 'V1.2.0',
-          hardwareVersion: 'HW1.0',
-          maxPowerConsumption: 12,
-          operatingTemperature: {
-            min: 0,
-            max: 40
-          },
-          humidityRange: {
-            min: 10,
-            max: 90
-          },
-          dimensions: {
-            width: 100,
-            height: 100,
-            depth: 30
-          },
-          weight: 0.5
-        },
-        qualityMetrics: {
-          signalStrength: -24,
-          transmitPower: -1,
-          receivePower: -20,
-          lastTestDate: new Date('2024-02-15'),
-          testEquipment: 'OTDR EXFO FTB-200',
-          testTechnician: 'Carlos Rodríguez'
-        },
         createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-03-15')
-      } as ONT,
+        updatedAt: new Date('2024-03-15'),
+        properties: {
+          serialNumber: 'ONT123456',
+          manufacturer: 'ZTE'
+        }
+      },
       {
         id: '4',
-        code: 'FIB-001',
         name: 'Hilo de Fibra Principal',
         type: ElementType.FIBER_THREAD,
         status: ElementStatus.ACTIVE,
-        position: { coordinates: [-99.1335, 19.4329] },
+        position: { coordinates: [-99.1335, 19.4329], lat: 19.4329, lng: -99.1335 },
         description: 'Hilo de fibra principal entre OLT y Splitter',
-        fiberType: FiberType.SINGLE_MODE,
-        length: 500,
-        attenuationDb: 0.2, // Pérdida típica para fibra monomodo
-        sourceElementId: '1',
-        targetElementId: '2',
-        route: [
-          { coordinates: [-99.1332, 19.4326] },
-          { coordinates: [-99.1333, 19.4327] }
-        ],
-        installationDate: new Date('2024-01-01'),
-        accessibility: {
-          needsPermission: true,
-          isLocked: true,
-          hasRestrictedAccess: true,
-          accessNotes: 'Acceso solo para personal autorizado'
-        },
-        cableType: CableType.UNDERGROUND,
-        splices: [
-          {
-            id: 'SPL-001',
-            type: SpliceType.FUSION,
-            location: { coordinates: [-99.13325, 19.43265] },
-            loss: 0.1, // Pérdida típica para empalme de fusión
-            date: new Date('2024-01-01'),
-            technician: 'Carlos Rodríguez'
-          }
-        ],
-        connectors: [
-          {
-            id: 'CON-001',
-            type: ConnectorType.SC,
-            location: { coordinates: [-99.1332, 19.4326] },
-            loss: 0.2, // Pérdida típica para conector SC
-            installationDate: new Date('2024-01-01'),
-            lastCleaningDate: new Date('2024-02-15')
-          },
-          {
-            id: 'CON-002',
-            type: ConnectorType.SC,
-            location: { coordinates: [-99.1333, 19.4327] },
-            loss: 0.2, // Pérdida típica para conector SC
-            installationDate: new Date('2024-01-01'),
-            lastCleaningDate: new Date('2024-02-15')
-          }
-        ],
-        maxDistance: 1000,
-        currentDistance: 500,
-        bendRadius: 30,
-        tensileStrength: 100,
-        environmentalRating: 'IP67',
-        maintenanceHistory: [
-          {
-            id: 'MNT-005',
-            date: new Date('2024-01-15'),
-            type: 'preventive',
-            description: 'Mantenimiento preventivo trimestral',
-            technician: 'Juan Pérez',
-            technicianId: 'TECH-001',
-            cost: 300,
-            parts: [
-              {
-                id: 'PART-005',
-                name: 'Conector SC',
-                quantity: 2,
-                cost: 50
-              }
-            ],
-            beforeMetrics: {
-              signalStrength: -20,
-              attenuation: 0.2,
-              temperature: 25
-            },
-            afterMetrics: {
-              signalStrength: -19,
-              attenuation: 0.15,
-              temperature: 24
-            },
-            photos: ['photo9.jpg', 'photo10.jpg'],
-            notes: 'Mantenimiento realizado según plan'
-          }
-        ],
-        opticalMeasurements: opticalMeasurements,
-        redundancy: redundancyConfig,
-        documentation: networkDocumentation,
-        physicalProperties: {
-          bendRadius: 30,
-          tensileStrength: 100,
-          environmentalRating: 'IP67',
-          jacketType: 'LSZH',
-          installationType: 'underground',
-          maxDistance: 1000,
-          currentDistance: 500
-        },
-        qualityMetrics: {
-          otdrTrace: 'traces/otdr_trace_001.pdf',
-          insertionLoss: 0.2,
-          returnLoss: 50,
-          endToEndLoss: 0.4,
-          lastTestDate: new Date('2024-02-15'),
-          testEquipment: 'OTDR EXFO FTB-200',
-          testTechnician: 'Carlos Rodríguez'
-        },
         createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-03-15')
-      } as FiberThread
+        updatedAt: new Date('2024-03-15'),
+        properties: {
+          fiberType: 'SINGLE_MODE',
+          length: 500
+        }
+      }
     ];
 
     // Crear algunos hilos de fibra de ejemplo
@@ -675,7 +339,7 @@ export class NetworkLocalService {
         cableId: 'CAB-001',
         strandNumber: 1,
         color: StrandColor.BLUE,
-        type: FiberType.SINGLE_MODE,
+        type: ElementType.FIBER_STRAND,
         status: ElementStatus.ACTIVE,
         length: 500,
         attenuation: 0.2,
@@ -686,15 +350,29 @@ export class NetworkLocalService {
     ];
   }
 
+  /**
+   * Obtiene la lista de elementos de red simulados.
+   * @returns Observable con el arreglo de elementos de red.
+   */
   getNetworkElements(): Observable<NetworkElement[]> {
     return of(this.elements);
   }
 
+  /**
+   * Busca un elemento de red por su ID.
+   * @param id ID del elemento a buscar.
+   * @returns Observable con el elemento encontrado o null si no existe.
+   */
   getElement(id: string): Observable<NetworkElement | null> {
     const element = this.elements.find(e => e.id === id);
     return of(element || null);
   }
 
+  /**
+   * Guarda (crea o actualiza) un elemento de red en la lista local.
+   * @param element Elemento de red a guardar.
+   * @returns Observable con el elemento guardado (nuevo o actualizado).
+   */
   saveElement(element: NetworkElement): Observable<NetworkElement> {
     if (element.id) {
       // Actualizar elemento existente
@@ -716,6 +394,11 @@ export class NetworkLocalService {
     return of(newElement);
   }
 
+  /**
+   * Elimina un elemento de red por su ID.
+   * @param id ID del elemento a eliminar.
+   * @returns Observable con true si se eliminó, false si no se encontró.
+   */
   deleteElement(id: string): Observable<boolean> {
     const index = this.elements.findIndex(e => e.id === id);
     if (index !== -1) {
@@ -725,6 +408,12 @@ export class NetworkLocalService {
     return of(false);
   }
 
+  /**
+   * Genera y obtiene datos de monitoreo simulados para un elemento de red.
+   * Incluye métricas y posibles alertas según los valores generados.
+   * @param elementId ID del elemento de red.
+   * @returns Observable con los datos de monitoreo generados.
+   */
   getMonitoringData(elementId: string): Observable<MonitoringData> {
     const element = this.elements.find(e => e.id === elementId);
     if (!element) {
@@ -776,11 +465,12 @@ export class NetworkLocalService {
         elementId,
         elementType: element.type,
         deviceType: 'general',
-        severity: 'warning',
+        severity: 'MEDIUM',
         title: 'Alto uso de ancho de banda',
         message: 'El uso de ancho de banda excede el 80% de la capacidad',
         timestamp: new Date(),
-        resolved: false
+        resolved: false,
+        acknowledged: false
       });
     }
     if (baseMetrics.temperature > 35) {
@@ -789,11 +479,12 @@ export class NetworkLocalService {
         elementId,
         elementType: element.type,
         deviceType: 'general',
-        severity: 'critical',
+        severity: 'CRITICAL',
         title: 'Temperatura elevada',
         message: 'La temperatura del dispositivo es superior a 35°C',
         timestamp: new Date(),
-        resolved: false
+        resolved: false,
+        acknowledged: false
       });
     }
 

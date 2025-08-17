@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ElementService } from './element.service';
-import { NetworkElement, ElementType, ElementStatus, FDP, OLT, ONT, EDFA, Splitter, Manga } from '../../../shared/types/network.types';
+import { NetworkElement, ElementType, ElementStatus } from '../../../shared/types/network.types';
+import { createGeographicPosition } from '../../../shared/types/geo-position';
 
 describe('ElementService', () => {
   let service: ElementService;
@@ -60,7 +61,7 @@ describe('ElementService', () => {
         name: 'Test Element',
         type: ElementType.OLT,
         status: ElementStatus.ACTIVE,
-        position: { coordinates: [0, 0], lat: 0, lng: 0 }
+        position: createGeographicPosition(0, 0)
       };
       
       // Usar una propiedad opcional que podría ser undefined

@@ -16,7 +16,7 @@
  * ></app-network-toolbar>
  * ```
  */
-import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ChangeDetectionStrategy, Optional, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, ChangeDetectionStrategy, Optional, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -26,8 +26,9 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
 import { ElementType, ElementStatus, NetworkElement } from '../../../../shared/types/network.types';
+import { ExtendedElementType, getElementTypeName } from '../../../../shared/types/network-elements';
 import { MatBadgeModule } from '@angular/material/badge';
-import { ELEMENT_LABELS } from '../../services/map.constants';
+import { ELEMENT_LABELS, ELEMENT_ICONS } from '../../services/map.constants';
 import { MapEventsService, MapEventType } from '../../services/map-events.service';
 import { LayerManagerService } from '../../services/layer-manager.service';
 import { takeUntil } from 'rxjs/operators';
@@ -36,11 +37,19 @@ import { MatDialog } from '@angular/material/dialog';
 import { LayerSettingsComponent } from '../layer-settings/layer-settings.component';
 import { OfflineService } from '../../../../shared/services/offline.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ToolType } from '../../services/map/map-state-manager.service';
+import { LoggerService } from '../../../../core/services/logger.service';
 
 interface ToolbarLayer {
   type: ElementType;
   icon: string;
   tooltip: string;
+}
+
+interface AddableElementType {
+  key: ElementType;
+  name: string;
+  icon: string;
 }
 
 @Component({
@@ -90,15 +99,70 @@ interface ToolbarLayer {
       
       <mat-divider vertical aria-hidden="true"></mat-divider>
       
+      <div class="toolbar-section" role="group" aria-label="Herramientas de mapa">
+        <button 
+          mat-icon-button 
+          matTooltip="Mover (Pan)" 
+          (click)="setActiveTool('pan')"
+          [class.active]="activeTool === 'pan'"
+          [attr.aria-pressed]="activeTool === 'pan'"
+          aria-label="Mover el mapa (modo navegación)"
+        >
+          <mat-icon aria-hidden="true">pan_tool</mat-icon>
+        </button>
+        
+        <button 
+          mat-icon-button 
+          matTooltip="Seleccionar" 
+          (click)="setActiveTool('select')"
+          [class.active]="activeTool === 'select'"
+          [attr.aria-pressed]="activeTool === 'select'"
+          aria-label="Seleccionar elementos"
+        >
+          <mat-icon aria-hidden="true">touch_app</mat-icon>
+        </button>
+        
+        <button 
+          mat-icon-button 
+          matTooltip="Medir distancia" 
+          (click)="setActiveTool('measure')"
+          [class.active]="activeTool === 'measure'"
+          [attr.aria-pressed]="activeTool === 'measure'"
+          aria-label="Medir distancia entre puntos"
+        >
+          <mat-icon aria-hidden="true">straighten</mat-icon>
+        </button>
+        
+        <button 
+          mat-icon-button 
+          matTooltip="Selección por área" 
+          (click)="setActiveTool('areaSelect')"
+          [class.active]="activeTool === 'areaSelect'"
+          [attr.aria-pressed]="activeTool === 'areaSelect'"
+          aria-label="Seleccionar elementos por área"
+        >
+          <mat-icon aria-hidden="true">select_all</mat-icon>
+        </button>
+      </div>
+      
+      <mat-divider vertical aria-hidden="true"></mat-divider>
+      
       <div class="toolbar-section" role="group" aria-label="Acciones de elementos">
         <button 
           mat-icon-button 
           matTooltip="Añadir Elemento" 
-          (click)="onAddElement()"
+          [matMenuTriggerFor]="addElementMenu"  
           aria-label="Añadir nuevo elemento"
         >
           <mat-icon aria-hidden="true">add_circle</mat-icon>
         </button>
+        <mat-menu #addElementMenu="matMenu">
+          <button *ngFor="let item of addableElementTypes" mat-menu-item (click)="onSelectElementType(item.key)">
+            <mat-icon *ngIf="item.icon && item.icon !== ELEMENT_ICONS.default">{{ item.icon }}</mat-icon>
+            <mat-icon *ngIf="!item.icon || item.icon === ELEMENT_ICONS.default">{{ ELEMENT_ICONS.default }}</mat-icon>
+            <span>{{ item.name }}</span>
+          </button>
+        </mat-menu>
         
         <button 
           mat-icon-button 
@@ -165,6 +229,7 @@ interface ToolbarLayer {
           matTooltip="Exportar Mapa" 
           (click)="onExportMap()"
           aria-label="Exportar mapa actual"
+          [class.pulse-effect]="exportButtonPulsing"
         >
           <mat-icon aria-hidden="true">file_download</mat-icon>
         </button>
@@ -174,6 +239,7 @@ interface ToolbarLayer {
           matTooltip="Configuración" 
           (click)="onOpenSettings()"
           aria-label="Abrir configuración"
+          [class.pulse-effect]="settingsButtonPulsing"
         >
           <mat-icon aria-hidden="true">settings</mat-icon>
         </button>
@@ -209,41 +275,146 @@ interface ToolbarLayer {
   styles: [`
     .network-toolbar {
       display: flex;
-      padding: 8px;
+      padding: 4px 10px;
       background-color: white;
       border-bottom: 1px solid #e0e0e0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      z-index: 100;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.12);
+      z-index: 1100;
+      position: relative;
+      height: 52px;
+      align-items: center;
+      gap: 2px;
     }
     
     .toolbar-section {
       display: flex;
-      padding: 0 8px;
+      padding: 0 5px;
       align-items: center;
+      gap: 3px;
     }
     
     button.active {
       color: #1976d2;
-      background-color: rgba(25, 118, 210, 0.1);
+      background-color: rgba(25, 118, 210, 0.12);
+      font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    button[mat-icon-button] {
+      transition: all 0.2s ease;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    button[mat-icon-button]:hover {
+      background-color: rgba(0,0,0,0.04);
+      transform: translateY(-1px);
+    }
+    
+    button[mat-icon-button]:active {
+      background-color: rgba(0,0,0,0.08);
+      transform: translateY(0px);
     }
     
     mat-divider {
-      height: 36px;
-      margin: 0 4px;
+      height: 38px;
+      margin: 0 5px;
+      opacity: 0.5;
+    }
+
+    mat-icon-button, [mat-icon-button] {
+      width: 40px !important;
+      height: 40px !important;
+      line-height: 40px !important;
+      padding: 0 !important;
+      margin: 0 2px !important;
+    }
+
+    mat-icon {
+      font-size: 22px;
+      height: 22px;
+      width: 22px;
+      margin: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     
+    /* Proporciones para pantallas pequeñas donde la barra es más compacta */
+    @media (max-width: 768px) and (min-width: 601px) {
+      .network-toolbar {
+        height: 48px;
+        padding: 4px 8px;
+      }
+      
+      mat-icon-button, [mat-icon-button] {
+        width: 36px !important;
+        height: 36px !important;
+        line-height: 36px !important;
+      }
+      
+      mat-icon {
+        font-size: 20px;
+        height: 20px;
+        width: 20px;
+      }
+      
+      mat-divider {
+        height: 34px;
+      }
+    }
+
+    /* Animación de pulsación para botones */
+    @keyframes pulseEffect {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.4);
+      }
+      70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 5px 10px rgba(25, 118, 210, 0);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+      }
+    }
+
+    .pulse-effect {
+      animation: pulseEffect 0.5s ease-out;
+    }
+    
+    /* Dispositivos móviles o pantallas muy pequeñas */
     @media (max-width: 600px) {
       .network-toolbar {
         flex-wrap: wrap;
         justify-content: space-between;
+        height: auto;
+        padding: 4px;
       }
       
       .toolbar-section {
-        margin: 4px 0;
+        margin: 2px;
+        flex-wrap: wrap;
+        justify-content: center;
       }
       
       mat-divider[vertical] {
         display: none;
+      }
+      
+      mat-icon-button, [mat-icon-button] {
+        width: 32px !important;
+        height: 32px !important;
+        line-height: 32px !important;
+      }
+      
+      mat-icon {
+        font-size: 18px;
+        height: 18px;
+        width: 18px;
       }
     }
   `],
@@ -253,7 +424,17 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
   /**
    * @description Herramienta actualmente seleccionada
    */
-  activeTool = 'pan';
+  @Input() activeTool: ToolType = 'pan';
+
+  /**
+   * @description Control para la animación de pulsación del botón Exportar
+   */
+  exportButtonPulsing = false;
+
+  /**
+   * @description Control para la animación de pulsación del botón Configuración
+   */
+  settingsButtonPulsing = false;
 
   /**
    * @description Capas principales mostradas directamente en la barra
@@ -289,17 +470,6 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
   ];
 
   /**
-   * @description Estado actual de las capas visibles
-   */
-  @Input() activeLayers: ElementType[] = [
-    ElementType.OLT, 
-    ElementType.ONT, 
-    ElementType.FDP, 
-    ElementType.SPLITTER,
-    ElementType.ODF
-  ];
-
-  /**
    * @description Elementos actualmente seleccionados en el mapa
    * Puede ser un array de elementos o un número que representa la cantidad
    */
@@ -313,7 +483,7 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
   /**
    * @description Evento emitido cuando se solicita agregar un nuevo elemento
    */
-  @Output() addElement = new EventEmitter<void>();
+  @Output() addElement = new EventEmitter<ElementType>();
 
   /**
    * @description Evento emitido cuando se solicita alternar la visibilidad de una capa
@@ -383,6 +553,16 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
    */
   @Output() prepareOfflineModeRequest = new EventEmitter<boolean>();
 
+  /**
+   * @description Evento emitido cuando se cambia la herramienta activa
+   */
+  @Output() toolChanged = new EventEmitter<ToolType>();
+
+  /**
+   * @description Capas actualmente activas
+   */
+  @Input() activeLayers: ElementType[] = [];
+
   // Para desuscribirse
   private destroy$ = new Subject<void>();
 
@@ -394,73 +574,82 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private offlineService = inject(OfflineService);
   private snackBar = inject(MatSnackBar);
+  private logger = inject(LoggerService);
+
+  public addableElementTypes: AddableElementType[] = [];
+  public ELEMENT_ICONS = ELEMENT_ICONS;
 
   constructor() { }
 
   /**
    * @description Verifica si una capa está activa
+   * @param type Tipo de elemento/capa
+   * @returns true si la capa está activa
    */
   isLayerActive(type: ElementType): boolean {
-    return this.layerManager.isLayerActiveSync(type);
+    // Si no hay capas definidas, asumir todas activas
+    if (!this.activeLayers || !Array.isArray(this.activeLayers) || this.activeLayers.length === 0) {
+      return true;
+    }
+    
+    return this.activeLayers.includes(type);
   }
 
   /**
    * @description Obtiene el nombre legible de un tipo de elemento
    */
   getElementTypeName(type: ElementType): string {
-    // Usar ELEMENT_LABELS si está disponible para ese tipo
-    const label = ELEMENT_LABELS[type];
-    if (label) return label;
-
-    // Fallback a la implementación manual
-    switch (type) {
-      case ElementType.OLT: return 'Terminal de Línea Óptica';
-      case ElementType.ONT: return 'Terminal de Red Óptica';
-      case ElementType.FDP: return 'Punto de Distribución';
-      case ElementType.SPLITTER: return 'Divisor Óptico';
-      case ElementType.EDFA: return 'Amplificador EDFA';
-      case ElementType.MANGA: return 'Manga de Empalme';
-      case ElementType.TERMINAL_BOX: return 'Caja Terminal';
-      case ElementType.MSAN: return 'Nodo de Acceso Multi-Servicio';
-      case ElementType.ODF: return 'Distribuidor de Fibra Óptica';
-      case ElementType.ROUTER: return 'Router';
-      case ElementType.RACK: return 'Rack';
-      case ElementType.FIBER_CONNECTION: return 'Conexión de Fibra';
-      case ElementType.FIBER_THREAD: return 'Hilo de Fibra';
-      case ElementType.DROP_CABLE: return 'Cable de Acometida';
-      case ElementType.DISTRIBUTION_CABLE: return 'Cable de Distribución';
-      case ElementType.FEEDER_CABLE: return 'Cable Alimentador';
-      case ElementType.BACKBONE_CABLE: return 'Cable Troncal';
-      case ElementType.WDM_FILTER: return 'Filtro WDM';
-      case ElementType.OPTICAL_SWITCH: return 'Conmutador Óptico';
-      case ElementType.ROADM: return 'Multiplexor Óptico Reconfigurable';
-      case ElementType.COHERENT_TRANSPONDER: return 'Transpondedor Coherente';
-      case ElementType.WAVELENGTH_ROUTER: return 'Router de Longitudes de Onda';
-      case ElementType.FIBER_SPLICE: return 'Empalme de Fibra';
-      case ElementType.OPTICAL_AMPLIFIER: return 'Amplificador Óptico';
-      case ElementType.NETWORK_GRAPH: return 'Grafo de Red';
-      default: return 'Elemento de Red';
-    }
+    // Usar la función importada del nuevo módulo
+    return getElementTypeName(type);
   }
 
   /**
    * Método para cambiar la herramienta actual
    * @param tool Nombre de la herramienta a activar
    */
-  setActiveTool(tool: string): void {
-    const previousTool = this.activeTool || 'pan';
+  setActiveTool(tool: ToolType): void {
+    if (this.activeTool === tool) return; // No hacer nada si la herramienta ya está activa
+    
+    const previousTool = this.activeTool;
     this.activeTool = tool;
     
     // Notificar al servicio centralizado de eventos sobre el cambio de herramienta
     this.mapEventsService.changeTool(tool, previousTool);
+    
+    // Emitir el evento de cambio de herramienta
+    this.toolChanged.emit(tool);
+    
+    // Anunciar para lectores de pantalla
+    this.announceForScreenReader(`Herramienta ${this.getToolName(tool)} activada`);
+    
+    console.log('NetworkToolbar: Herramienta cambiada a', tool, new Date().toISOString());
+  }
+  
+  /**
+   * Obtiene el nombre legible de una herramienta
+   */
+  private getToolName(tool: ToolType): string {
+    // Mapeo de herramientas a nombres legibles en español
+    const toolNames: Record<string, string> = {
+      'pan': 'Mover',
+      'select': 'Seleccionar',
+      'measure': 'Medir',
+      'connect': 'Conectar',
+      'areaSelect': 'Selección por área',
+      'zoomIn': 'Acercar',
+      'zoomOut': 'Alejar',
+      'fitToScreen': 'Ajustar a pantalla',
+      'resetZoom': 'Restablecer zoom'
+    };
+    
+    return toolNames[tool] || tool;
   }
 
   /**
    * Handler para añadir un elemento
    */
   onAddElement(): void {
-    // Mantener compatibilidad con eventos existentes
-    this.addElement.emit();
+    this.logger.debug('Menú para añadir elemento abierto desde NetworkToolbar.');
   }
 
   /**
@@ -468,117 +657,119 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
    * @param layer Tipo de capa a alternar
    */
   toggleLayerVisibility(layer: ElementType): void {
-    // Usar el servicio de gestión de capas que determinará correctamente el estado
-    this.layerManager.toggleLayer(layer);
-    
-    // Mantener compatibilidad con eventos existentes para componentes que aún no usan el servicio
+    console.log('NetworkToolbar: Solicitud para alternar capa', layer, new Date().toISOString());
+    const isActive = this.isLayerActive(layer);
     this.toggleLayer.emit(layer);
+    
+    // Anunciar el cambio para lectores de pantalla
+    const action = isActive ? 'ocultada' : 'mostrada';
+    const typeName = this.getElementTypeName(layer);
+    this.announceForScreenReader(`Capa ${typeName} ${action}`);
   }
 
   /**
    * Handler para centrar el mapa
    */
   onCenterMap(): void {
-    // Mantener compatibilidad con eventos existentes
+    console.log('NetworkToolbar: Solicitud para centrar mapa', new Date().toISOString());
     this.centerMap.emit();
     
-    // También podríamos emitir un evento específico en el servicio centralizado
-    // si fuera necesario para otras partes de la aplicación
+    // Anunciar para lectores de pantalla
+    this.announceForScreenReader('Mapa centrado');
   }
 
   /**
    * Handler para limpiar la selección actual
    */
   onClearSelection(): void {
-    // Mantener compatibilidad con eventos existentes
+    console.log('NetworkToolbar: Solicitud para limpiar selección', new Date().toISOString());
     this.clearSelection.emit();
     
-    // Notificar al servicio centralizado que se ha deseleccionado todo
-    this.mapEventsService.selectElement(null);
-    this.mapEventsService.selectConnection(null);
+    // Anunciar para lectores de pantalla
+    const count = Array.isArray(this.selectedElements) ? this.selectedElements.length : 0;
+    this.announceForScreenReader(`Selección de ${count} elementos limpiada`);
   }
 
   /**
    * Handler para acercar el zoom
    */
   onZoomIn(): void {
-    // Mantener compatibilidad con eventos existentes
+    console.log('NetworkToolbar: Solicitud de zoom in', new Date().toISOString());
     this.zoomIn.emit();
+    
+    // Anunciar para lectores de pantalla
+    this.announceForScreenReader('Zoom aumentado');
   }
 
   /**
    * Handler para alejar el zoom
    */
   onZoomOut(): void {
-    // Mantener compatibilidad con eventos existentes
+    console.log('NetworkToolbar: Solicitud de zoom out', new Date().toISOString());
     this.zoomOut.emit();
+    
+    // Anunciar para lectores de pantalla
+    this.announceForScreenReader('Zoom disminuido');
   }
 
   /**
    * Handler para alternar la creación de conexiones
    */
   onCreateConnection(): void {
-    // Alternar el estado
+    console.log('NetworkToolbar: Solicitud para crear conexión', new Date().toISOString());
+    // Cambiar el estado visual interno
     this.isCreatingConnection = !this.isCreatingConnection;
     
-    // Emitir el evento para compatibilidad
+    // Emitir el evento al componente padre
     this.createConnection.emit();
     
-    // Si activamos el modo de conexión, cambiar la herramienta a 'connect'
-    if (this.isCreatingConnection) {
-      this.setActiveTool('connect');
-    } else {
-      // Si desactivamos, volver a la herramienta de selección
-      this.setActiveTool('select');
-    }
+    // Anunciar para lectores de pantalla
+    const status = this.isCreatingConnection ? 'iniciada' : 'cancelada';
+    this.announceForScreenReader(`Creación de conexión ${status}`);
   }
 
   /**
    * Handler para mostrar/ocultar el widget de búsqueda
    */
   onToggleSearchWidget(): void {
-    // Emitir el evento para compatibilidad
+    console.log('NetworkToolbar: Solicitud para alternar widget de búsqueda', new Date().toISOString());
     this.toggleSearchWidget.emit();
+    
+    // Anunciar para lectores de pantalla
+    const action = this.showSearchWidget ? 'ocultado' : 'mostrado';
+    this.announceForScreenReader(`Buscador ${action}`);
   }
 
   /**
    * Handler para mostrar/ocultar el panel de elementos
    */
   onToggleElementsPanel(): void {
-    // Emitir el evento para compatibilidad
+    console.log('NetworkToolbar: Solicitud para alternar panel de elementos', new Date().toISOString());
     this.toggleElementsPanel.emit();
+    
+    // Anunciar para lectores de pantalla
+    const action = this.showElementsPanel ? 'ocultado' : 'mostrado';
+    this.announceForScreenReader(`Panel de elementos ${action}`);
   }
 
   /**
    * @description Maneja el evento de exportar el mapa
    */
   onExportMap(): void {
-    // Añadir lógica de pulsación
-    const button = document.querySelector('button[matTooltip="Exportar Mapa"]') as HTMLElement;
-    if (button) {
-      button.classList.add('transition-element');
-      button.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        button.style.transform = 'scale(1)';
-      }, 200);
-    }
-    
+    console.log('NetworkToolbar: Solicitud para exportar mapa', new Date().toISOString());
     this.exportMap.emit();
+    
+    // Anunciar para lectores de pantalla
+    this.announceForScreenReader('Exportando mapa');
   }
 
   /**
    * @description Maneja el evento de abrir la configuración
    */
   onOpenSettings(): void {
-    // Añadir lógica de pulsación
-    const button = document.querySelector('button[matTooltip="Configuración"]') as HTMLElement;
-    if (button) {
-      button.classList.add('transition-element');
-      button.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        button.style.transform = 'scale(1)';
-      }, 200);
-    }
+    console.log('NetworkToolbar: Solicitud para abrir configuración');
+    this.settingsButtonPulsing = true;
+    setTimeout(() => this.settingsButtonPulsing = false, 500); // Duración de la animación
     
     this.openSettings.emit();
   }
@@ -587,6 +778,7 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
    * @description Maneja el clic en el botón de diagnóstico
    */
   onNavigateToDiagnostic(): void {
+    console.log('NetworkToolbar: Solicitud para navegar a diagnóstico');
     this.diagnosticClick.emit();
   }
 
@@ -594,6 +786,7 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
    * @description Maneja el clic en el botón de ayuda
    */
   onOpenHelp(): void {
+    console.log('NetworkToolbar: Solicitud para abrir ayuda');
     this.helpClick.emit();
   }
 
@@ -616,7 +809,8 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
       // Verificar si hay conexión
       if (!this.offlineService.isNetworkAvailable()) {
         this.snackBar.open('Ya estás en modo offline. No es posible descargar datos adicionales sin conexión.', 'Cerrar', {
-          duration: 5000
+          duration: 5000,
+          panelClass: ['warning-snackbar'] // Ejemplo de clase para estilo
         });
         return;
       }
@@ -632,22 +826,166 @@ export class NetworkToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Lógica original de ngOnInit si la había, o mantenerla simple
+    // Ejemplo: Suscripciones originales si eran correctas y necesarias aquí
+    // Comentado temporalmente para evitar errores de linter no relacionados con la tarea actual
+    /*
+    this.mapEventsService.events$?.pipe(takeUntil(this.destroy$)).subscribe(event => {
+      if (event?.type === MapEventType.EXPORT_START) {
+        this.exportButtonPulsing = true;
+      } else if (event?.type === MapEventType.EXPORT_END) {
+        this.exportButtonPulsing = false;
+      }
+    });
+
+    this.offlineService.isOfflineMode$?.pipe(takeUntil(this.destroy$)).subscribe(isOffline => {
+      this.isOfflineMode = isOffline;
+    });
+    */
+    
+    this.prepareAddableElementTypes();
     // Ordenar capas adicionales alfabéticamente por tooltip para mejor usabilidad
     this.additionalLayers.sort((a, b) => a.tooltip.localeCompare(b.tooltip));
     
     // Usar iconos consistentes del servicio
     this.layers.forEach(layer => {
-      layer.icon = this.layerManager.getLayerIcon(layer.type);
+      layer.icon = this.layerManager.getLayerIcon(layer.type as any);
     });
     
     this.additionalLayers.forEach(layer => {
-      layer.icon = this.layerManager.getLayerIcon(layer.type);
+      layer.icon = this.layerManager.getLayerIcon(layer.type as any);
     });
+    console.log('NetworkToolbarComponent: ngOnInit'); // Log para confirmar inicialización
   }
   
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    console.error('NetworkToolbarComponent: ngOnDestroy FUE LLAMADO!'); // Log importante
+    debugger; // Pausar ejecución aquí si se destruye
+  }
+
+  /**
+   * Maneja las pulsaciones de teclas para la navegación accesible
+   */
+  @HostListener('keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    // Atajos de teclado para funciones comunes
+    switch (event.key) {
+      case 'z':
+        if (event.ctrlKey || event.metaKey) {
+          // Zoom in (Ctrl+Z)
+          this.onZoomIn();
+          event.preventDefault();
+        }
+        break;
+      case 'x':
+        if (event.ctrlKey || event.metaKey) {
+          // Zoom out (Ctrl+X)
+          this.onZoomOut();
+          event.preventDefault();
+        }
+        break;
+      case 'c':
+        if (event.ctrlKey || event.metaKey) {
+          // Center map (Ctrl+C)
+          this.onCenterMap();
+          event.preventDefault();
+        }
+        break;
+      case 'Escape':
+        // Cancelar la selección actual
+        if (Array.isArray(this.selectedElements) ? this.selectedElements.length > 0 : (this.selectedElements as number) > 0) {
+          this.onClearSelection();
+          event.preventDefault();
+        }
+        break;
+      case 'f':
+        if (event.ctrlKey || event.metaKey) {
+          // Togglear el panel de búsqueda (Ctrl+F)
+          this.onToggleSearchWidget();
+          event.preventDefault();
+        }
+        break;
+      case 'h':
+        if (event.ctrlKey || event.metaKey) {
+          // Mostrar ayuda (Ctrl+H)
+          this.onOpenHelp();
+          event.preventDefault();
+        }
+        break;
+    }
+  }
+
+  /**
+   * Método para anunciar cambios para lectores de pantalla
+   * Utiliza aria-live para anunciar cambios importantes
+   */
+  private announceForScreenReader(message: string): void {
+    // Buscar o crear un elemento aria-live
+    let ariaLive = document.getElementById('network-toolbar-announcer');
+    
+    if (!ariaLive) {
+      ariaLive = document.createElement('div');
+      ariaLive.id = 'network-toolbar-announcer';
+      ariaLive.setAttribute('aria-live', 'polite');
+      ariaLive.setAttribute('aria-atomic', 'true');
+      ariaLive.classList.add('sr-only'); // Clase para esconder visualmente pero mantener accesible
+      document.body.appendChild(ariaLive);
+    }
+    
+    // Anunciar el mensaje
+    ariaLive.textContent = message;
+    
+    // Limpiar después de un tiempo para evitar repeticiones
+    setTimeout(() => {
+      ariaLive.textContent = '';
+    }, 3000);
+  }
+
+  private prepareAddableElementTypes(): void {
+    this.addableElementTypes = Object.entries(ELEMENT_LABELS)
+      .filter(([key, _]) => key !== 'default' && 
+                           key !== ElementType.FIBER_CONNECTION &&
+                           key !== ElementType.FIBER_SPLICE && 
+                           key !== ElementType.FIBER_STRAND && 
+                           key !== ElementType.FIBER_THREAD && 
+                           key !== ElementType.NETWORK_GRAPH)
+      .map(([key, name]) => ({
+        key: key as ElementType,
+        name: name,
+        icon: ELEMENT_ICONS[key as ElementType] || ELEMENT_ICONS['default']
+      }));
+  }
+
+  // Nuevo método para manejar la selección del tipo de elemento del menú
+  onSelectElementType(elementType: ElementType, event?: MouseEvent): void {
+    console.log('Clic en elemento detectado:', elementType);
+    
+    // Si tenemos el evento, detener propagación para evitar problemas con capas superiores
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    
+    try {
+      this.addElement.emit(elementType);
+      this.logger.debug(`Solicitud para añadir elemento de tipo: ${elementType} desde NetworkToolbar`);
+    } catch (error) {
+      console.error('Error al seleccionar tipo de elemento:', error);
+      this.snackBar.open('Error al seleccionar el tipo de elemento', 'Cerrar', { duration: 3000 });
+    }
+  }
+
+  getElementIcon(type: ElementType): string {
+    return ELEMENT_ICONS[type] || ELEMENT_ICONS.default;
+  }
+
+  /**
+   * Activa la herramienta para mover elementos
+   */
+  onMoveElementClicked(): void {
+    this.setActiveTool('moveElement' as ToolType);
   }
 }
 

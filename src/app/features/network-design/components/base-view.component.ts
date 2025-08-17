@@ -1,4 +1,4 @@
-import { Directive, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { Subject, BehaviorSubject } from 'rxjs';
 
 /**
@@ -8,27 +8,25 @@ import { Subject, BehaviorSubject } from 'rxjs';
  * de visualización, asegurando consistencia en el manejo de estados,
  * ciclo de vida y gestión de recursos.
  */
-@Directive()
+@Component({
+  template: ''
+})
 export abstract class BaseViewComponent implements OnInit, OnDestroy {
   // Control de ciclo de vida
-  protected readonly destroy$ = new Subject<void>();
+  protected destroy$ = new Subject<void>();
   
   // Estado común
-  protected readonly loading$ = new BehaviorSubject<boolean>(false);
-  protected readonly error$ = new BehaviorSubject<string | null>(null);
+  protected loading = false;
+  protected error$ = new BehaviorSubject<string | null>(null);
+  
+  protected cdr = inject(ChangeDetectorRef);
   
   // Getters para plantilla
-  get loading(): boolean {
-    return this.loading$.value;
-  }
-  
   get error(): string | null {
     return this.error$.value;
   }
   
-  constructor(
-    protected cdr?: ChangeDetectorRef
-  ) {}
+  constructor() {}
   
   ngOnInit(): void {
     this.initializeState();
@@ -36,8 +34,10 @@ export abstract class BaseViewComponent implements OnInit, OnDestroy {
   }
   
   ngOnDestroy(): void {
-    // Implementación base segura
     this.cleanupResources();
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.error$.complete();
   }
   
   /**
@@ -49,7 +49,6 @@ export abstract class BaseViewComponent implements OnInit, OnDestroy {
     // Limpiar suscripciones para evitar memory leaks
     this.destroy$.next();
     this.destroy$.complete();
-    this.loading$.complete();
     this.error$.complete();
   }
   
@@ -67,7 +66,7 @@ export abstract class BaseViewComponent implements OnInit, OnDestroy {
    * Establece el estado de carga
    */
   protected setLoading(isLoading: boolean): void {
-    this.loading$.next(isLoading);
-    if (this.cdr) this.cdr.markForCheck();
+    this.loading = isLoading;
+    this.cdr.markForCheck();
   }
 } 

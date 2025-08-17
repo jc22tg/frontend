@@ -107,11 +107,10 @@ export class ElementClusteringService {
   private createIndividualClusters(elements: NetworkElement[]): Cluster[] {
     return elements.map(element => {
       // Extraer coordenadas del elemento
-      const x = element.position?.coordinates?.[0] || 0;
-      const y = element.position?.coordinates?.[1] || 0;
-      
+      const x = element.position?.lng || 0;
+      const y = element.position?.lat || 0;
       return {
-        id: `single-${element.id}`,
+        id: `single-${element.id ?? "unknown"}`,
         elements: [element],
         centroid: {x, y},
         radius: 15,
@@ -128,27 +127,27 @@ export class ElementClusteringService {
     const processedIds = new Set<string>();
     
     // Ordenar elementos para procesamiento estable
-    const sortedElements = [...elements].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedElements = [...elements].sort((a, b) => (a.id ?? '').localeCompare(b.id ?? ''));
     
     // Para cada elemento no procesado
     for (const element of sortedElements) {
-      if (processedIds.has(element.id)) continue;
+      if (processedIds.has(element.id ?? '')) continue;
       
       // Coordenadas del elemento
-      const elementX = element.position?.coordinates?.[0] || 0;
-      const elementY = element.position?.coordinates?.[1] || 0;
+      const elementX = element.position?.lng || 0;
+      const elementY = element.position?.lat || 0;
       
       // Iniciar nuevo cluster
       const clusterElements: NetworkElement[] = [element];
-      processedIds.add(element.id);
+      processedIds.add(element.id ?? '');
       
       // Encontrar elementos cercanos
       for (const candidate of sortedElements) {
-        if (processedIds.has(candidate.id) || candidate.id === element.id) continue;
+        if (processedIds.has(candidate.id ?? '') || candidate.id === element.id) continue;
         
         // Coordenadas del candidato
-        const candidateX = candidate.position?.coordinates?.[0] || 0;
-        const candidateY = candidate.position?.coordinates?.[1] || 0;
+        const candidateX = candidate.position?.lng || 0;
+        const candidateY = candidate.position?.lat || 0;
         
         // Calcular distancia
         const dx = elementX - candidateX;
@@ -158,7 +157,7 @@ export class ElementClusteringService {
         // Si está dentro de la distancia máxima, añadir al cluster
         if (distance <= this.options.maxDistance) {
           clusterElements.push(candidate);
-          processedIds.add(candidate.id);
+          processedIds.add(candidate.id ?? '');
           
           // Limitar tamaño del cluster
           if (clusterElements.length >= this.options.maxElementsPerCluster) {
@@ -172,8 +171,8 @@ export class ElementClusteringService {
         // Calcular centroide
         let sumX = 0, sumY = 0;
         clusterElements.forEach(e => {
-          sumX += e.position?.coordinates?.[0] || 0;
-          sumY += e.position?.coordinates?.[1] || 0;
+          sumX += e.position?.lng || 0;
+          sumY += e.position?.lat || 0;
         });
         
         const centroidX = sumX / clusterElements.length;
@@ -182,8 +181,8 @@ export class ElementClusteringService {
         // Calcular radio (máxima distancia desde el centroide)
         let maxDistance = 0;
         clusterElements.forEach(e => {
-          const elemX = e.position?.coordinates?.[0] || 0;
-          const elemY = e.position?.coordinates?.[1] || 0;
+          const elemX = e.position?.lng || 0;
+          const elemY = e.position?.lat || 0;
           
           const dx = centroidX - elemX;
           const dy = centroidY - elemY;
@@ -193,7 +192,7 @@ export class ElementClusteringService {
         });
         
         // Crear cluster con radio mínimo de 20
-        const clusterId = `cluster-${clusterElements[0].id}`;
+        const clusterId = `cluster-${clusterElements[0].id ?? "unknown"}`;
         clusters.push({
           id: clusterId,
           elements: clusterElements,
@@ -205,11 +204,11 @@ export class ElementClusteringService {
         // Crear cluster individual
         const element = clusterElements[0];
         clusters.push({
-          id: `single-${element.id}`,
+          id: `single-${element.id ?? "unknown"}`,
           elements: [element],
           centroid: {
-            x: element.position?.coordinates?.[0] || 0,
-            y: element.position?.coordinates?.[1] || 0
+            x: element.position?.lng || 0,
+            y: element.position?.lat || 0
           },
           radius: 15,
           count: 1

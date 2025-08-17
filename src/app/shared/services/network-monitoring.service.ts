@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, throwError, timer } from 'rxjs';
-import { catchError, map, retryWhen, mergeMap, finalize, delay } from 'rxjs/operators';
+import { Observable, of, throwError, timer, retry } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface NetworkHealthData {
@@ -35,42 +35,21 @@ export class NetworkMonitoringService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Helper para reintento personalizado de peticiones HTTP
-   * @param maxRetries Número máximo de reintentos
-   * @param delayMs Retraso entre reintentos en ms
-   * @param excludeStatusCodes Códigos de estado HTTP que no generan reintentos
-   */
-  private genericRetryStrategy({ maxRetries, delayMs, excludeStatusCodes = [] }: {
-    maxRetries: number,
-    delayMs: number,
-    excludeStatusCodes?: number[]
-  }) {
-    return (attempts: Observable<any>) => {
-      return attempts.pipe(
-        mergeMap((error, i) => {
-          const retryAttempt = i + 1;
-          // Si hemos alcanzado el máximo de reintentos o el error está en la lista de exclusión, lanzar error
-          if (
-            retryAttempt > maxRetries ||
-            (error.status && excludeStatusCodes.includes(error.status))
-          ) {
-            console.warn(`Error después de ${retryAttempt} intentos:`, error);
-            return throwError(() => error);
-          }
-          console.log(`Reintentando petición... (intento ${retryAttempt})`);
-          // Retraso exponencial entre reintentos
-          return timer(delayMs * Math.pow(2, retryAttempt));
-        })
-      );
-    };
-  }
-
-  /**
    * Obtiene el estado de salud general de la red
    */
   getNetworkHealth(): Observable<NetworkHealthData> {
     return this.http.get<NetworkHealthData>(`${this.apiUrl}/health`).pipe(
-      retryWhen(this.genericRetryStrategy(this.retryConfig)),
+      retry({
+        count: this.retryConfig.maxRetries,
+        delay: (error, retryCount) => {
+          if (error?.status && this.retryConfig.excludeStatusCodes.includes(error.status)) {
+            return throwError(() => error);
+          }
+          console.log(`Reintentando petición getNetworkHealth... (intento ${retryCount} de ${this.retryConfig.maxRetries})`);
+          const delayTime = this.retryConfig.delayMs * Math.pow(2, retryCount);
+          return timer(delayTime);
+        }
+      }),
       catchError(error => {
         console.error('Error obteniendo salud de la red', error);
         // Datos de respaldo en caso de error
@@ -94,7 +73,17 @@ export class NetworkMonitoringService {
   getElementMetrics(elementId: string, metricType: string, limit = 10): Observable<NetworkMetric[]> {
     const params = { metricType, limit: limit.toString() };
     return this.http.get<NetworkMetric[]>(`${this.apiUrl}/elements/${elementId}/metrics`, { params }).pipe(
-      retryWhen(this.genericRetryStrategy(this.retryConfig)),
+      retry({
+        count: this.retryConfig.maxRetries,
+        delay: (error, retryCount) => {
+          if (error?.status && this.retryConfig.excludeStatusCodes.includes(error.status)) {
+            return throwError(() => error);
+          }
+          console.log(`Reintentando petición getElementMetrics for ${elementId}... (intento ${retryCount} de ${this.retryConfig.maxRetries})`);
+          const delayTime = this.retryConfig.delayMs * Math.pow(2, retryCount);
+          return timer(delayTime);
+        }
+      }),
       catchError(error => {
         console.error(`Error obteniendo métricas para el elemento ${elementId}`, error);
         // Retorna array vacío en caso de error
@@ -117,7 +106,17 @@ export class NetworkMonitoringService {
     
     const params = { metricType, period };
     return this.http.get<any>(`${this.apiUrl}/metrics`, { params }).pipe(
-      retryWhen(this.genericRetryStrategy(this.retryConfig)),
+      retry({
+        count: this.retryConfig.maxRetries,
+        delay: (error, retryCount) => {
+          if (error?.status && this.retryConfig.excludeStatusCodes.includes(error.status)) {
+            return throwError(() => error);
+          }
+          console.log(`Reintentando petición getNetworkMetrics for ${metricType}... (intento ${retryCount} de ${this.retryConfig.maxRetries})`);
+          const delayTime = this.retryConfig.delayMs * Math.pow(2, retryCount);
+          return timer(delayTime);
+        }
+      }),
       map(response => {
         // Asegurarse de que la respuesta tiene el formato esperado
         if (!response || (!response.metrics && !Array.isArray(response.bandwidth))) {
@@ -232,7 +231,17 @@ export class NetworkMonitoringService {
    */
   getConnectionsStatus(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/connections`).pipe(
-      retryWhen(this.genericRetryStrategy(this.retryConfig)),
+      retry({
+        count: this.retryConfig.maxRetries,
+        delay: (error, retryCount) => {
+          if (error?.status && this.retryConfig.excludeStatusCodes.includes(error.status)) {
+            return throwError(() => error);
+          }
+          console.log(`Reintentando petición getConnectionsStatus... (intento ${retryCount} de ${this.retryConfig.maxRetries})`);
+          const delayTime = this.retryConfig.delayMs * Math.pow(2, retryCount);
+          return timer(delayTime);
+        }
+      }),
       catchError(error => {
         console.error('Error obteniendo estado de conexiones', error);
         // Generar datos simulados en caso de error

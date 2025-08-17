@@ -1,9 +1,9 @@
 import {
   _typeof
-} from "./chunk-MU2PGMBU.js";
+} from "./chunk-WUUVWCMF.js";
 import "./chunk-X7L4HDFA.js";
 
-// ../../../node_modules/fflate/esm/browser.js
+// node_modules/fflate/esm/browser.js
 var ch2 = {};
 var wk = function(c2, id, msg, transfer, cb) {
   var w2 = new Worker(ch2[id] || (ch2[id] = URL.createObjectURL(new Blob([c2 + ';addEventListener("error",function(e){e=e.error;postMessage({$e$:[e.message,e.code,e.stack]})})'], {
@@ -1686,7 +1686,7 @@ var Unzip = function() {
   return Unzip2;
 }();
 
-// ../../../node_modules/jspdf/dist/jspdf.es.min.js
+// node_modules/jspdf/dist/jspdf.es.min.js
 var n = /* @__PURE__ */ function() {
   return "undefined" != typeof window ? window : "undefined" != typeof global ? global : "undefined" != typeof self ? self : this;
 }();
@@ -6975,14 +6975,14 @@ function(t2) {
   }, t2.loadImageFile = t2.loadFile;
 }(E.API), function(e) {
   function r() {
-    return (n.html2canvas ? Promise.resolve(n.html2canvas) : import("./html2canvas.esm-2KIQDTE7.js")).catch(function(t2) {
+    return (n.html2canvas ? Promise.resolve(n.html2canvas) : import("./html2canvas.js")).catch(function(t2) {
       return Promise.reject(new Error("Could not load html2canvas: " + t2));
     }).then(function(t2) {
       return t2.default ? t2.default : t2;
     });
   }
   function i2() {
-    return (n.DOMPurify ? Promise.resolve(n.DOMPurify) : import("./purify.es-RCEM7YJK.js")).catch(function(t2) {
+    return (n.DOMPurify ? Promise.resolve(n.DOMPurify) : import("./purify.es-IYKYICF3.js")).catch(function(t2) {
       return Promise.reject(new Error("Could not load dompurify: " + t2));
     }).then(function(t2) {
       return t2.default ? t2.default : t2;
@@ -10506,7 +10506,7 @@ function(t2) {
  */
 function(t2) {
   function e() {
-    return (n.canvg ? Promise.resolve(n.canvg) : import("./index.es-P7IM4IWZ.js")).catch(function(t3) {
+    return (n.canvg ? Promise.resolve(n.canvg) : import("./index.es-ZITTNPOS.js")).catch(function(t3) {
       return Promise.reject(new Error("Could not load canvg: " + t3));
     }).then(function(t3) {
       return t3.default ? t3.default : t3;

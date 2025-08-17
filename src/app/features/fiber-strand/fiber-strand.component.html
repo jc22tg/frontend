@@ -1,0 +1,255 @@
+<div class="fiber-strand-container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Gestión de Hilos de Fibra</h1>
+    <button mat-raised-button color="primary" (click)="onCreate()">
+      <mat-icon>add</mat-icon>
+      Nuevo Hilo de Fibra
+    </button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Cargando hilos de fibra...</p>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-container">
+    <mat-card class="error-card">
+      <mat-card-content>
+        <mat-icon color="warn">error</mat-icon>
+        <p>{{ error }}</p>
+        <button mat-button color="primary" (click)="loadFiberStrands()">
+          Reintentar
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!loading && !error" class="content">
+    <!-- Statistics Cards -->
+    <div class="stats-container">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <mat-icon color="primary">fiber_manual_record</mat-icon>
+          <div class="stat-info">
+            <h3>{{ fiberStrands.length }}</h3>
+            <p>Total de Hilos</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <mat-icon color="primary">check_circle</mat-icon>
+          <div class="stat-info">
+            <h3>{{ fiberStrands.filter(f => f.status === FiberStrandStatus.ACTIVE).length }}</h3>
+            <p>Activos</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <mat-icon color="warn">warning</mat-icon>
+          <div class="stat-info">
+            <h3>{{ fiberStrands.filter(f => f.status === FiberStrandStatus.FAULTY).length }}</h3>
+            <p>Con Fallas</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <mat-icon color="accent">build</mat-icon>
+          <div class="stat-info">
+            <h3>{{ fiberStrands.filter(f => f.status === FiberStrandStatus.MAINTENANCE).length }}</h3>
+            <p>En Mantenimiento</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Filters -->
+    <mat-card class="filters-card">
+      <mat-card-header>
+        <mat-card-title>Filtros</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="filters-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Estado</mat-label>
+            <mat-select>
+              <mat-option value="">Todos</mat-option>
+              <mat-option *ngFor="let status of FiberStrandStatus | keyvalue" [value]="status.value">
+                {{ status.value }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo</mat-label>
+            <mat-select>
+              <mat-option value="">Todos</mat-option>
+              <mat-option *ngFor="let type of FiberStrandType | keyvalue" [value]="type.value">
+                {{ type.value }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Color</mat-label>
+            <mat-select>
+              <mat-option value="">Todos</mat-option>
+              <mat-option *ngFor="let color of FiberStrandColor | keyvalue" [value]="color.value">
+                {{ color.value }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Condición</mat-label>
+            <mat-select>
+              <mat-option value="">Todas</mat-option>
+              <mat-option *ngFor="let condition of FiberStrandCondition | keyvalue" [value]="condition.value">
+                {{ condition.value }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Data Table -->
+    <mat-card class="table-card">
+      <mat-card-content>
+        <div class="table-container">
+          <table mat-table [dataSource]="fiberStrands" matSort class="fiber-strand-table">
+            <!-- Name Column -->
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.name }}</td>
+            </ng-container>
+
+            <!-- Type Column -->
+            <ng-container matColumnDef="type">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Tipo</th>
+              <td mat-cell *matCellDef="let fiberStrand">
+                <mat-chip [color]="getTypeColor(fiberStrand.type)" selected>
+                  {{ fiberStrand.type }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Status Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Estado</th>
+              <td mat-cell *matCellDef="let fiberStrand">
+                <mat-chip [color]="getStatusColor(fiberStrand.status)" selected>
+                  {{ fiberStrand.status }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Color Column -->
+            <ng-container matColumnDef="color">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Color</th>
+              <td mat-cell *matCellDef="let fiberStrand">
+                <mat-chip [color]="getColorColor(fiberStrand.color)" selected>
+                  {{ fiberStrand.color }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Condition Column -->
+            <ng-container matColumnDef="condition">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Condición</th>
+              <td mat-cell *matCellDef="let fiberStrand">
+                <mat-chip [color]="getConditionColor(fiberStrand.condition)" selected>
+                  {{ fiberStrand.condition }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Building ID Column -->
+            <ng-container matColumnDef="buildingId">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Edificio</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.buildingId }}</td>
+            </ng-container>
+
+            <!-- Fiber Cable ID Column -->
+            <ng-container matColumnDef="fiberCableId">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Cable</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.fiberCableId }}</td>
+            </ng-container>
+
+            <!-- Strand Number Column -->
+            <ng-container matColumnDef="strandNumber">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Número</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.strandNumber }}</td>
+            </ng-container>
+
+            <!-- Model Column -->
+            <ng-container matColumnDef="model">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Modelo</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.model || 'N/A' }}</td>
+            </ng-container>
+
+            <!-- Manufacturer Column -->
+            <ng-container matColumnDef="manufacturer">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Fabricante</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.manufacturer || 'N/A' }}</td>
+            </ng-container>
+
+            <!-- Total Length Column -->
+            <ng-container matColumnDef="totalLength">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Longitud (m)</th>
+              <td mat-cell *matCellDef="let fiberStrand">{{ fiberStrand.totalLength }}</td>
+            </ng-container>
+
+            <!-- Is Active Column -->
+            <ng-container matColumnDef="isActive">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Activo</th>
+              <td mat-cell *matCellDef="let fiberStrand">
+                <mat-slide-toggle [checked]="fiberStrand.isActive" disabled>
+                  {{ fiberStrand.isActive ? 'Sí' : 'No' }}
+                </mat-slide-toggle>
+              </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Acciones</th>
+              <td mat-cell *matCellDef="let fiberStrand">
+                <button mat-icon-button [matMenuTriggerFor]="menu" matTooltip="Acciones">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #menu="matMenu">
+                  <button mat-menu-item (click)="onView(fiberStrand)">
+                    <mat-icon>visibility</mat-icon>
+                    <span>Ver</span>
+                  </button>
+                  <button mat-menu-item (click)="onEdit(fiberStrand)">
+                    <mat-icon>edit</mat-icon>
+                    <span>Editar</span>
+                  </button>
+                  <button mat-menu-item (click)="onDelete(fiberStrand)" color="warn">
+                    <mat-icon>delete</mat-icon>
+                    <span>Eliminar</span>
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+
+          <mat-paginator [pageSizeOptions]="[10, 25, 50, 100]" showFirstLastButtons></mat-paginator>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div> 

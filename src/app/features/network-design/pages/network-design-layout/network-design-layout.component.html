@@ -3,18 +3,47 @@
     <h1>Diseño de Red</h1>
     
     <nav class="design-nav">
-      <a [routerLink]="['/network-design/map']" routerLinkActive="active">Mapa de Red</a>
+      <a mat-button [routerLink]="['/network-design/map']" routerLinkActive="active">
+        <mat-icon>map</mat-icon>
+        <span>Mapa de Red</span>
+      </a>
+      <a mat-button [routerLink]="['/network-design/elements']" routerLinkActive="active">
+        <mat-icon>category</mat-icon>
+        <span>Elementos</span>
+      </a>
+      <a mat-button [routerLink]="['/network-design/connections']" routerLinkActive="active">
+        <mat-icon>device_hub</mat-icon>
+        <span>Conexiones</span>
+      </a>
+      <a mat-button [routerLink]="['/network-design/monitoring']" routerLinkActive="active">
+        <mat-icon>monitoring</mat-icon>
+        <span>Monitoreo</span>
+      </a>
       
-      <div class="dropdown">
-        <button class="dropdown-toggle">
-          Crear Elemento <i class="fas fa-caret-down"></i>
+      <!-- Menú desplegable de creación de elementos -->
+      <div class="menu-container">
+        <button mat-button [matMenuTriggerFor]="elementMenu" class="create-button">
+          <mat-icon>add_circle</mat-icon>
+          <span>Crear Nuevo Elemento</span>
+          <mat-icon>arrow_drop_down</mat-icon>
         </button>
-        <div class="dropdown-menu">
-          <a *ngFor="let type of elementTypes" 
-             [routerLink]="['/network-design/editor/new', type.id]">
-            {{ type.name }}
-          </a>
-        </div>
+        
+        <mat-menu #elementMenu="matMenu" class="element-type-menu">
+          <ng-container *ngFor="let type of elementTypes">
+            <button mat-menu-item (click)="createNewElement(type.id)">
+              <mat-icon>{{ 
+                type.id === 'fdp' ? 'dns' :
+                type.id === 'olt' ? 'router' :
+                type.id === 'ont' ? 'device_hub' :
+                type.id === 'edfa' ? 'wifi_tethering' :
+                type.id === 'splitter' ? 'call_split' :
+                type.id === 'manga' ? 'view_comfy' :
+                type.id === 'fiber_connection' ? 'timeline' : 'category'
+              }}</mat-icon>
+              <span>{{ type.name }}</span>
+            </button>
+          </ng-container>
+        </mat-menu>
       </div>
     </nav>
   </header>
@@ -30,8 +59,17 @@
       <!-- Componente de vista rápida cuando hay un elemento seleccionado -->
       <app-element-quick-view 
         *ngIf="selectedElement && showElementsPanel" 
-        class="element-details-panel">
+        class="element-details-panel"
+        (viewConnections)="openConnectionsView($event)">
       </app-element-quick-view>
+
+      <!-- Visor de conexiones -->
+      <app-element-connections-view
+        *ngIf="showConnectionsView && connectionsElementId"
+        [elementId]="connectionsElementId"
+        (close)="closeConnectionsView()"
+        class="connections-view-overlay">
+      </app-element-connections-view>
     </div>
   </main>
 </div> 

@@ -1,25 +1,28 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MapService } from '../map.service';
+import { MapPerformanceService } from './map-performance.service';
+import { MapStateService } from './state/map-state.service';
+import { MapToolsService } from './map-tools.service';
+import { StandaloneAdapterService } from './standalone-adapter.service';
+import { MapElementManagerAdapter } from './standalone-adapters/map-element-manager-adapter';
 import { MapStateManagerService } from './map-state-manager.service';
-import { MapElementManagerService } from './map-element-manager.service';
-import { MapRenderingService } from './map-rendering.service';
-import { MapInteractionService } from './map-interaction.service';
 
 /**
- * Módulo para registrar y proveer todos los servicios relacionados con el mapa
- * 
- * Este módulo facilita la importación de todos los servicios de mapa en un único punto,
- * mejorando la organización del código y reduciendo las dependencias individuales.
+ * Módulo que contiene todos los servicios relacionados con el mapa
  */
 @NgModule({
   imports: [
     CommonModule
   ],
   providers: [
-    MapStateManagerService,
-    MapElementManagerService,
-    MapRenderingService,
-    MapInteractionService
+    MapService,
+    MapStateService,
+    MapPerformanceService,
+    MapToolsService,
+    StandaloneAdapterService,
+    MapElementManagerAdapter,
+    MapStateManagerService
   ]
 })
-export class MapServicesModule {} 
+export class MapServicesModule { } 

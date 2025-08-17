@@ -163,11 +163,11 @@ export class MapLoaderService {
     const elementsToShow = this.visibleElements.slice(0, this.chunkSize * 5);
     
     // Crear un mapa de IDs de elementos visibles para búsqueda rápida
-    const visibleElementIds = new Set(elementsToShow.map(element => element.id));
+    const visibleElementIds = new Set(elementsToShow.map(element => element.id).filter(Boolean));
     
     // Filtrar conexiones que conectan elementos visibles
     this.visibleConnections = this.allConnections.filter(connection => 
-      visibleElementIds.has(connection.sourceId) && visibleElementIds.has(connection.targetId)
+      visibleElementIds.has(connection.sourceElementId) && visibleElementIds.has(connection.targetElementId)
     );
     
     // Notificar a los suscriptores
@@ -242,6 +242,6 @@ export class MapLoaderService {
    */
   findElementsById(ids: string[]): NetworkElement[] {
     const idSet = new Set(ids);
-    return this.allElements.filter(element => idSet.has(element.id));
+    return this.allElements.filter(element => element.id && idSet.has(element.id));
   }
 } 

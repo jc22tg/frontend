@@ -1,0 +1,176 @@
+@use '../../../../network-design.styles.scss' as global-styles; // Por consistencia y futuras necesidades
+
+.map-view-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--surface-level-1, #f5f5f5);
+  cursor: grab;
+  display: block !important; /* Forzar visualización */
+}
+
+.map-view-container.loading {
+  cursor: wait;
+}
+
+.map-view-container.dragging {
+  cursor: grabbing;
+}
+
+.svg-wrapper {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  display: block !important; /* Forzar visualización */
+}
+
+.map-svg {
+  width: 100%;
+  height: 100%;
+  display: block !important; /* Forzar visualización */
+  position: absolute;
+  top: 0;
+  left: 0;
+  touch-action: none; /* Evita acciones táctiles como zoom del navegador */
+  z-index: 1;
+  background-color: white; /* Color base para modo claro */
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--surface-overlay-light, rgba(255, 255, 255, 0.7));
+  z-index: 10;
+  opacity: 0;
+  transition: opacity var(--transition-normal, 0.3s) ease-out, z-index 0s var(--transition-normal, 0.3s);
+  pointer-events: none;
+}
+
+.map-view-container.loading .loading-overlay {
+  opacity: 1;
+  z-index: 10;
+  transition: opacity var(--transition-normal, 0.3s) ease-in;
+  pointer-events: all;
+}
+
+.error-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: var(--spacing-lg, 20px);
+  background-color: var(--color-danger-bg-strong, rgba(244, 67, 54, 0.9));
+  color: var(--color-danger-contrast, white);
+  border-radius: var(--border-radius-md, 4px);
+  text-align: center;
+  z-index: 11;
+}
+
+.error-message button {
+  margin-top: var(--spacing-sm, 10px);
+  padding: var(--spacing-xs, 8px) var(--spacing-md, 16px);
+  background-color: var(--surface-color, white);
+  color: var(--color-danger, #f44336);
+  border: none;
+  border-radius: var(--border-radius-md, 4px);
+  cursor: pointer;
+}
+
+.grid-container line {
+  stroke: var(--grid-line-color, #aaa);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.grid-container .grid-axis {
+  stroke: var(--grid-axis-color, #666);
+  stroke-width: 2;
+  opacity: 0.9;
+}
+
+.connections-layer path, .connections-layer line {
+  stroke-width: var(--connection-stroke-width, 3);
+  fill: none;
+  opacity: 0.8;
+}
+
+.elements-layer circle, .elements-layer rect, .elements-layer polygon {
+  stroke: var(--element-stroke-color, #333);
+  stroke-width: var(--element-stroke-width, 1.5);
+  fill-opacity: 0.9;
+}
+
+.selection-layer .selection-indicator {
+  stroke: var(--selection-highlight-color, #2196F3);
+  stroke-width: var(--selection-stroke-width, 3);
+  stroke-dasharray: 5;
+  fill: none;
+  opacity: 1;
+}
+
+/* Animaciones */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pulse-effect {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+// Estilos para MapViewComponent
+:host {
+  display: block !important;
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  // Estilos para los elementos del mapa (sin ::ng-deep)
+  .elements-layer .network-element {
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
+  // Estilos para las conexiones del mapa (sin ::ng-deep)
+  .connections-layer .connection-line {
+    stroke-width: 3; // Puede ser variable CSS --connection-line-stroke-width
+    transition: stroke-width 0.2s ease-in-out;
+
+    &:hover {
+      stroke-width: 4; // Puede ser variable CSS --connection-line-stroke-width-hover
+    }
+  }
+}
+
+// Nota: El uso de ::ng-deep puede ser necesario si los elementos del mapa
+// (por ejemplo, SVGs o elementos de canvas renderizados por una librería de mapas como Leaflet u OpenLayers)
+// no son hijos directos del template de MapViewComponent y Angular no puede aplicarles estilos encapsulados directamente.
+// Si los elementos son parte del template del componente (raro para elementos de mapa dinámicos),
+// entonces ::ng-deep podría no ser necesario y se usarían selectores directos.
+// Considerar alternativas a ::ng-deep si es posible, como configurar estilos globalmente para la librería de mapas
+// o usar panelClass en overlays de Leaflet, etc. 

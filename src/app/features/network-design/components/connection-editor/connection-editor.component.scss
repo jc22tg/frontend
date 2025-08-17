@@ -8,17 +8,23 @@
 /* ===== CONTENEDOR PRINCIPAL ===== */
 .dialog-container {
   max-width: 600px;
-  max-height: 80vh;
+  height: auto;
+  overflow: visible;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 8px 32px rgba(60,60,60,0.10);
+  color: #222 !important;
 }
 
 /* ===== ENCABEZADO DEL DIÁLOGO ===== */
 .dialog-header {
   display: flex;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background-color: var(--background-color);
+  padding: 12px 16px;
+  background-color: rgba(var(--primary-color-rgb), 0.03);
   
   &.create {
-    background-color: rgba(var(--color-success-rgb), 0.1);
+    background-color: rgba(var(--color-success-rgb), 0.05);
     
     .header-icon {
       background-color: var(--color-success);
@@ -26,7 +32,7 @@
   }
   
   &.edit {
-    background-color: rgba(var(--primary-color-rgb), 0.1);
+    background-color: rgba(var(--primary-color-rgb), 0.05);
     
     .header-icon {
       background-color: var(--primary-color);
@@ -37,287 +43,295 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    margin-right: var(--spacing-md);
+    margin-right: 12px;
     
     mat-icon {
       color: white;
-      font-size: 28px;
-      width: 28px;
-      height: 28px;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
   }
   
   .header-content {
     h2 {
       margin: 0;
-      font-size: var(--font-size-xl);
+      font-size: 1rem !important;
       font-weight: 500;
-      color: var(--text-color);
+      color: var(--primary-color);
+      line-height: 1.2;
     }
     
     .subtitle {
-      margin: var(--spacing-xs) 0 0 0;
+      margin: 2px 0 0 0;
       color: var(--text-secondary);
-      font-size: var(--font-size-sm);
+      font-size: 0.85rem;
     }
   }
 }
 
 /* ===== CONTENIDO DEL DIÁLOGO ===== */
 .dialog-content {
-  padding: var(--spacing-lg);
-  overflow-y: auto;
-  max-height: 65vh;
+  padding: 16px !important;
+  background: transparent;
+  color: #222 !important;
 }
 
-/* ===== SECCIONES DEL FORMULARIO ===== */
-.form-section {
-  margin-bottom: var(--spacing-lg);
+/* ===== TARJETAS DE SECCIÓN ===== */
+.form-section-card {
+  background: #fff;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
+  border: 1px solid #ebebeb;
+  margin-bottom: 16px;
   
-  .section-title {
-    display: flex;
-    align-items: center;
-    color: var(--primary-color);
-    font-size: var(--font-size-md);
-    font-weight: 500;
-    margin-bottom: var(--spacing-md);
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  // Cabecera de la tarjeta
+  .mat-card-header {
+    padding: 12px 16px 8px !important;
+    border-bottom: 1px solid #f0f0f0;
     
-    mat-icon {
-      margin-right: var(--spacing-sm);
+    .mat-card-avatar {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--primary-color) !important;
+    }
+    
+    .mat-card-title {
+      font-size: 0.95rem !important;
+      font-weight: 500;
+      margin-bottom: 0;
       color: var(--primary-color);
     }
+    
+    .mat-card-subtitle {
+      font-size: 0.8rem;
+      margin-bottom: 0;
+      color: var(--text-secondary);
+    }
+  }
+  
+  // Contenido de la tarjeta
+  .mat-card-content {
+    padding: 12px 16px !important;
   }
 }
 
-/* ===== ESTRUCTURA DEL FORMULARIO ===== */
+/* ===== FILAS DE FORMULARIO ===== */
 .form-row {
   display: flex;
-  gap: var(--spacing-md);
+  gap: 12px;
+  margin-bottom: 8px;
   
   mat-form-field {
     flex: 1;
   }
 }
 
+.compact-row {
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
 .full-width {
   width: 100%;
 }
 
-/* ===== COMPONENTES DE CONEXIÓN ===== */
-.connection-icon-container {
-  display: flex;
-  justify-content: center;
-  padding: var(--spacing-sm) 0;
+/* ===== CAMPOS DE FORMULARIO ===== */
+.dense.mat-form-field {
+  font-size: 14px;
   
-  .connection-icon {
+  // Contenedor del form-field
+  .mat-form-field-wrapper {
+    padding-bottom: 0;
+  }
+  
+  // Contenedor del input/select
+  .mat-form-field-flex {
+    min-height: 36px;
+    padding: 0 8px !important;
+    background-color: #f7f9fc;
+    border-radius: 4px;
+  }
+  
+  // Ajustes del input
+  .mat-form-field-infix {
+    padding: 6px 0 !important;
+    border-top: 6px solid transparent;
+  }
+  
+  // Textos e inputs
+  .mat-input-element, .mat-select-value-text {
+    font-size: 14px;
+    line-height: 1.2;
+    color: #333;
+  }
+  
+  // Label flotante
+  .mat-form-field-label {
+    color: #666 !important;
+    font-size: 14px;
+  }
+  
+  // Íconos
+  .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
     color: var(--primary-color);
-    font-size: 28px;
-    width: 28px;
-    height: 28px;
   }
 }
 
-/* ===== ELEMENTOS DEL SELECTOR ===== */
+/* ===== CONEXIÓN ENTRE ORIGEN Y DESTINO ===== */
+.connection-icon-container {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+  
+  .connection-icon {
+    color: var(--primary-color);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ===== ELEMENTO OPTION EN SELECTS ===== */
 .element-option {
   display: flex;
   align-items: center;
   
   .element-icon {
-    margin-right: var(--spacing-sm);
+    margin-right: 8px;
     color: var(--primary-color);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
   }
   
   .element-type {
     margin-left: auto;
     color: var(--text-secondary);
-    font-size: var(--font-size-xs);
+    font-size: 12px;
   }
 }
 
-/* ===== OPCIONES DE ESTADO ===== */
+/* ===== INDICADOR DE ESTADO ===== */
 .status-option {
   display: flex;
   align-items: center;
   
   .status-dot {
     display: inline-block;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    margin-right: var(--spacing-sm);
+    margin-right: 8px;
     
-    &.active {
-      background-color: var(--status-active);
-    }
-    
-    &.inactive {
-      background-color: var(--status-inactive);
-    }
-    
-    &.warning {
-      background-color: var(--color-warning);
-    }
-    
-    &.maintenance {
-      background-color: var(--color-info);
-    }
-    
-    &.fault {
-      background-color: var(--color-danger);
-    }
-
-    &.planned {
-      background-color: var(--status-planning);
-    }
-
-    &.building {
-      background-color: var(--color-warning);
-    }
-
-    &.reserved {
-      background-color: var(--color-success);
-    }
-
-    &.decommissioned {
-      background-color: var(--text-secondary);
-    }
+    &.active { background-color: var(--status-active); }
+    &.inactive { background-color: var(--status-inactive); }
+    &.warning { background-color: var(--color-warning); }
+    &.maintenance { background-color: var(--color-info); }
+    &.fault { background-color: var(--color-danger); }
+    &.planned { background-color: var(--status-planning); }
+    &.building { background-color: var(--color-warning); }
+    &.reserved { background-color: var(--color-success); }
+    &.decommissioned { background-color: var(--text-secondary); }
   }
 }
 
-/* ===== RESUMEN DE LA CONEXIÓN ===== */
-.connection-summary {
-  background-color: var(--background-color);
-  border-radius: var(--border-radius-md);
-  padding: var(--spacing-md);
-  margin-top: var(--spacing-lg);
-  
-  .summary-content {
-    padding: var(--spacing-sm);
-  }
-  
-  .connection-preview {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    
-    .preview-element {
-      display: flex;
-      align-items: center;
-      background-color: white;
-      padding: var(--spacing-sm) var(--spacing-md);
-      border-radius: 24px;
-      box-shadow: var(--shadow-sm);
-      
-      mat-icon {
-        margin-right: var(--spacing-sm);
-        color: var(--primary-color);
-      }
-    }
-    
-    .connection-line {
-      height: 80px;
-      width: 100%;
-      position: relative;
-      display: flex;
-      justify-content: center;
-      
-      .line {
-        width: 4px;
-        height: 100%;
-        background-color: var(--status-active);
-        
-        &.active {
-          background-color: var(--status-active);
-        }
-        
-        &.inactive {
-          background-color: var(--status-inactive);
-        }
-        
-        &.warning {
-          background-color: var(--color-warning);
-        }
-        
-        &.maintenance {
-          background-color: var(--color-info);
-        }
-        
-        &.fault {
-          background-color: var(--color-danger);
-        }
-
-        &.planned {
-          background-color: var(--status-planning);
-        }
-
-        &.building {
-          background-color: var(--color-warning);
-        }
-
-        &.reserved {
-          background-color: var(--color-success);
-        }
-
-        &.decommissioned {
-          background-color: var(--text-secondary);
-        }
-      }
-      
-      .connection-details {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: white;
-        border-radius: var(--border-radius-sm);
-        padding: var(--spacing-xs);
-        white-space: nowrap;
-        box-shadow: var(--shadow-sm);
-      }
-    }
-  }
-}
-
-/* ===== ACCIONES DEL DIÁLOGO ===== */
+/* ===== BOTONES DEL DIÁLOGO ===== */
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #f5f7fa;
+  border-top: 1px solid #eaeaea;
   
-  .save-button,
-  .cancel-button {
-    min-width: 120px;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    transition: all var(--transition-fast);
-    
-    &:not([disabled]):hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-    }
+  .cancel-button, .save-button {
+    min-width: 110px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 4px;
     
     mat-icon {
-      margin-right: var(--spacing-sm);
+      font-size: 18px;
+      margin-right: 4px;
     }
   }
   
   .button-spinner {
     display: inline-block;
-    margin-left: var(--spacing-sm);
+    margin-left: 8px;
   }
 }
 
-/* ===== ELEMENTOS DEL FORMULARIO ===== */
-mat-form-field {
-  margin-bottom: var(--spacing-md);
-}
-
-textarea {
-  min-height: 80px;
+/* ===== SECCIÓN DE RESUMEN ===== */
+.connection-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  .preview-element {
+    display: flex;
+    align-items: center;
+    background-color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    
+    mat-icon {
+      margin-right: 8px;
+      color: var(--primary-color);
+    }
+  }
+  
+  .connection-line {
+    height: 60px;
+    width: 100%;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    
+    .line {
+      width: 3px;
+      height: 100%;
+      background-color: var(--status-active);
+      
+      &.active { background-color: var(--status-active); }
+      &.inactive { background-color: var(--status-inactive); }
+      &.warning { background-color: var(--color-warning); }
+      &.maintenance { background-color: var(--color-info); }
+      &.fault { background-color: var(--color-danger); }
+      &.planned { background-color: var(--status-planning); }
+    }
+    
+    .connection-details {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      border-radius: 4px;
+      padding: 4px;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      
+      mat-chip-option {
+        height: 24px;
+        min-height: 24px;
+        font-size: 12px;
+      }
+    }
+  }
 }
 
 /* ===== MEDIA QUERIES PARA RESPONSIVIDAD ===== */
@@ -392,5 +406,364 @@ textarea {
   
   mat-form-field {
     color: var(--dark-text-primary);
+  }
+}
+
+// Estilos para las nuevas tarjetas de sección
+.form-section-card {
+  margin-bottom: 20px;
+  background: #fcfcfd;
+  border-radius: 14px !important;
+  box-shadow: 0 2px 8px rgba(60,60,60,0.07) !important;
+  border: 1px solid #ececec;
+  transition: box-shadow 0.2s;
+  &:hover {
+    box-shadow: 0 4px 16px rgba(60,60,60,0.13) !important;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .mat-card-avatar {
+    font-size: 32px; // Aumentar tamaño del icono avatar en la cabecera de la tarjeta
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mat-card-header {
+    padding-bottom: 8px; // Reducir un poco el padding inferior del header para acercar al contenido
+    border-bottom: 1px solid #ececec;
+    margin-bottom: 8px;
+    .mat-card-title, .section-title {
+      font-size: 1rem !important;
+      font-weight: 500;
+      color: #3f51b5;
+      letter-spacing: 0.01em;
+    }
+    .mat-card-avatar, mat-icon {
+      color: #b0b8d1 !important;
+      font-size: 20px !important;
+    }
+  }
+
+  .mat-card-content {
+    padding-top: 8px; // Ajustar padding superior del contenido
+
+    .form-row {
+      gap: 16px; // Mantener el gap para los form-row internos
+    }
+
+    .form-field, .full-width {
+      // Los estilos existentes para form-field y full-width se aplicarán aquí dentro
+    }
+  }
+}
+
+// Ajustes específicos para el resumen de conexión dentro de una tarjeta
+.connection-summary {
+  // Si el resumen está ahora dentro de una mat-card-content, puede que no necesite márgenes adicionales
+  // .section-title podría necesitar ajustes si se mantiene
+
+  .connection-preview {
+    .connection-details {
+      mat-chip-listbox {
+        mat-chip-option {
+          &.mat-mdc-chip-disabled {
+            opacity: 1; // Para que los chips desactivados no se vean tan tenues
+            cursor: default;
+            background-color: rgba(0,0,0,0.08); // Un fondo ligero para diferenciarlos
+          }
+        }
+      }
+    }
+  }
+}
+
+// === ESTILOS COMPACTOS Y DENSOS ===
+.dense.mat-form-field {
+  font-size: 13px;
+  min-height: 36px;
+  margin-bottom: 8px;
+  background: #f4f6fa;
+  border-radius: 8px;
+  .mat-form-field-wrapper {
+    padding-bottom: 0;
+  }
+  .mat-form-field-flex {
+    min-height: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .mat-form-field-infix {
+    padding: 4px 0 4px 0;
+    min-height: 24px;
+  }
+  .mat-input-element, .mat-select-value {
+    font-size: 13px;
+    padding: 2px 0;
+    min-height: 24px;
+  }
+  .mat-select-arrow {
+    font-size: 18px;
+  }
+  .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--primary-color);
+  }
+  .mat-form-field-label {
+    color: #8a8fa3 !important;
+    font-size: 0.95em;
+  }
+}
+
+.compact-row {
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.compact-card {
+  padding: 8px 0 0 0;
+  .mat-card-header {
+    min-height: 36px;
+    padding-bottom: 2px;
+    .mat-card-title {
+      font-size: 15px;
+    }
+    .mat-card-avatar {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+    }
+  }
+  .mat-card-content {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}
+
+.compact-btn, .save-button, .cancel-button {
+  border-radius: 8px !important;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 4px rgba(60,60,60,0.07);
+  transition: box-shadow 0.2s;
+  &:hover:not([disabled]) {
+    box-shadow: 0 2px 8px rgba(60,60,60,0.13);
+  }
+}
+
+.compact-actions {
+  padding: 8px 16px;
+  gap: 8px;
+}
+
+.compact-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 12px 12px 0 12px;
+}
+
+.compact-connection-icon {
+  padding: 2px 0 2px 0;
+  .connection-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--primary-color);
+  }
+}
+
+// Ajustar iconos de campos y cabeceras
+.mat-icon[color="primary"] {
+  color: var(--primary-color) !important;
+}
+
+.small-title {
+  font-size: 1rem !important;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.mat-card-title, .section-title {
+  font-size: 0.98rem !important;
+  font-weight: 500;
+  margin-bottom: 2px;
+  line-height: 1.1;
+}
+
+.mat-card-subtitle {
+  font-size: 0.85rem !important;
+  font-weight: 400;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.no-extra-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-bottom: 0 !important;
+}
+
+// Área de contenido scrollable
+.compact-scroll, .dialog-content, .no-extra-scroll {
+  padding-bottom: 0 !important;
+  color: #222 !important;
+  background: transparent;
+}
+
+// Ajustar paddings para que el contenido no quede apretado
+.dialog-content {
+  padding: 16px 16px 0 16px !important;
+}
+
+// Inputs y selects
+.dense.mat-form-field {
+  background: #f4f6fa;
+  border-radius: 8px;
+  color: #222 !important;
+  .mat-form-field-label {
+    color: #8a8fa3 !important;
+    font-size: 0.95em;
+  }
+}
+
+// Estilos básicos para depuración
+.debug-container {
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  height: auto;
+  overflow: hidden !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+// Cabecera fija
+.fixed-header {
+  flex: 0 0 auto;
+  background: #f5f5f5;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  
+  .header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 12px;
+    background-color: #3f51b5;
+    
+    mat-icon {
+      color: white;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+  
+  .header-content {
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+    }
+    
+    .subtitle {
+      margin: 2px 0 0 0;
+      color: #666;
+      font-size: 13px;
+    }
+  }
+}
+
+// ÚNICO SCROLL - Área de contenido
+.scrollable-content {
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  max-height: calc(80vh - 130px); // Altura total menos header y footer
+  padding: 12px 16px;
+  background: white;
+}
+
+// Pie fijo
+.fixed-footer {
+  flex: 0 0 auto;
+  background: #f5f5f5;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+// Tarjetas
+.debug-card {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  
+  h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #3f51b5;
+  }
+}
+
+// Filas de formulario
+.form-row {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 16px;
+  
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+// Estilos para Angular Material
+::ng-deep {
+  // Forzar que el diálogo no tenga scroll propio
+  .mat-dialog-container {
+    display: block;
+    padding: 0 !important;
+    overflow: hidden !important;
+    max-height: none !important;
+  }
+  
+  // Forzar altura adecuada del overlay
+  .cdk-overlay-pane {
+    max-height: 90vh !important;
+  }
+  
+  // Hacer visibles los controles
+  .mat-form-field-appearance-fill .mat-form-field-flex {
+    background-color: white !important;
+  }
+  
+  .mat-input-element, 
+  .mat-select-value, 
+  .mat-select-arrow,
+  .mat-form-field-label {
+    color: #333 !important;
   }
 } 

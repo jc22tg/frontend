@@ -83,8 +83,8 @@ export interface NetworkDesignConfig {
  */
 export const DEFAULT_NETWORK_DESIGN_CONFIG: NetworkDesignConfig = {
   map: {
-    initialZoom: 13,
-    initialCenter: [0, 0],
+    initialZoom: 16,
+    initialCenter: [19.783750, -70.676666],
     zoomLimits: [5, 18],
     tileLayerUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
   },
@@ -100,7 +100,8 @@ export const DEFAULT_NETWORK_DESIGN_CONFIG: NetworkDesignConfig = {
       EDFA: '#9C27B0',
       SPLITTER: '#FF5722',
       MANGA: '#607D8B',
-      TERMINAL_BOX: '#FF9800'
+      TERMINAL_BOX: '#FF9800',
+      SLACK_FIBER: '#80DEEA'
     }
   },
   monitoring: {

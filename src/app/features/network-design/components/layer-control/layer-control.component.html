@@ -1,0 +1,78 @@
+<!-- DEBUGGING -->
+<pre>positionClass: {{ positionClass | json }}</pre>
+<pre>expandedLayers: {{ expandedLayers | json }}</pre>
+<pre>isDraggable: {{ isDraggable | json }}</pre>
+<!-- END DEBUGGING -->
+
+<div class="layer-control-container layer-control-panel" 
+     [class]="positionClass" 
+     [ngClass]="{
+       'expanded': expandedLayers,
+       'draggable': isDraggable,
+       'cdk-drag-disabled': !isDraggable
+     }" 
+     cdkDrag
+     [cdkDragDisabled]="!isDraggable"
+     [cdkDragBoundary]="'.map-container'"
+     (cdkDragEnded)="onPanelDragEnded($event)"
+     [style.transform]="panelPosition ? 'translate3d(' + panelPosition.x + 'px, ' + panelPosition.y + 'px, 0)' : null">
+  
+  <div class="layer-control-header" cdkDragHandle (mousedown)="$event.stopPropagation()">
+    <div class="header-left">
+      <button mat-icon-button (click)="toggleDraggable()" class="drag-handle-button" [matTooltip]="isDraggable ? 'Desactivar arrastre' : 'Activar arrastre'">
+        <mat-icon>{{ isDraggable ? 'lock_open' : 'lock' }}</mat-icon>
+      </button>
+      <h3 *ngIf="expandedLayers">Capas</h3>
+    </div>
+    <button mat-icon-button (click)="toggleExpand()" class="layer-toggle-button" [matTooltip]="expandedLayers ? 'Contraer panel' : 'Expandir panel'">
+      <mat-icon>{{ expandedLayers ? 'keyboard_arrow_down' : 'layers' }}</mat-icon>
+    </button>
+  </div>
+
+  <div class="layer-content" *ngIf="expandedLayers">
+    <div class="layer-group">
+      <div class="group-header" (click)="toggleBaseExpand()">
+        <span>Capas Base</span>
+        <mat-icon>{{ expandedBase ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </div>
+      <div class="group-content" *ngIf="expandedBase">
+        <div *ngFor="let layer of baseLayers" 
+             class="layer-item base-layer" 
+             [class.active]="layer.visible" 
+             (click)="toggleBaseLayer(layer)" 
+             [matTooltip]="layer.description">
+          <mat-icon class="layer-icon">{{ layer.icon || 'map' }}</mat-icon>
+          <span class="layer-name">{{ layer.name }}</span>
+          <mat-icon class="layer-status">{{ layer.visible ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+        </div>
+        <div *ngIf="baseLayers.length === 0" class="no-layers-message">
+          No hay capas base disponibles.
+        </div>
+      </div>
+    </div>
+
+    <div class="layer-group">
+      <div class="group-header" (click)="toggleOverlaysExpand()">
+        <span>Capas Superpuestas</span>
+        <mat-icon>{{ expandedOverlays ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </div>
+      <div class="group-content" *ngIf="expandedOverlays">
+        <div *ngFor="let layer of overlayLayers" 
+             class="layer-item overlay-layer" 
+             [class.active]="layer.visible" 
+             (click)="toggleOverlayLayer(layer)"
+             [matTooltip]="layer.description">
+          <mat-icon class="layer-icon">{{ layer.icon || 'layers_clear' }}</mat-icon>
+          <span class="layer-name">{{ layer.name }}</span>
+          <mat-icon class="layer-toggle">{{ layer.visible ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        </div>
+        <div *ngIf="overlayLayers.length === 0" class="no-layers-message">
+          No hay capas superpuestas disponibles.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="layer-control-footer" *ngIf="isDraggable && expandedLayers">
+    <span class="drag-hint">Arrastra desde el encabezado para mover.</span>
+  </div>
+</div> 

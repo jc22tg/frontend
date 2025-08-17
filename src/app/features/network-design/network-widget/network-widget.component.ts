@@ -24,25 +24,25 @@ import { Store } from '@ngrx/store';
 import { map, take, distinctUntilChanged } from 'rxjs/operators';
 import { Observable, of, Subscription } from 'rxjs';
 import { AppState } from '../../../core/store';
-import { ElementType, ElementStatus, NetworkElement, NetworkConnection } from '../../../shared/types/network.types';
+import { FiberConnection as DetailedFiberConnectionModel } from '../../../shared/models/fiber-connection.model';
+import { ElementType, ElementStatus, NetworkElement, NetworkConnection, NetworkAlert, ConnectionStatus } from '../../../shared/types/network.types';
 import { NetworkStatsComponent } from './components/network-stats.component';
 import { NetworkPreviewComponent } from './components/network-preview.component';
 import { NodeData } from './components/network-node.component';
 import { ConnectionData } from './components/network-connection.component';
 import { MapRenderService } from '../services/map-render.service';
 
-// Para evitar errores con propiedades no definidas en el tipo State
-interface NetworkState {
+interface NetworkStateFromReducer { // Representa el State de network.reducer.ts
   fdps?: NetworkElement[];
   olts?: NetworkElement[];
   onts?: NetworkElement[];
   edfas?: NetworkElement[];
   splitters?: NetworkElement[];
   mangas?: NetworkElement[];
-  elements?: NetworkElement[];
-  fiberConnections?: NetworkConnection[];
-  connections?: NetworkConnection[];
+  fiberConnections?: DetailedFiberConnectionModel[];
+  alerts?: NetworkAlert[];
   error?: any;
+  loading?: boolean;
 }
 
 @Component({
@@ -164,75 +164,58 @@ export class NetworkWidgetComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    this.store.select(state => state.network)
+    this.store.select((state: AppState) => state.network)
       .pipe(
         take(1),
-        map((networkState: NetworkState) => {
+        map((networkState: NetworkStateFromReducer) => {
           if (networkState.error) {
             this.error = 'Error al cargar los datos de la red';
-            return;
+            this.loading = false;
+            return { elements: [], connectionsCount: 0, connectionsForPreview: [], warnings: 0 };
           }
 
-          // Usando el modelo de datos actualizado para obtener todos los elementos
-          const allElements = networkState.elements || [];
+          const allElements: NetworkElement[] = [
+            ...(networkState.fdps || []),
+            ...(networkState.olts || []),
+            ...(networkState.onts || []),
+            ...(networkState.edfas || []),
+            ...(networkState.splitters || []),
+            ...(networkState.mangas || []),
+          ];
+          
+          const detailedFiberConnections = networkState.fiberConnections || [];
+          // En el store no hay un NetworkConnection[] consolidado, así que connectionsForPreview se quedará vacío por ahora.
+          // Si se implementara un selector en el store que devuelva NetworkConnection[], se podría usar aquí.
+          const connectionsForPreview: NetworkConnection[] = []; 
 
-          // Si no hay elementos, intentar obtenerlos de la forma anterior (compatibilidad)
-          if (!allElements || allElements.length === 0) {
-            const legacyElements = [
-              ...(networkState.fdps || []),
-              ...(networkState.olts || []),
-              ...(networkState.onts || []),
-              ...(networkState.edfas || []),
-              ...(networkState.splitters || []),
-              ...(networkState.mangas || []),
-            ];
-            
-            if (legacyElements.length > 0) {
-              this.elementsCount$ = of(legacyElements.length);
-              this.connectionsCount$ = of(networkState.fiberConnections?.length || 0);
-              this.warningCount$ = of(
-                legacyElements.filter(e => e.status === ElementStatus.FAULT).length || 0
-              );
-
-              this.previewNodes$ = of(legacyElements.map(element => this.createNodeData(element)));
-              
-              const connections = (networkState.fiberConnections || [])
-                .map(conn => this.createConnectionData(conn, legacyElements))
-                .filter((conn): conn is ConnectionData => conn !== null);
-
-              this.previewConnections$ = of(connections);
-            } else {
-              // Si tampoco hay elementos en el modelo anterior, poner contadores a 0
-              this.elementsCount$ = of(0);
-              this.connectionsCount$ = of(0);
-              this.warningCount$ = of(0);
-              this.previewNodes$ = of([]);
-              this.previewConnections$ = of([]);
-            }
-          } else {
-            // Usar los datos del nuevo modelo
-            this.elementsCount$ = of(allElements.length);
-            this.connectionsCount$ = of(networkState.connections?.length || 0);
-            this.warningCount$ = of(
-              allElements.filter(e => e.status === ElementStatus.FAULT).length || 0
-            );
-
-            this.previewNodes$ = of(allElements.map(element => this.createNodeData(element)));
-            
-            const connections = (networkState.connections || [])
-              .map(conn => this.createConnectionData(conn, allElements))
-              .filter((conn): conn is ConnectionData => conn !== null);
-
-            this.previewConnections$ = of(connections);
-          }
+          return {
+            elements: allElements,
+            connectionsCount: detailedFiberConnections.length, // Conteo basado en lo que hay
+            connectionsForPreview: connectionsForPreview, // Para dibujar, actualmente vacío
+            warnings: allElements.filter(e => 
+              e.status === ElementStatus.FAULT || 
+              e.status === ElementStatus.ERROR || 
+              e.status === ElementStatus.WARNING || 
+              e.status === ElementStatus.CRITICAL
+            ).length || 0,
+          };
         })
       )
       .subscribe({
-        complete: () => {
+        next: (data) => {
+          this.elementsCount$ = of(data.elements.length);
+          this.connectionsCount$ = of(data.connectionsCount || 0); // Asegurar que sea número
+          this.warningCount$ = of(data.warnings || 0);
+          this.previewNodes$ = of(data.elements.map(element => this.createNodeData(element)));
+          this.previewConnections$ = of(
+            (data.connectionsForPreview || []) // Asegurar que no sea undefined
+              .map(conn => this.createConnectionDataForPreview(conn, data.elements))
+              .filter((c): c is ConnectionData => c !== null) // Type guard
+          );
           this.loading = false;
         },
         error: (err) => {
-          this.error = 'Error al cargar los datos de la red';
+          this.error = 'Error al procesar datos de la red';
           this.loading = false;
           this.elementsCount$ = of(0);
           this.connectionsCount$ = of(0);
@@ -247,13 +230,10 @@ export class NetworkWidgetComponent implements OnInit, OnDestroy {
     const refreshSub = this.store
       .select(state => state.network)
       .pipe(
-        map((networkState: NetworkState) => (networkState.connections || networkState.fiberConnections || []).length),
+        map((networkState: NetworkStateFromReducer) => (networkState.fiberConnections || []).length), // Usar fiberConnections
         distinctUntilChanged()
       )
-      .subscribe(() => {
-        this.loadNetworkData();
-      });
-
+      .subscribe(() => this.loadNetworkData()); // Recargar datos si cambia el número de conexiones
     this.subscriptions.push(refreshSub);
   }
 
@@ -265,70 +245,62 @@ export class NetworkWidgetComponent implements OnInit, OnDestroy {
     this.loadNetworkData();
   }
 
-  /**
-   * Crea los datos de nodo para la visualización a partir de un elemento de red
-   * @param element Elemento de red
-   * @returns Datos del nodo para visualización
-   */
-  private createNodeData(element: NetworkElement): NodeData {
-    return {
-      x: Math.random() * 100, // Posición aleatoria para el widget
-      y: Math.random() * 100,
-      color: this.getElementColor(element),
-      tooltip: `${element.type}: ${element.name}`,
-      type: element.type as ElementType,
-      status: element.status as ElementStatus,
-      id: element.id.toString()
-    };
-  }
-
-  /**
-   * Crea los datos de conexión para la visualización
-   * @param conn Conexión de red
-   * @param elements Lista de elementos disponibles
-   * @returns Datos de conexión o null si no se puede crear
-   */
-  private createConnectionData(
-    conn: any, 
+  private createConnectionDataForPreview(
+    conn: NetworkConnection, 
     elements: NetworkElement[]
   ): ConnectionData | null {
-    const sourceId = conn.sourceId || conn.source;
-    const targetId = conn.targetId || conn.target;
+    const sourceNode = elements.find(e => e.id === conn.sourceElementId);
+    const targetNode = elements.find(e => e.id === conn.targetElementId);
+
+    if (!sourceNode || !targetNode) return null;
+    if (!sourceNode.position?.coordinates || !targetNode.position?.coordinates) return null;
+
+    const x1 = sourceNode.position.coordinates[0]; 
+    const y1 = sourceNode.position.coordinates[1];
+    const x2 = targetNode.position.coordinates[0];
+    const y2 = targetNode.position.coordinates[1];
     
-    if (!sourceId || !targetId) return null;
-    
-    const startNode = elements.find(e => e.id.toString() === sourceId.toString());
-    const endNode = elements.find(e => e.id.toString() === targetId.toString());
-    
-    if (!startNode || !endNode) return null;
-    
-    // Obtener coordenadas o usar valores aleatorios si no existen
-    const startX = startNode.position?.coordinates?.[0] || Math.random() * 100;
-    const startY = startNode.position?.coordinates?.[1] || Math.random() * 100;
-    const endX = endNode.position?.coordinates?.[0] || Math.random() * 100;
-    const endY = endNode.position?.coordinates?.[1] || Math.random() * 100;
-    
-    const dx = endX - startX;
-    const dy = endY - startY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-    
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const width = Math.sqrt(dx * dx + dy * dy) * 0.5; // Ajustar multiplicador para la escala de vista previa
+    const rotation = Math.atan2(dy, dx) * (180 / Math.PI);
+    const componentX = x1; // Posición del componente de la línea
+    const componentY = y1; // Posición del componente de la línea
+
+    let statusString: 'active' | 'inactive' = 'inactive';
+    if (conn.status === ConnectionStatus.ACTIVE) { // ConnectionStatus importado y usado
+      statusString = 'active';
+    }
+
+    // Devuelve un objeto que coincide con la interfaz ConnectionData
     return {
-      x: startX,
-      y: startY,
-      width: distance || 20, // Valor mínimo para evitar conexiones invisibles
-      rotation: `rotate(${angle}deg)`,
-      status: (conn.status === ElementStatus.ACTIVE) ? 'active' : 'inactive'
+      x: componentX, 
+      y: componentY,
+      width: width,
+      rotation: `rotate(${rotation}deg)`,
+      status: statusString
     };
   }
 
-  /**
-   * Obtiene el color para un elemento según su tipo y estado
-   * @param element Elemento de red
-   * @returns Color CSS para el elemento
-   */
+  private createNodeData(element: NetworkElement): NodeData {
+    const posX = element.position?.coordinates?.[0] || (Math.random() * 90 + 5); // Evitar bordes exactos
+    const posY = element.position?.coordinates?.[1] || (Math.random() * 90 + 5);
+    
+    return {
+      id: element.id!,
+      x: posX % 100,
+      y: posY % 100,
+      color: this.getElementColor(element),
+      tooltip: `${element.name} (${element.type}) - ${element.status}`,
+      type: element.type,
+      status: element.status 
+    };
+  }
+
   private getElementColor(element: NetworkElement): string {
-    // Usar el servicio compartido que ya implementa esta lógica
-    return this.renderService.getElementColor(element.type, element.status);
+    if (element.status === ElementStatus.ERROR || element.status === ElementStatus.FAULT) return 'var(--error-color)';
+    if (element.status === ElementStatus.WARNING) return 'var(--warn-color)';
+    if (element.status === ElementStatus.ACTIVE) return 'var(--success-color)';
+    return 'var(--neutral-color)';
   }
 }

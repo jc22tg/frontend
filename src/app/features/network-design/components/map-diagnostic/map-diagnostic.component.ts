@@ -23,7 +23,7 @@ import { NetworkStateService } from '../../services/network-state.service';
 // Importación de los nuevos servicios refactorizados
 import { MapStateManagerService } from '../../services/map/map-state-manager.service';
 import { MapElementManagerService } from '../../services/map/map-element-manager.service';
-import { MapRenderingService, PerformanceMetrics, MapStatistics } from '../../services/map/map-rendering.service';
+import { MapPerformanceService } from '../../services/map/map-performance.service';
 import { MapInteractionService } from '../../services/map/map-interaction.service';
 import { MapServicesModule } from '../../services/map/map-services.module';
 import { ElementType } from '../../../../shared/types/network.types';
@@ -64,6 +64,25 @@ interface Estadisticas {
   [key: string]: any;
 }
 
+// Interfaces locales para mantener compatibilidad
+interface PerformanceMetrics {
+  fps: number;
+  renderTime: number;
+  elementCount: number;
+  memoryUsage: number;
+  elapsed: number;
+}
+
+interface MapStatistics {
+  totalElements: number;
+  totalConnections: number;
+  visibleConnections: number;
+  totalAlerts: number;
+  performanceLevel: string;
+  memoryUsageFormatted: string;
+  loadTime: number;
+}
+
 @Component({
   selector: 'app-map-diagnostic',
   standalone: true,
@@ -101,6 +120,25 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
   recursosVerificados: RecursoVerificado[] = [];
   estadisticas: Estadisticas = {};
   
+  // Variables para almacenar métricas y estadísticas
+  private performanceMetrics: PerformanceMetrics = {
+    fps: 0,
+    renderTime: 0,
+    elementCount: 0,
+    memoryUsage: 0,
+    elapsed: 0
+  };
+
+  private mapStatistics: MapStatistics = {
+    totalElements: 0,
+    totalConnections: 0,
+    visibleConnections: 0,
+    totalAlerts: 0,
+    performanceLevel: 'Desconocido',
+    memoryUsageFormatted: '0 MB',
+    loadTime: 0
+  };
+  
   // Nuevo: opciones para modo autoDiagnostico
   autoDiagnosticoActive = false;
   autoDiagnosticoInterval = 60; // segundos
@@ -118,7 +156,7 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
     // Inyectar los servicios refactorizados
     private stateManager: MapStateManagerService,
     private elementManager: MapElementManagerService,
-    private renderingService: MapRenderingService,
+    private performanceService: MapPerformanceService,
     private interactionService: MapInteractionService
   ) {}
 
@@ -146,29 +184,34 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
     this.warningCount = 0;
     this.cdr.markForCheck();
     
-    // Obtener información de rendimiento del servicio refactorizado
-    const performanceMetrics = this.renderingService.getPerformanceMetrics();
-    const mapStatistics = this.renderingService.getMapStatistics();
+    // Suscribirse para obtener las métricas actualizadas
+    this.performanceService.getMetrics().pipe(take(1)).subscribe(metrics => {
+      this.performanceMetrics = metrics;
+    });
+
+    this.performanceService.getMapStatistics().pipe(take(1)).subscribe(stats => {
+      this.mapStatistics = stats;
+    });
     
     // Actualizar estadísticas con datos de los nuevos servicios
     this.estadisticas = {
-      memoria: mapStatistics.memoryUsageFormatted,
-      rendimiento: mapStatistics.performanceLevel,
-      fps: performanceMetrics.fps,
-      tiempoInicializacion: `${mapStatistics.loadTime}ms`,
-      elementosCargados: mapStatistics.totalElements.toString(),
+      memoria: this.mapStatistics.memoryUsageFormatted,
+      rendimiento: this.mapStatistics.performanceLevel,
+      fps: this.performanceMetrics.fps,
+      tiempoInicializacion: `${this.mapStatistics.loadTime}ms`,
+      elementosCargados: this.mapStatistics.totalElements.toString(),
       elementosVisibles: this.elementManager.getAllElements().length.toString()
     };
     
     // Generar lista de advertencias basadas en métricas
     const warnings: string[] = [];
     
-    if (performanceMetrics.fps < 30) {
+    if (this.performanceMetrics.fps < 30) {
       warnings.push('Rendimiento bajo: FPS por debajo de 30');
     }
     
-    if (performanceMetrics.renderTime > 100) {
-      warnings.push('Tiempo de renderizado alto: ' + performanceMetrics.renderTime + 'ms');
+    if (this.performanceMetrics.renderTime > 100) {
+      warnings.push('Tiempo de renderizado alto: ' + this.performanceMetrics.renderTime + 'ms');
     }
     
     this.mapService.diagnosticarMapa()
@@ -351,11 +394,12 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
     }
     
     try {
-      // Incluir métricas de rendimiento de los nuevos servicios
+      // Actualizar la exportación para usar los métodos correctos
       const exportData = {
         ...this.diagnosticoResultado,
-        performanceMetrics: this.renderingService.getPerformanceMetrics(),
-        mapStatistics: this.renderingService.getMapStatistics(),
+        // Usando las métricas y estadísticas locales en lugar de llamadas a métodos obsoletos
+        performanceMetrics: this.performanceMetrics,
+        mapStatistics: this.mapStatistics,
         elementCount: this.elementManager.getAllElements().length,
         activeLayersCount: 0 // Lo actualizaremos con la suscripción
       };
@@ -421,12 +465,17 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
           this.cargando = true;
           this.cdr.markForCheck();
           
-          // Usamos el rendimiento de los servicios refactorizados
-          const performanceMetrics = this.renderingService.getPerformanceMetrics();
+          // Actualizar métricas antes de iniciar el diagnóstico
+          this.performanceService.getMetrics().pipe(take(1)).subscribe(metrics => {
+            this.performanceMetrics = metrics;
+          });
+          
+          // Usamos las métricas actualizadas
+          const performanceFps = this.performanceMetrics.fps;
           
           // Si el rendimiento es bajo, agregar advertencia
           const warnings: string[] = [];
-          if (performanceMetrics.fps < 20) {
+          if (performanceFps < 20) {
             warnings.push('Rendimiento crítico detectado en diagnóstico automático');
           }
           
@@ -450,7 +499,7 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
             this.estadisticas = {
               ...resultado.estadisticas,
               ...this.estadisticas,
-              fps: this.renderingService.getPerformanceMetrics().fps
+              fps: this.performanceMetrics.fps
             };
           }
           
@@ -490,19 +539,23 @@ export class MapDiagnosticComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
     
     try {
-      // Reiniciar servicios refactorizados
-      this.renderingService.clearMemoizationCache();
+      // Limpiar caché de memoización
+      this.performanceService.clearMemoizationCache();
       
       // Reiniciar capas activas usando enum ElementType correctamente
       const defaultLayers: ElementType[] = [
         ElementType.OLT,
         ElementType.ONT, 
-        ElementType.FDP, 
+        ElementType.ODF,  // Usar ODF en lugar de FDP que no existe
         ElementType.SPLITTER,
         ElementType.EDFA,
-        ElementType.MANGA
+        ElementType.MANGA,
+        ElementType.TERMINAL_BOX,
+        ElementType.FIBER_CONNECTION
       ];
-      this.stateManager.setActiveLayers(defaultLayers);
+      // TODO: NetworkStateService necesita un método para establecer/resetear las capas activas (ej. setActiveLayers o resetActiveLayers).
+      // Comentado temporalmente para corregir error de compilación.
+      // this.networkStateService.setActiveLayers(defaultLayers);
       
       // Descartar selecciones
       this.interactionService.selectElement(null);

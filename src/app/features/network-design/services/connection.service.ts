@@ -1,7 +1,15 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { map, catchError, tap, delay } from 'rxjs/operators';
-import { NetworkElement, ElementType, ElementStatus, NetworkConnection, FiberType } from '../../../shared/types/network.types';
+import { NetworkElement, ElementType, ElementStatus, NetworkConnection, ConnectionStatus, ConnectionType } from '../../../shared/types/network.types';
+import {
+  FiberConnection as DetailedFiberConnection,
+  FiberType,
+  FiberUsageType,
+  ConnectorType,
+  PolishingType,
+  FiberStandard
+} from '../../../shared/models/fiber-connection.model';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { IConnectionService } from '../interfaces';
@@ -21,6 +29,97 @@ export class ConnectionService implements IConnectionService {
   // URL base para las API de conexiones
   private apiUrl = `${environment.apiUrl}/connections`;
 
+  // Lista mock para DetailedFiberConnection, ahora como propiedad de clase
+  private mockDetailedFiberConnections: DetailedFiberConnection[] = [
+    {
+      id: 'dfc-001',
+      name: 'Fibra Detallada OLT-001 a FDP-001',
+      description: 'Detalles específicos de la fibra entre OLT Principal y FDP Primario.',
+      usageType: FiberUsageType.BACKBONE,
+      fiberType: FiberType.SINGLE_MODE,
+      connectorType: ConnectorType.SC,
+      polishingType: PolishingType.APC,
+      standard: FiberStandard.ITU_T_G_652,
+      insertionLoss: 0.5,
+      returnLoss: 50,
+      wavelength: 1310,
+      bandwidth: 1000,
+      coreDiameter: 9,
+      claddingDiameter: 125,
+      outerDiameter: 3,
+      operatingTemperature: { min: -40, max: 85 },
+      tensileStrength: 100,
+      manufacturer: 'Corning',
+      modelNumber: 'SMF-28e+',
+      manufacturingDate: new Date('2022-01-15'),
+      certifications: ['ISO 9001', 'RoHS'],
+      strands: { total: 12, available: 8, inUse: 4, reserved: 0, damaged: 0 },
+      strandConfiguration: {
+        totalStrands: 12,
+        strandsPerTube: 6,
+        tubesPerCable: 2,
+        bufferTubes: 2,
+        centralStrengthMember: true
+      },
+      networkInfo: {
+        networkSegment: 'Core Ring A',
+        networkLevel: 'Backbone',
+        redundancy: true,
+        backupPath: 'dfc-001-backup',
+        maxDistance: 20000, // 20km
+        distanceMetrics: {
+          totalLength: 150.5, // en metros
+          splicePoints: 2,
+          maxSpliceLoss: 0.1,
+          totalLoss: 0.7
+        }
+      }
+    },
+    {
+      id: 'dfc-002',
+      name: 'Fibra Detallada FDP-001 a SPL-001',
+      description: 'Segmento de fibra desde FDP Primario hasta el primer nivel de splitters.',
+      usageType: FiberUsageType.DISTRIBUTION,
+      fiberType: FiberType.SINGLE_MODE,
+      connectorType: ConnectorType.LC,
+      polishingType: PolishingType.UPC,
+      standard: FiberStandard.ITU_T_G_657,
+      insertionLoss: 0.3,
+      returnLoss: 45,
+      wavelength: 1550,
+      bandwidth: 2000,
+      coreDiameter: 9,
+      claddingDiameter: 125,
+      outerDiameter: 2,
+      operatingTemperature: { min: -20, max: 70 },
+      tensileStrength: 80,
+      manufacturer: 'Prysmian',
+      modelNumber: 'Draka UC CONQUEROR',
+      manufacturingDate: new Date('2022-05-20'),
+      certifications: ['ISO 9001'],
+      strands: { total: 24, available: 20, inUse: 4, reserved: 0, damaged: 0 },
+      strandConfiguration: {
+        totalStrands: 24,
+        strandsPerTube: 12,
+        tubesPerCable: 2,
+        bufferTubes: 2,
+        centralStrengthMember: true
+      },
+      networkInfo: {
+        networkSegment: 'Distribution Area 1',
+        networkLevel: 'Distribution',
+        redundancy: false,
+        maxDistance: 5000, // 5km
+        distanceMetrics: {
+          totalLength: 80.0, // en metros
+          splicePoints: 1,
+          maxSpliceLoss: 0.05,
+          totalLoss: 0.35
+        }
+      }
+    }
+  ];
+
   constructor(
     private http: HttpClient,
     private localStorageService: LocalStorageService
@@ -32,12 +131,12 @@ export class ConnectionService implements IConnectionService {
    * Carga las conexiones iniciales del servicio
    */
   private loadInitialConnections(): void {
-    if (environment.useMocks) {
+    if (environment.featureFlags.enableMockData) {
       // Usar datos mock si está habilitado en environment
       console.log('Usando datos mock para conexiones');
       setTimeout(() => {
         this.connectionsSubject.next(this.getMockConnections());
-      }, environment.mockDelay || 500);
+      }, 500);
       return;
     }
 
@@ -106,7 +205,7 @@ export class ConnectionService implements IConnectionService {
   getConnectionsByElementId(elementId: string): Observable<NetworkConnection[]> {
     return this.connectionsSubject.pipe(
       map(connections => connections.filter(
-        conn => conn.sourceId === elementId || conn.targetId === elementId
+        conn => conn.sourceElementId === elementId || conn.targetElementId === elementId
       ))
     );
   }
@@ -233,15 +332,56 @@ export class ConnectionService implements IConnectionService {
    */
   private matchesSearch(connection: NetworkConnection, searchTerm: string): boolean {
     if (!connection) return false;
-    
     const term = searchTerm.toLowerCase();
-    const sourceIdMatch = connection.sourceId?.toLowerCase().includes(term) || false;
-    const targetIdMatch = connection.targetId?.toLowerCase().includes(term) || false;
+    const sourceIdMatch = connection.sourceElementId?.toLowerCase().includes(term) || false;
+    const targetIdMatch = connection.targetElementId?.toLowerCase().includes(term) || false;
     const idMatch = connection.id?.toLowerCase().includes(term) || false;
-    const labelMatch = connection.label?.toLowerCase().includes(term) || false;
-    const descMatch = connection.description?.toLowerCase().includes(term) || false;
-    
-    return idMatch || sourceIdMatch || targetIdMatch || labelMatch || descMatch;
+    return idMatch || sourceIdMatch || targetIdMatch;
+  }
+
+  /**
+   * Obtiene los detalles completos de una conexión de fibra por su ID de detalle.
+   * (Este ID sería el detailedFiberConnectionId de NetworkConnection)
+   * TODO: Implementar la llamada HTTP real al backend.
+   */
+  getDetailedFiberConnectionById(detailedFiberId: string): Observable<DetailedFiberConnection | null> {
+    const foundDetail = this.mockDetailedFiberConnections.find(detail => detail.id === detailedFiberId);
+    if (foundDetail) {
+      return of(foundDetail).pipe(delay(300)); // Simular delay de API
+    }
+    return of(null).pipe(delay(300));
+  }
+
+  updateDetailedFiberConnection(details: DetailedFiberConnection): Observable<DetailedFiberConnection | null> {
+    const index = this.mockDetailedFiberConnections.findIndex(dfc => dfc.id === details.id);
+    if (index !== -1) {
+      this.mockDetailedFiberConnections[index] = {
+        ...this.mockDetailedFiberConnections[index],
+        ...details,
+      };
+      return of(this.mockDetailedFiberConnections[index]).pipe(delay(300));
+    }
+    return of(null).pipe(delay(300));
+  }
+
+  createDetailedFiberConnection(details: DetailedFiberConnection): Observable<DetailedFiberConnection | null> {
+    // En una implementación real, aseguraríamos que el ID no colisione o que el backend lo genere.
+    // Por ahora, asumimos que el ID ya viene en 'details'.
+    const existing = this.mockDetailedFiberConnections.find(dfc => dfc.id === details.id);
+    if (existing) {
+      console.warn(`DetailedFiberConnection con ID ${details.id} ya existe. No se creará uno nuevo.`);
+      return of(null).pipe(delay(100)); // Simular fallo o conflicto
+    }
+
+    // Clonar el objeto para evitar mutaciones no deseadas del objeto original pasado como argumento
+    const newDetailedConnection = { ...details };
+    // Podríamos añadir createdAt/updatedAt si el modelo los tuviera.
+    // newDetailedConnection.createdAt = new Date();
+    // newDetailedConnection.updatedAt = new Date();
+
+    this.mockDetailedFiberConnections.push(newDetailedConnection);
+    console.log('[ConnectionService] Mock DetailedFiberConnection creado:', newDetailedConnection);
+    return of(newDetailedConnection).pipe(delay(300)); // Simular delay de API
   }
 
   /**
@@ -252,33 +392,38 @@ export class ConnectionService implements IConnectionService {
     return [
       {
         id: 'conn-001',
-        sourceId: 'olt-001',
-        targetId: 'fdp-001',
-        status: ElementStatus.ACTIVE,
-        type: 'fiber',
-        length: 1200,
-        capacity: 10,
-        label: 'Conexión OLT-FDP Principal'
+        name: 'Conexión OLT-FDP Principal',
+        sourceElementId: 'olt-001',
+        targetElementId: 'fdp-001',
+        status: ConnectionStatus.ACTIVE,
+        type: ConnectionType.FIBER,
+        detailedFiberConnectionId: 'dfc-001'
       },
       {
         id: 'conn-002',
-        sourceId: 'fdp-001',
-        targetId: 'splitter-001',
-        status: ElementStatus.ACTIVE,
-        type: 'fiber',
-        length: 300,
-        capacity: 10,
-        label: 'Conexión FDP-Splitter'
+        name: 'Conexión FDP-Splitter',
+        sourceElementId: 'fdp-001',
+        targetElementId: 'splitter-001',
+        status: ConnectionStatus.ACTIVE,
+        type: ConnectionType.FIBER,
+        detailedFiberConnectionId: 'dfc-002'
       },
       {
         id: 'conn-003',
-        sourceId: 'splitter-001',
-        targetId: 'ont-001',
-        status: ElementStatus.ACTIVE,
-        type: 'fiber',
-        length: 150,
-        capacity: 1,
-        label: 'Conexión Splitter-ONT'
+        name: 'Conexión Splitter-ONT',
+        sourceElementId: 'splitter-001',
+        targetElementId: 'ont-001',
+        status: ConnectionStatus.ACTIVE,
+        type: ConnectionType.FIBER,
+        detailedFiberConnectionId: 'dfc-003'
+      },
+      {
+        id: 'conn-004',
+        name: 'Conexión Lógica RouterA-RouterB',
+        sourceElementId: 'router-A',
+        targetElementId: 'router-B',
+        status: ConnectionStatus.ACTIVE,
+        type: ConnectionType.LOGICAL
       }
     ];
   }
@@ -291,8 +436,8 @@ export class ConnectionService implements IConnectionService {
   validateConnection(connection: NetworkConnection): boolean {
     if (!connection) return false;
     
-    const sourceId = connection.sourceId;
-    const targetId = connection.targetId;
+    const sourceId = connection.sourceElementId;
+    const targetId = connection.targetElementId;
     
     // Validación básica de IDs
     if (!sourceId || !targetId) {
@@ -339,10 +484,11 @@ export class ConnectionService implements IConnectionService {
       map(connections => {
         const stats = {
           total: connections.length,
-          active: connections.filter(c => c.status === ElementStatus.ACTIVE).length,
-          inactive: connections.filter(c => c.status === ElementStatus.INACTIVE).length,
-          warning: connections.filter(c => c.status === ElementStatus.WARNING).length,
-          error: connections.filter(c => c.status === ElementStatus.CRITICAL).length
+          active: connections.filter(c => c.status === 'ACTIVE').length,
+          inactive: connections.filter(c => c.status === 'INACTIVE').length,
+          degraded: connections.filter(c => c.status === 'DEGRADED').length,
+          failed: connections.filter(c => c.status === 'FAILED').length,
+          planned: connections.filter(c => c.status === 'PLANNED').length
         };
         return stats;
       })

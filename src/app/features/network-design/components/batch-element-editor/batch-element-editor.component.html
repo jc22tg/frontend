@@ -2,7 +2,7 @@
   <mat-card class="batch-editor-card">
     <mat-card-header>
       <div class="header-icon">
-        <mat-icon>{{ getElementTypeIcon() }}</mat-icon>
+        <mat-icon aria-hidden="true">{{ getElementTypeIcon() }}</mat-icon>
       </div>
       <mat-card-title>Crear múltiples {{ getElementTypeName() }}</mat-card-title>
       <mat-card-subtitle>
@@ -15,7 +15,7 @@
         <!-- Configuración de lote -->
         <div class="batch-config-section">
           <h3>
-            <mat-icon>settings</mat-icon>
+            <mat-icon aria-hidden="true">settings</mat-icon>
             <span>Configuración de lote</span>
           </h3>
           
@@ -28,7 +28,7 @@
                   {{ template.name }}
                 </mat-option>
               </mat-select>
-              <mat-icon matSuffix>category</mat-icon>
+              <mat-icon matSuffix aria-hidden="true">category</mat-icon>
               <mat-hint>Seleccione una plantilla predefinida</mat-hint>
             </mat-form-field>
           </div>
@@ -41,7 +41,7 @@
                 formControlName="prefix"
                 placeholder="Ej: NORTE-"
               />
-              <mat-icon matSuffix>label</mat-icon>
+              <mat-icon matSuffix aria-hidden="true">label</mat-icon>
               <mat-hint>Prefijo adicional para códigos (opcional)</mat-hint>
               <mat-error *ngIf="batchForm.get('prefix')?.hasError('pattern')">
                 Solo letras, números, guiones y guiones bajos
@@ -56,7 +56,7 @@
                 formControlName="startNumber"
                 min="1"
               />
-              <mat-icon matSuffix>first_page</mat-icon>
+              <mat-icon matSuffix aria-hidden="true">first_page</mat-icon>
               <mat-hint>Número para iniciar la secuencia</mat-hint>
               <mat-error *ngIf="batchForm.get('startNumber')?.hasError('required')">
                 El número inicial es requerido
@@ -72,7 +72,7 @@
                 min="1"
                 max="10"
               />
-              <mat-icon matSuffix>format_list_numbered</mat-icon>
+              <mat-icon matSuffix aria-hidden="true">format_list_numbered</mat-icon>
               <mat-hint>Cantidad de dígitos para rellenar con ceros</mat-hint>
               <mat-error *ngIf="batchForm.get('digits')?.hasError('required')">
                 La cantidad de dígitos es requerida
@@ -88,8 +88,9 @@
               (click)="generateAllCodes()"
               matTooltip="Regenerar todos los códigos con la configuración actual"
               class="action-button"
+              aria-label="Regenerar todos los códigos"
             >
-              <mat-icon>refresh</mat-icon>
+              <mat-icon aria-hidden="true">refresh</mat-icon>
               <span>Regenerar códigos</span>
             </button>
             
@@ -100,8 +101,9 @@
               (click)="addElement()"
               matTooltip="Agregar un nuevo elemento a la lista"
               class="action-button"
+              aria-label="Agregar elemento"
             >
-              <mat-icon>add</mat-icon>
+              <mat-icon aria-hidden="true">add</mat-icon>
               <span>Agregar elemento</span>
             </button>
           </div>
@@ -126,7 +128,7 @@
         <!-- Lista de elementos -->
         <div class="elements-section">
           <h3>
-            <mat-icon>view_list</mat-icon>
+            <mat-icon aria-hidden="true">view_list</mat-icon>
             <span>Lista de elementos</span>
           </h3>
           
@@ -154,9 +156,10 @@
                     color="primary"
                     (click)="duplicateElement(i)"
                     matTooltip="Duplicar elemento"
+                    aria-label="Duplicar elemento"
                     class="action-icon"
                   >
-                    <mat-icon>content_copy</mat-icon>
+                    <mat-icon aria-hidden="true">content_copy</mat-icon>
                   </button>
                   <button
                     mat-icon-button
@@ -164,9 +167,10 @@
                     color="warn"
                     (click)="removeElement(i)"
                     matTooltip="Eliminar elemento"
+                    aria-label="Eliminar elemento"
                     class="action-icon"
                   >
-                    <mat-icon>delete</mat-icon>
+                    <mat-icon aria-hidden="true">delete</mat-icon>
                   </button>
                 </div>
               </div>
@@ -176,7 +180,7 @@
                   <mat-form-field appearance="outline">
                     <mat-label>Código</mat-label>
                     <input matInput formControlName="code" required />
-                    <mat-icon matSuffix>vpn_key</mat-icon>
+                    <mat-icon matSuffix aria-hidden="true">vpn_key</mat-icon>
                     <mat-error *ngIf="element.get('code')?.hasError('required')">
                       El código es requerido
                     </mat-error>
@@ -188,14 +192,14 @@
                   <mat-form-field appearance="outline">
                     <mat-label>Nombre</mat-label>
                     <input matInput formControlName="name" />
-                    <mat-icon matSuffix>edit</mat-icon>
+                    <mat-icon matSuffix aria-hidden="true">edit</mat-icon>
                   </mat-form-field>
                   
                   <mat-form-field appearance="outline">
                     <mat-label>Estado</mat-label>
                     <mat-select formControlName="status">
                       <mat-option value="active">
-                        <mat-icon class="status-icon active">check_circle</mat-icon>
+                        <mat-icon class="status-icon active" aria-hidden="true">check_circle</mat-icon>
                         Activo
                       </mat-option>
                       <mat-option value="inactive">
@@ -207,7 +211,7 @@
                         Planificado
                       </mat-option>
                     </mat-select>
-                    <mat-icon matSuffix>fiber_manual_record</mat-icon>
+                    <mat-icon matSuffix aria-hidden="true">fiber_manual_record</mat-icon>
                   </mat-form-field>
                 </div>
                 

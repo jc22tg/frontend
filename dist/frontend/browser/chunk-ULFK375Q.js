@@ -1,0 +1,1 @@
+var e={production:!1,apiUrl:"http://localhost:3000/api",mapbox:{accessToken:"pk.placeholder_token_for_development",style:"mapbox://styles/mapbox/streets-v11"},defaultMapCenter:{lat:18.735693,lng:-70.162651},defaultMapZoom:8,featureFlags:{enableMockData:!0,enableOfflineMode:!0,enableDebugTools:!0},useMocks:!0};export{e as a};

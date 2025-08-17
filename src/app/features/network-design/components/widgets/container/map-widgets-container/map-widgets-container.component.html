@@ -1,72 +1,18 @@
-<div class="map-widgets-container" [class.widgets-hidden]="!showWidgets">
+<div class="map-widgets-container" [ngClass]="position" [class.widgets-hidden]="!showWidgets">
   <!-- Barra de herramientas principal para controlar los widgets - Solo visible cuando position es 'left' -->
   <div class="widgets-toolbar" *ngIf="position === 'left'">
-    <button mat-icon-button (click)="toggleAllWidgets()" matTooltip="Mostrar/ocultar widgets" class="toggle-widgets-btn" matTooltipPosition="right">
-      <mat-icon>{{ showWidgets ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+    <button mat-icon-button (click)="toggleWidgetsVisibility()" title="Mostrar/ocultar widgets">
+      <mat-icon>{{ showWidgets ? 'visibility_off' : 'visibility' }}</mat-icon>
     </button>
-    
-    <ng-container *ngIf="showWidgets">
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.layers" 
-        (click)="toggleWidget('layers')" 
-        matTooltip="Administrar capas" matTooltipPosition="right">
-        <mat-icon>layers</mat-icon>
+    <button mat-icon-button [matMenuTriggerFor]="addWidgetMenu" title="Añadir widget">
+      <mat-icon>add</mat-icon>
+    </button>
+    <mat-menu #addWidgetMenu="matMenu">
+      <button mat-menu-item *ngFor="let widgetType of availableWidgetTypes" (click)="addWidget(widgetType)">
+        <mat-icon>{{ getWidgetIcon(widgetType) }}</mat-icon>
+        <span>{{ getWidgetName(widgetType) }}</span>
       </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.creator" 
-        (click)="toggleWidget('creator')" 
-        matTooltip="Crear elementos" matTooltipPosition="right">
-        <mat-icon>add_circle</mat-icon>
-      </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.connection" 
-        (click)="toggleWidget('connection')" 
-        matTooltip="Crear conexiones" matTooltipPosition="right">
-        <mat-icon>timeline</mat-icon>
-      </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.search" 
-        (click)="toggleWidget('search')" 
-        matTooltip="Buscar elementos" matTooltipPosition="right">
-        <mat-icon>search</mat-icon>
-      </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.metrics" 
-        (click)="toggleWidget('metrics')" 
-        matTooltip="Métricas de red" matTooltipPosition="right">
-        <mat-icon>insert_chart</mat-icon>
-      </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.health" 
-        (click)="toggleWidget('health')" 
-        matTooltip="Estado de salud de la red" matTooltipPosition="right">
-        <mat-icon>favorite</mat-icon>
-      </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.status" 
-        (click)="toggleWidget('status')" 
-        matTooltip="Estado de red" matTooltipPosition="right">
-        <mat-icon>info</mat-icon>
-      </button>
-      
-      <button mat-icon-button 
-        [class.active]="widgetVisibility.miniMap" 
-        (click)="toggleWidget('miniMap')" 
-        matTooltip="Vista general del mapa" matTooltipPosition="right">
-        <mat-icon>map</mat-icon>
-      </button>
-      
-      <button mat-icon-button (click)="organizeWidgets()"
-              matTooltip="Organizar widgets" matTooltipPosition="right">
-        <mat-icon>auto_awesome_mosaic</mat-icon>
-      </button>
-    </ng-container>
+    </mat-menu>
   </div>
   
   <!-- Panel principal de widgets -->
@@ -96,7 +42,7 @@
       id="widget-creator"
       (onAddElement)="handleAddElement($event)">
       <div class="widget-header">
-        <span class="widget-title">Crear Elemento</span>
+        <span class="widget-title">Crear Nuevo Elemento</span>
         <button mat-icon-button class="close-btn" (click)="toggleWidget('creator')">
           <mat-icon>close</mat-icon>
         </button>

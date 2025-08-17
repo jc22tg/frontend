@@ -17,11 +17,24 @@ import { UtilsService } from '../../../../shared/services/utils.service';
  * @property {T} value - El valor almacenado en caché
  * @property {number} timestamp - Marca de tiempo cuando se almacenó el valor
  * @property {number} ttl - Tiempo de vida en milisegundos
+ * @property {number} hitCount - Contador de veces que se ha accedido a este valor
  */
 interface CacheEntry<T> {
   value: T;
   timestamp: number;
   ttl: number;
+  hitCount: number;
+}
+
+/**
+ * Niveles de log disponibles para depuración
+ */
+enum LogLevel {
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARN = 'warn',
+  ERROR = 'error',
+  PERFORMANCE = 'performance'
 }
 
 /**
@@ -43,6 +56,7 @@ interface CacheEntry<T> {
  * - Métodos de utilidad para operaciones habituales en mapas
  * - Logging condicional basado en modo debug
  * - Gestión unificada de eventos de selección de elementos/conexiones
+ * - Métricas de rendimiento para memoización
  */
 @Directive()
 export abstract class BaseMapComponent implements OnInit, OnDestroy {
@@ -179,6 +193,27 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
   private debugMode = false;
   
   /**
+   * Niveles de log habilitados para depuración
+   * 
+   * @private
+   * @type {Set<LogLevel>}
+   */
+  private enabledLogLevels = new Set<LogLevel>([
+    LogLevel.ERROR,
+    LogLevel.WARN
+  ]);
+  
+  /**
+   * Estadísticas de uso de la caché de memoización
+   */
+  private memoStats = {
+    hits: 0,
+    misses: 0,
+    expired: 0,
+    totalEntries: 0
+  };
+  
+  /**
    * Constructor que inyecta todos los servicios comunes a través del Injector
    * Utiliza el patrón de inyección de dependencias de Angular
    * 
@@ -227,6 +262,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
     const debugFromStorage = localStorage.getItem('networkmap_debug_mode');
     if (debugFromStorage === 'true') {
       this.debugMode = true;
+      this.enableAllLogLevels();
       this.logDebug('Modo debug activado desde localStorage');
       return;
     }
@@ -237,9 +273,48 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
       const debugParam = urlParams.get('debug');
       if (debugParam === 'true') {
         this.debugMode = true;
+        this.enableAllLogLevels();
         this.logDebug('Modo debug activado desde URL');
       }
+      
+      // Configurar niveles de log desde parámetros URL
+      const logLevels = urlParams.get('logLevels');
+      if (logLevels) {
+        this.configureLogLevels(logLevels.split(','));
+      }
     }
+  }
+  
+  /**
+   * Habilita todos los niveles de log para depuración
+   * 
+   * @private
+   * @returns {void}
+   */
+  private enableAllLogLevels(): void {
+    this.enabledLogLevels = new Set(Object.values(LogLevel));
+  }
+  
+  /**
+   * Configura los niveles de log habilitados
+   * 
+   * @private
+   * @param {string[]} levels - Nombres de los niveles a habilitar
+   * @returns {void}
+   */
+  private configureLogLevels(levels: string[]): void {
+    if (!levels || levels.length === 0) return;
+    
+    this.enabledLogLevels.clear();
+    levels.forEach(level => {
+      const logLevel = level.toLowerCase() as LogLevel;
+      if (Object.values(LogLevel).includes(logLevel)) {
+        this.enabledLogLevels.add(logLevel);
+      }
+    });
+    
+    // Siempre habilitar errores
+    this.enabledLogLevels.add(LogLevel.ERROR);
   }
   
   /**
@@ -249,24 +324,39 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * @protected
    * @param {string} message - Mensaje a registrar en el log
    * @param {any} [data] - Datos adicionales opcionales para incluir en el log
+   * @param {LogLevel} [level=LogLevel.DEBUG] - Nivel de log
    * @returns {void}
    */
-  protected logDebug(message: string, data?: any): void {
-    if (!this.debugMode) return;
+  protected logDebug(message: string, data?: any, level: LogLevel = LogLevel.DEBUG): void {
+    if (!this.debugMode && !this.enabledLogLevels.has(level)) return;
     
     const componentName = this.constructor.name;
     const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] [${componentName}] ${message}`;
     
-    if (data) {
-      this.logger.debug(`[${timestamp}] [${componentName}] ${message}`, data);
-    } else {
-      this.logger.debug(`[${timestamp}] [${componentName}] ${message}`);
+    switch (level) {
+      case LogLevel.INFO:
+        data ? this.logger.info(logMessage, data) : this.logger.info(logMessage);
+        break;
+      case LogLevel.WARN:
+        data ? this.logger.warn(logMessage, data) : this.logger.warn(logMessage);
+        break;
+      case LogLevel.ERROR:
+        data ? this.logger.error(logMessage, data) : this.logger.error(logMessage);
+        break;
+      case LogLevel.PERFORMANCE:
+        data ? this.logger.debug(`[PERFORMANCE] ${logMessage}`, data) : this.logger.debug(`[PERFORMANCE] ${logMessage}`);
+        break;
+      case LogLevel.DEBUG:
+      default:
+        data ? this.logger.debug(logMessage, data) : this.logger.debug(logMessage);
     }
   }
   
   /**
    * Implementa el patrón de Memoización para cachear resultados de operaciones costosas
    * Reduce la carga de CPU al evitar recalcular valores que no cambian frecuentemente
+   * Incluye sistema de estadísticas para analizar la eficacia de la caché
    * 
    * @protected
    * @template T - Tipo de dato devuelto por la función memoizada
@@ -275,28 +365,56 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * @param {number} [ttlMs=5000] - Tiempo de vida en milisegundos (por defecto 5 segundos)
    * @returns {T} - El resultado de la función, ya sea de caché o recién calculado
    */
-  protected memoize<T>(key: string, callback: () => T, ttlMs: number = 5000): T {
+  protected memoize<T>(key: string, callback: () => T, ttlMs = 5000): T {
     const cacheKey = `${this.constructor.name}_${key}`;
     const now = Date.now();
     
     // Verificar si el valor está en caché y es válido
     const cachedEntry = this.memoizationCache.get(cacheKey);
     
-    if (cachedEntry && (now - cachedEntry.timestamp < cachedEntry.ttl)) {
-      this.logDebug(`Utilizando valor en caché para: ${cacheKey}`);
-      return cachedEntry.value;
+    if (cachedEntry) {
+      if (now - cachedEntry.timestamp < cachedEntry.ttl) {
+        // Actualizar contador de accesos y registrar estadísticas
+        cachedEntry.hitCount++;
+        this.memoStats.hits++;
+        
+        this.logDebug(`Cache hit para: ${cacheKey} (hit count: ${cachedEntry.hitCount})`, 
+          { ttl: cachedEntry.ttl, age: now - cachedEntry.timestamp }, 
+          LogLevel.PERFORMANCE
+        );
+        
+        return cachedEntry.value;
+      } else {
+        // El valor expiró, registrar estadísticas
+        this.memoStats.expired++;
+        this.logDebug(`Cache expired para: ${cacheKey}`, 
+          { age: now - cachedEntry.timestamp, ttl: cachedEntry.ttl }, 
+          LogLevel.PERFORMANCE
+        );
+      }
+    } else {
+      this.memoStats.misses++;
     }
     
     // Calcular nuevo valor
-    this.logDebug(`Calculando nuevo valor para: ${cacheKey}`);
+    const startTime = performance.now();
     const value = callback();
+    const executionTime = performance.now() - startTime;
     
     // Almacenar en caché
     this.memoizationCache.set(cacheKey, {
       value,
       timestamp: now,
-      ttl: ttlMs
+      ttl: ttlMs,
+      hitCount: 1
     });
+    
+    this.memoStats.totalEntries = this.memoizationCache.size;
+    
+    this.logDebug(`Cache miss para: ${cacheKey}, calculado en ${executionTime.toFixed(2)}ms`, 
+      { executionTime, cacheSize: this.memoizationCache.size }, 
+      LogLevel.PERFORMANCE
+    );
     
     return value;
   }
@@ -313,11 +431,32 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
     if (key) {
       const cacheKey = `${this.constructor.name}_${key}`;
       this.memoizationCache.delete(cacheKey);
-      this.logDebug(`Caché limpiada para: ${cacheKey}`);
+      this.logDebug(`Caché limpiada para: ${cacheKey}`, null, LogLevel.PERFORMANCE);
     } else {
+      const count = this.memoizationCache.size;
       this.memoizationCache.clear();
-      this.logDebug('Toda la caché de memoización ha sido limpiada');
+      this.logDebug(`Toda la caché de memoización ha sido limpiada (${count} entradas)`, null, LogLevel.PERFORMANCE);
     }
+    
+    this.memoStats.totalEntries = this.memoizationCache.size;
+  }
+  
+  /**
+   * Obtiene las estadísticas de uso de la caché de memoización
+   * Útil para monitoreo y optimización del rendimiento
+   * 
+   * @protected
+   * @returns {Object} - Estadísticas de uso de caché
+   */
+  protected getMemoizationStats(): typeof this.memoStats {
+    const hitRatio = this.memoStats.hits / (this.memoStats.hits + this.memoStats.misses);
+    this.logDebug(`Estadísticas de memoización:`, {
+      ...this.memoStats,
+      hitRatio: isNaN(hitRatio) ? 0 : hitRatio.toFixed(2),
+      cacheSize: this.memoizationCache.size
+    }, LogLevel.PERFORMANCE);
+    
+    return { ...this.memoStats };
   }
   
   /**
@@ -326,13 +465,15 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * 1. Registra el error con detalles en el log
    * 2. Notifica al usuario mediante un snackbar
    * 3. Actualiza el estado del componente
+   * 4. Opcionalmente lanza un evento personalizado
    * 
    * @protected
    * @param {any} error - El error capturado
    * @param {string} [message='Error en el componente de mapa'] - Mensaje descriptivo para el usuario
+   * @param {boolean} [showToUser=true] - Si se debe mostrar notificación al usuario
    * @returns {void}
    */
-  protected handleError(error: any, message: string = 'Error en el componente de mapa'): void {
+  protected handleError(error: any, message = 'Error en el componente de mapa', showToUser = true): void {
     this.error = message;
     this.isLoading = false;
     
@@ -347,14 +488,21 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
       stack: error?.stack
     });
     
-    // Mostrar mensaje de error al usuario
-    this.zone.run(() => {
-      this.snackBar.open(`Error: ${message}`, 'Cerrar', {
-        duration: 5000,
-        panelClass: 'error-snackbar'
+    // Mostrar mensaje de error al usuario si está habilitado
+    if (showToUser) {
+      this.zone.run(() => {
+        this.snackBar.open(`Error: ${message}`, 'Cerrar', {
+          duration: 5000,
+          panelClass: 'error-snackbar'
+        });
+        this.cdr.markForCheck();
       });
-      this.cdr.markForCheck();
-    });
+    }
+    
+    // Limpiar caché si es necesario (errores graves pueden hacer que los datos en caché sean inválidos)
+    if (error && (error.name === 'NetworkError' || error.name === 'DataCorruptionError')) {
+      this.clearMemoization();
+    }
   }
   
   /**
@@ -363,10 +511,32 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * 
    * @protected
    * @param {HTMLElement | null} container - Elemento HTML a validar
+   * @param {number} [minWidth=100] - Ancho mínimo aceptable en píxeles
+   * @param {number} [minHeight=100] - Alto mínimo aceptable en píxeles
    * @returns {boolean} - true si el contenedor tiene dimensiones válidas para mostrar un mapa
    */
-  protected validateContainerDimensions(container: HTMLElement | null): boolean {
-    return this.mapInitializer.hasValidDimensions(container);
+  protected validateContainerDimensions(container: HTMLElement | null, minWidth = 100, minHeight = 100): boolean {
+    if (!container) {
+      this.logDebug('Contenedor no disponible', null, LogLevel.WARN);
+      return false;
+    }
+    
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    if (width < minWidth || height < minHeight) {
+      this.logDebug(`Dimensiones de contenedor inválidas: ${width}x${height}`, 
+        { width, height, minWidth, minHeight }, 
+        LogLevel.WARN
+      );
+      return false;
+    }
+    
+    this.logDebug(`Dimensiones de contenedor válidas: ${width}x${height}`, 
+      { width, height, minWidth, minHeight }, 
+      LogLevel.DEBUG
+    );
+    return true;
   }
   
   /**
@@ -381,7 +551,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
     this.logDebug('Inicializando contenedor de mapa', { 
       container: container.id || 'sin-id',
       dimensions: `${container.clientWidth}x${container.clientHeight}`
-    });
+    }, LogLevel.INFO);
     
     const result = this.mapInitializer.initializeMapContainer(container);
     
@@ -395,14 +565,16 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
   
   /**
    * Método común para marcar el fin del proceso de carga
-   * Actualiza estado, registra log y fuerza detección de cambios para actualizar UI
+   * Actualiza estado, registra log, emite evento y fuerza detección de cambios para actualizar UI
    * 
    * @protected
    * @returns {void}
    */
   protected completeLoading(): void {
+    const loadingTime = performance.now();
     this.isLoading = false;
-    this.logDebug('Carga completada');
+    this.mapInitialized = true;
+    this.logDebug('Carga completada', { loadingTime }, LogLevel.INFO);
     this.cdr.markForCheck();
   }
   
@@ -417,7 +589,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
   protected getElementTypeName(type: ElementType): string {
     return this.memoize<string>(
       `elementTypeName_${type}`,
-      () => this.elementService.getElementTypeName(type),
+      () => ELEMENT_TYPE_NAMES[type] || `Tipo ${type}`,
       60000 // TTL de 1 minuto
     );
   }
@@ -434,7 +606,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
   protected getElementStatusClass(status: ElementStatus): string {
     return this.memoize<string>(
       `elementStatusClass_${status}`,
-      () => this.elementService.getElementStatusClass(status),
+      () => ELEMENT_STATUS_CLASSES[status] || 'status-unknown',
       60000 // TTL de 1 minuto
     );
   }
@@ -451,7 +623,12 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * @returns {number} - Distancia en kilómetros entre los dos puntos
    */
   protected calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    return this.utils.calculateDistance(lat1, lon1, lat2, lon2);
+    // Usar memoización para cálculos que pueden repetirse (por ejemplo al renderizar)
+    return this.memoize<number>(
+      `distance_${lat1}_${lon1}_${lat2}_${lon2}`,
+      () => this.utils.calculateDistance(lat1, lon1, lat2, lon2),
+      30000 // TTL de 30 segundos
+    );
   }
   
   /**
@@ -463,6 +640,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * @returns {string} - Cadena de texto con la fecha formateada
    */
   protected formatDate(date: Date | string | number): string {
+    // Para formateo de fechas no se usa memoización para evitar problemas con zonas horarias
     return this.utils.formatDate(date);
   }
   
@@ -474,7 +652,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * @returns {void}
    */
   protected cleanup(): void {
-    this.logDebug('Limpiando recursos');
+    this.logDebug('Limpiando recursos', this.getMemoizationStats(), LogLevel.INFO);
     this.clearMemoization(); // Limpiar toda la caché
     this.destroy$.next();     // Notificar a todos los observables que usan takeUntil
     this.destroy$.complete(); // Completar el subject
@@ -490,7 +668,10 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    */
   protected handleElementSelected(element: NetworkElement | null): void {
     this.mapEventsService.selectElement(element);
-    this.logDebug(`Elemento seleccionado`, element ? { id: element.id, name: element.name, type: element.type } : null);
+    this.logDebug(`Elemento seleccionado`, 
+      element ? { id: element.id, name: element.name, type: element.type } : null, 
+      LogLevel.INFO
+    );
   }
   
   /**
@@ -503,7 +684,10 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    */
   protected handleConnectionSelected(connection: NetworkConnection | null): void {
     this.mapEventsService.selectConnection(connection);
-    this.logDebug(`Conexión seleccionada`, connection ? { id: connection.id, type: connection.type } : null);
+    this.logDebug(`Conexión seleccionada`, 
+      connection ? { id: connection.id, type: connection.type } : null,
+      LogLevel.INFO
+    );
   }
   
   /**
@@ -516,8 +700,16 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    */
   ngOnInit(): void {
     try {
-      this.logDebug(`Inicializando componente`);
+      const startTime = performance.now();
+      this.logDebug(`Inicializando componente`, null, LogLevel.INFO);
+      
       this.initializeComponent();
+      
+      const initTime = performance.now() - startTime;
+      this.logDebug(`Componente inicializado en ${initTime.toFixed(2)}ms`, 
+        { initTime }, 
+        LogLevel.PERFORMANCE
+      );
     } catch (error) {
       this.handleError(error, 'Error al inicializar componente');
     }
@@ -532,7 +724,7 @@ export abstract class BaseMapComponent implements OnInit, OnDestroy {
    * @returns {void}
    */
   ngOnDestroy(): void {
-    this.logDebug(`Destruyendo componente`);
+    this.logDebug(`Destruyendo componente`, null, LogLevel.INFO);
     this.cleanup();
   }
 } 

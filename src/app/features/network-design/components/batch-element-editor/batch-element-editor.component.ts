@@ -195,19 +195,25 @@ export class BatchElementEditorComponent implements OnInit, OnDestroy {
    * @returns {void}
    */
   ngOnInit(): void {
-    // Suscribirse a los parámetros de ruta para obtener el tipo de elemento
-    this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      // Extraer y validar el tipo de elemento desde los parámetros
-      const typeParam = params['type'];
-      this.elementType = Object.values(ElementType).includes(typeParam) 
-        ? typeParam as ElementType 
-        : ElementType.ODF;
-      
-      // Inicializar el formulario y cargar datos
-      this.initForm();
-      this.loadElementTemplates();
-      this.addElement();
-    });
+    try {
+      // Suscribirse a los parámetros de ruta para obtener el tipo de elemento
+      this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
+        // Extraer y validar el tipo de elemento desde los parámetros
+        const typeParam = params['type'];
+        this.elementType = Object.values(ElementType).includes(typeParam) 
+          ? typeParam as ElementType 
+          : ElementType.ODF;
+        
+        // Inicializar el formulario y cargar datos
+        this.initForm();
+        this.loadElementTemplates();
+        this.addElement();
+      });
+    } catch (error) {
+      this.errorMessage = 'Error al inicializar el componente';
+      this.showNotification(this.errorMessage, 'error');
+      console.error('Error en BatchElementEditorComponent.ngOnInit:', error);
+    }
   }
 
   /**
@@ -504,22 +510,23 @@ export class BatchElementEditorComponent implements OnInit, OnDestroy {
    * @returns {string} Prefijo del tipo de elemento
    */
   getElementTypePrefix(): string {
-    switch (this.elementType) {
-      case ElementType.ODF:
-        return 'ODF';
-      case ElementType.TERMINAL_BOX:
-        return 'TBX';
-      case ElementType.SPLITTER:
-        return 'SPL';
-      case ElementType.ONT:
-        return 'ONT';
-      case ElementType.OLT:
-        return 'OLT';
-      case ElementType.EDFA:
-        return 'EDF';
-      default:
-        return 'ELE';
-    }
+    // Mapa de prefijos para tipos de elementos
+    const prefixMap: Partial<Record<ElementType, string>> = {
+      [ElementType.ODF]: 'ODF',
+      [ElementType.TERMINAL_BOX]: 'TBX',
+      [ElementType.SPLITTER]: 'SPL',
+      [ElementType.ONT]: 'ONT',
+      [ElementType.OLT]: 'OLT',
+      [ElementType.EDFA]: 'EDF',
+      [ElementType.MANGA]: 'MNG',
+      [ElementType.FIBER_THREAD]: 'FTH',
+      [ElementType.FIBER_CONNECTION]: 'FCN',
+      [ElementType.SLACK_FIBER]: 'SLF',
+      [ElementType.RACK]: 'RCK',
+      [ElementType.CUSTOM]: 'CST'
+    };
+
+    return prefixMap[this.elementType] || 'ELE';
   }
 
   /**
@@ -529,22 +536,23 @@ export class BatchElementEditorComponent implements OnInit, OnDestroy {
    * @returns {string} Nombre descriptivo del tipo de elemento
    */
   getElementTypeName(): string {
-    switch (this.elementType) {
-      case ElementType.ODF:
-        return 'Distribuidores de Fibra (ODF)';
-      case ElementType.TERMINAL_BOX:
-        return 'Cajas Terminales';
-      case ElementType.SPLITTER:
-        return 'Splitters';
-      case ElementType.ONT:
-        return 'Terminales Ópticas (ONT)';
-      case ElementType.OLT:
-        return 'Terminales de Línea Óptica (OLT)';
-      case ElementType.EDFA:
-        return 'Amplificadores EDFA';
-      default:
-        return 'Elementos';
-    }
+    // Mapa de nombres descriptivos para tipos de elementos
+    const nameMap: Partial<Record<ElementType, string>> = {
+      [ElementType.ODF]: 'Distribuidores de Fibra (ODF)',
+      [ElementType.TERMINAL_BOX]: 'Cajas Terminales',
+      [ElementType.SPLITTER]: 'Splitters',
+      [ElementType.ONT]: 'Terminales Ópticas (ONT)',
+      [ElementType.OLT]: 'Terminales de Línea Óptica (OLT)',
+      [ElementType.EDFA]: 'Amplificadores EDFA',
+      [ElementType.MANGA]: 'Mangas de Empalme',
+      [ElementType.FIBER_THREAD]: 'Hilos de Fibra',
+      [ElementType.FIBER_CONNECTION]: 'Conexiones de Fibra',
+      [ElementType.SLACK_FIBER]: 'Flojos de Fibra',
+      [ElementType.RACK]: 'Racks',
+      [ElementType.CUSTOM]: 'Elementos Personalizados'
+    };
+
+    return nameMap[this.elementType] || 'Elementos';
   }
 
   /**
@@ -554,22 +562,23 @@ export class BatchElementEditorComponent implements OnInit, OnDestroy {
    * @returns {string} Nombre del icono de Material Icons
    */
   getElementTypeIcon(): string {
-    switch (this.elementType) {
-      case ElementType.ODF:
-        return 'settings_input_hdmi';
-      case ElementType.TERMINAL_BOX:
-        return 'inbox';
-      case ElementType.SPLITTER:
-        return 'call_split';
-      case ElementType.ONT:
-        return 'router';
-      case ElementType.OLT:
-        return 'dns';
-      case ElementType.EDFA:
-        return 'settings_input_antenna';
-      default:
-        return 'devices_other';
-    }
+    // Mapa de iconos para tipos de elementos
+    const iconMap: Partial<Record<ElementType, string>> = {
+      [ElementType.ODF]: 'settings_input_hdmi',
+      [ElementType.TERMINAL_BOX]: 'inbox',
+      [ElementType.SPLITTER]: 'call_split',
+      [ElementType.ONT]: 'router',
+      [ElementType.OLT]: 'dns',
+      [ElementType.EDFA]: 'settings_input_antenna',
+      [ElementType.MANGA]: 'settings_input_component',
+      [ElementType.FIBER_THREAD]: 'timeline',
+      [ElementType.FIBER_CONNECTION]: 'timeline',
+      [ElementType.SLACK_FIBER]: 'waves',
+      [ElementType.RACK]: 'domain',
+      [ElementType.CUSTOM]: 'category'
+    };
+
+    return iconMap[this.elementType] || 'devices_other';
   }
 
   /**
@@ -581,16 +590,28 @@ export class BatchElementEditorComponent implements OnInit, OnDestroy {
   getTotalCapacity(): number {
     let total = 0;
     
+    // Mapa de propiedades de capacidad según el tipo de elemento
+    const capacityPropertyMap: Partial<Record<ElementType, string>> = {
+      [ElementType.ODF]: 'totalPortCapacity',
+      [ElementType.TERMINAL_BOX]: 'capacity',
+      [ElementType.SPLITTER]: 'outputPorts',
+      [ElementType.MANGA]: 'capacity',
+      [ElementType.RACK]: 'rackUnits',
+      [ElementType.ONT]: 'portCount',
+      [ElementType.OLT]: 'ponPorts',
+      [ElementType.EDFA]: 'capacity',
+      [ElementType.FIBER_THREAD]: 'capacity',
+      [ElementType.FIBER_CONNECTION]: 'capacity',
+      [ElementType.SLACK_FIBER]: 'length',
+      [ElementType.CUSTOM]: 'capacity'
+    };
+    
+    // Propiedad a buscar según el tipo de elemento actual
+    const capacityProperty = capacityPropertyMap[this.elementType] || 'capacity';
+    
+    // Sumar las capacidades de todos los elementos
     this.elementsArray.controls.forEach(element => {
-      switch (this.elementType) {
-        case ElementType.ODF:
-          total += Number(element.get('totalPortCapacity')?.value || 0);
-          break;
-        case ElementType.TERMINAL_BOX:
-          total += Number(element.get('capacity')?.value || 0);
-          break;
-        // Se pueden agregar más casos para otros tipos de elementos
-      }
+      total += Number(element.get(capacityProperty)?.value || 0);
     });
     
     return total;
@@ -699,6 +720,17 @@ export class BatchElementEditorComponent implements OnInit, OnDestroy {
    * @returns {void}
    */
   ngOnDestroy(): void {
+    this.cleanup();
+  }
+
+  /**
+   * Método para limpiar recursos cuando se destruye el componente
+   * Implementa la liberación segura de recursos y cancelación de suscripciones
+   * 
+   * @private
+   * @returns {void}
+   */
+  private cleanup(): void {
     // Completar el subject para evitar memory leaks
     this.destroy$.next();
     this.destroy$.complete();

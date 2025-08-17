@@ -3,7 +3,7 @@ import { ElementType, ElementStatus } from '../types/network.types';
 /**
  * Nombres legibles para cada tipo de elemento de red
  */
-export const ELEMENT_TYPE_NAMES: Record<ElementType, string> = {
+export const ELEMENT_TYPE_NAMES: Partial<Record<ElementType, string>> = {
   [ElementType.OLT]: 'Terminal de Línea Óptica',
   [ElementType.ONT]: 'Terminal de Red Óptica',
   [ElementType.FDP]: 'Punto de Distribución de Fibra',
@@ -30,20 +30,54 @@ export const ELEMENT_TYPE_NAMES: Record<ElementType, string> = {
   [ElementType.WAVELENGTH_ROUTER]: 'Enrutador de Longitudes de Onda',
   [ElementType.OPTICAL_SWITCH]: 'Conmutador Óptico',
   [ElementType.ROADM]: 'Multiplexor Óptico Reconfigurable',
-  [ElementType.OPTICAL_AMPLIFIER]: 'Amplificador Óptico'
+  [ElementType.OPTICAL_AMPLIFIER]: 'Amplificador Óptico',
+  [ElementType.SLACK_FIBER]: 'Flojo de Fibra',
+  [ElementType.CUSTOM]: 'Elemento Personalizado',
+  [ElementType.CABINET]: 'Gabinete',
+  [ElementType.CHAMBER]: 'Cámara/Pozo',
+  [ElementType.POLE]: 'Poste',
+  [ElementType.BUILDING]: 'Edificio',
+  [ElementType.SITE]: 'Sitio/Local',
+  [ElementType.NODE]: 'Nodo',
+  [ElementType.PATCH_PANEL]: 'Panel de Parcheo',
+  [ElementType.FIBER_CLOSURE]: 'Cierre de Fibra',
+  [ElementType.SWITCH]: 'Switch',
+  [ElementType.MULTIPLEXER]: 'Multiplexor',
+  [ElementType.DEMULTIPLEXER]: 'Demultiplexor',
+  [ElementType.REPEATER]: 'Repetidor',
+  [ElementType.ATTENUATOR]: 'Atenuador',
+  [ElementType.CONNECTOR]: 'Conector',
+  [ElementType.CROSS_CONNECT]: 'Cruzada',
+  [ElementType.SUBSCRIBER]: 'Abonado/Cliente',
+  [ElementType.SERVICE_POINT]: 'Punto de Servicio',
+  [ElementType.AGGREGATION_POINT]: 'Punto de Agregación',
+  [ElementType.SPLICE_BOX]: 'Caja de Empalme',
+  [ElementType.NAP]: 'Punto de Acceso a la Red',
+  [ElementType.FAT]: 'Terminal de Acceso de Fibra',
+  [ElementType.DISTRIBUTION_BOX]: 'Caja de Distribución',
+  [ElementType.ACCESS_POINT]: 'Punto de Acceso',
+  [ElementType.HUB]: 'Concentrador',
+  [ElementType.GATEWAY]: 'Pasarela',
+  [ElementType.DUCT]: 'Ducto/Canalización',
+  [ElementType.WSS]: 'Switch Selectivo de Longitud de Onda',
+  [ElementType.RF_OVERLAY_SYSTEM]: 'Sistema RF Overlay',
+  [ElementType.MONITORING_SYSTEM]: 'Sistema de Monitorización',
+  [ElementType.ROUTE]: 'Ruta',
+  [ElementType.SERVICE_AREA]: 'Área de Servicio',
+  [ElementType.MDU_BUILDING]: 'Edificio MDU'
 };
 
 /**
  * Íconos asociados a cada tipo de elemento
  */
-export const ELEMENT_TYPE_ICONS: Record<ElementType, string> = {
+export const ELEMENT_TYPE_ICONS: Partial<Record<ElementType, string>> = {
   [ElementType.OLT]: 'router',
   [ElementType.ONT]: 'device_hub',
   [ElementType.FDP]: 'cable',
   [ElementType.ODF]: 'settings_input_hdmi',
   [ElementType.EDFA]: 'electrical_services',
   [ElementType.SPLITTER]: 'call_split',
-  [ElementType.MANGA]: 'cable',
+  [ElementType.MANGA]: 'manga',
   [ElementType.TERMINAL_BOX]: 'inbox',
   [ElementType.FIBER_THREAD]: 'timeline',
   [ElementType.FIBER_CONNECTION]: 'timeline',
@@ -63,20 +97,56 @@ export const ELEMENT_TYPE_ICONS: Record<ElementType, string> = {
   [ElementType.WAVELENGTH_ROUTER]: 'router',
   [ElementType.OPTICAL_SWITCH]: 'swap_horiz',
   [ElementType.ROADM]: 'swap_calls',
-  [ElementType.OPTICAL_AMPLIFIER]: 'trending_up'
+  [ElementType.OPTICAL_AMPLIFIER]: 'trending_up',
+  [ElementType.SLACK_FIBER]: 'waves',
+  [ElementType.CUSTOM]: 'extension',
+  [ElementType.CABINET]: 'inventory_2',
+  [ElementType.CHAMBER]: 'architecture',
+  [ElementType.POLE]: 'candlestick_chart',
+  [ElementType.BUILDING]: 'apartment',
+  [ElementType.SITE]: 'location_on',
+  [ElementType.NODE]: 'hub',
+  [ElementType.PATCH_PANEL]: 'dashboard',
+  [ElementType.FIBER_CLOSURE]: 'all_inbox',
+  [ElementType.SWITCH]: 'swap_horiz',
+  [ElementType.MULTIPLEXER]: 'call_merge',
+  [ElementType.DEMULTIPLEXER]: 'call_split',
+  [ElementType.REPEATER]: 'repeat',
+  [ElementType.ATTENUATOR]: 'tune',
+  [ElementType.CONNECTOR]: 'link',
+  [ElementType.CROSS_CONNECT]: 'compare_arrows',
+  [ElementType.SUBSCRIBER]: 'person',
+  [ElementType.SERVICE_POINT]: 'room_service',
+  [ElementType.AGGREGATION_POINT]: 'merge_type',
+  [ElementType.SPLICE_BOX]: 'inbox',
+  [ElementType.NAP]: 'network_cell',
+  [ElementType.FAT]: 'router',
+  [ElementType.DISTRIBUTION_BOX]: 'inventory',
+  [ElementType.ACCESS_POINT]: 'wifi',
+  [ElementType.HUB]: 'hub',
+  [ElementType.GATEWAY]: 'vpn_lock',
+  [ElementType.DUCT]: 'alt_route',
+  [ElementType.WSS]: 'settings_ethernet',
+  [ElementType.RF_OVERLAY_SYSTEM]: 'settings_input_antenna',
+  [ElementType.MONITORING_SYSTEM]: 'monitor_heart',
+  [ElementType.ROUTE]: 'alt_route',
+  [ElementType.SERVICE_AREA]: 'map',
+  [ElementType.MDU_BUILDING]: 'apartment'
 };
 
 /**
  * Clases CSS para los diferentes estados de elementos
  */
-export const ELEMENT_STATUS_CLASSES: Record<ElementStatus, string> = {
+export const ELEMENT_STATUS_CLASSES: Partial<Record<ElementStatus, string>> = {
   [ElementStatus.ACTIVE]: 'status-active',
   [ElementStatus.INACTIVE]: 'status-inactive',
   [ElementStatus.MAINTENANCE]: 'status-maintenance',
+  [ElementStatus.ERROR]: 'status-error',
+  [ElementStatus.PLANNING]: 'status-planning',
   [ElementStatus.FAULT]: 'status-fault',
   [ElementStatus.PLANNED]: 'status-planned',
   [ElementStatus.BUILDING]: 'status-building',
-  [ElementStatus.RESERVED]: 'status-reserved',
+  [ElementStatus.RESERVE]: 'status-reserved',
   [ElementStatus.DECOMMISSIONED]: 'status-decommissioned',
   [ElementStatus.WARNING]: 'status-warning',
   [ElementStatus.CRITICAL]: 'status-critical',
@@ -86,14 +156,16 @@ export const ELEMENT_STATUS_CLASSES: Record<ElementStatus, string> = {
 /**
  * Nombres de estados en formato legible
  */
-export const ELEMENT_STATUS_NAMES: Record<ElementStatus, string> = {
+export const ELEMENT_STATUS_NAMES: Partial<Record<ElementStatus, string>> = {
   [ElementStatus.ACTIVE]: 'Activo',
   [ElementStatus.INACTIVE]: 'Inactivo',
   [ElementStatus.MAINTENANCE]: 'En mantenimiento',
+  [ElementStatus.ERROR]: 'Error',
+  [ElementStatus.PLANNING]: 'Planificación',
   [ElementStatus.FAULT]: 'Con fallo',
   [ElementStatus.PLANNED]: 'Planificado',
   [ElementStatus.BUILDING]: 'En construcción',
-  [ElementStatus.RESERVED]: 'Reservado',
+  [ElementStatus.RESERVE]: 'Reservado',
   [ElementStatus.DECOMMISSIONED]: 'Fuera de servicio',
   [ElementStatus.WARNING]: 'Con advertencias',
   [ElementStatus.CRITICAL]: 'Estado crítico',
@@ -113,7 +185,14 @@ export const ELEMENT_GROUPS = {
     ElementType.ROADM,
     ElementType.COHERENT_TRANSPONDER,
     ElementType.OPTICAL_SWITCH,
-    ElementType.OPTICAL_AMPLIFIER
+    ElementType.OPTICAL_AMPLIFIER,
+    ElementType.SWITCH,
+    ElementType.MULTIPLEXER,
+    ElementType.DEMULTIPLEXER,
+    ElementType.REPEATER,
+    ElementType.HUB,
+    ElementType.GATEWAY,
+    ElementType.ACCESS_POINT
   ],
   PASSIVE_EQUIPMENT: [
     ElementType.ODF,
@@ -122,7 +201,24 @@ export const ELEMENT_GROUPS = {
     ElementType.MANGA,
     ElementType.TERMINAL_BOX,
     ElementType.RACK,
-    ElementType.WDM_FILTER
+    ElementType.WDM_FILTER,
+    ElementType.PATCH_PANEL,
+    ElementType.FIBER_CLOSURE,
+    ElementType.ATTENUATOR,
+    ElementType.CONNECTOR,
+    ElementType.CROSS_CONNECT,
+    ElementType.SPLICE_BOX,
+    ElementType.NAP,
+    ElementType.FAT,
+    ElementType.DISTRIBUTION_BOX
+  ],
+  INFRASTRUCTURE: [
+    ElementType.CABINET,
+    ElementType.CHAMBER,
+    ElementType.POLE,
+    ElementType.BUILDING,
+    ElementType.SITE,
+    ElementType.NODE
   ],
   CABLES: [
     ElementType.FIBER_CABLE,
@@ -131,7 +227,8 @@ export const ELEMENT_GROUPS = {
     ElementType.FEEDER_CABLE,
     ElementType.BACKBONE_CABLE,
     ElementType.FIBER_THREAD,
-    ElementType.FIBER_STRAND
+    ElementType.FIBER_STRAND,
+    ElementType.SLACK_FIBER
   ],
   CONNECTIONS: [
     ElementType.FIBER_CONNECTION,
@@ -140,5 +237,13 @@ export const ELEMENT_GROUPS = {
   VIRTUAL: [
     ElementType.NETWORK_GRAPH,
     ElementType.WAVELENGTH_ROUTER
+  ],
+  CLIENTS: [
+    ElementType.SUBSCRIBER,
+    ElementType.SERVICE_POINT,
+    ElementType.AGGREGATION_POINT
+  ],
+  CUSTOM: [
+    ElementType.CUSTOM
   ]
 }; 

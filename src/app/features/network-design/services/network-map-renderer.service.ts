@@ -1,20 +1,40 @@
+/// <reference types="leaflet.markercluster" />
 import { Injectable, NgZone } from '@angular/core';
-import { ElementType, NetworkElement, NetworkConnection, ElementStatus } from '../../../shared/types/network.types';
+import { ElementType, NetworkElement, NetworkConnection, ConnectionStatus } from '../../../shared/types/network.types';
+import { createGeographicPosition, GeographicPosition } from '../../../shared/types/geo-position';
 import { LoggerService } from '../../../core/services/logger.service';
 import { Observable, of, BehaviorSubject, Subject } from 'rxjs';
 import { VirtualizationService } from './virtualization.service';
-import * as L from 'leaflet';
+import { MapStateManagerService } from './map/map-state-manager.service';
+import { MapElementManagerAdapter } from './map/standalone-adapters/map-element-manager-adapter';
+
+// L importado modularmente.
+import L from 'leaflet';
+
+// Importar leaflet.markercluster DESPUÉS de L y PARA EFECTOS SECUNDARIOS (adjuntar a L)
 import 'leaflet.markercluster';
 
-// Aumentamos tipos de Leaflet para incluir nuestras propiedades extendidas
+// Aumentamos tipos de Leaflet SOLO para nuestras propiedades personalizadas,
+// confiando en los paquetes @types/* para las extensiones de plugins.
 declare module 'leaflet' {
+  // Extensiones personalizadas para nuestros datos de aplicación
   interface Marker<P = any> {
     element?: NetworkElement;
   }
   
   interface Polyline {
     connection?: NetworkConnection;
+    // Si leaflet-editable añade .editor y otros, @types/leaflet-editable debería manejarlo.
+    // Si no, se podrían añadir aquí selectivamente:
+    // editor?: any; // o un tipo más específico si se conoce
+    // enableEdit(map?: L.Map): void;
+    // disableEdit(): void;
   }
+
+  // Ya no redeclaramos MarkerClusterGroup aquí para evitar conflictos.
+  // Confiamos en que @types/leaflet.markercluster lo haga correctamente.
+  // Si L.markerClusterGroup sigue sin tiparse correctamente, es un problema con la configuración de @types/leaflet.markercluster
+  // o cómo TypeScript lo está resolviendo.
 }
 
 /**
@@ -39,12 +59,15 @@ export class NetworkMapRendererService {
   // Caché de marcadores y líneas para evitar recreación
   private elementMarkers = new Map<string, L.Marker>();
   private connectionLines = new Map<string, L.Polyline>();
+  private connectionVertexMarkers = new Map<string, L.Marker[]>(); // Caché para los marcadores de vértices de conexión
   
   // Mapa y capas
   private map: L.Map | null = null;
   private elementsLayer: L.LayerGroup = L.layerGroup();
   private connectionsLayer: L.LayerGroup = L.layerGroup();
-  private clustersLayer: L.MarkerClusterGroup | null = null;
+  // Usar 'any' o L.LayerGroup temporalmente para clustersLayer debido a problemas de tipo con MarkerClusterGroup
+  private clustersLayer: any | null = null;
+  private labelsLayer: L.LayerGroup = L.layerGroup();
   
   // Opciones de renderizado
   private options: RenderOptions = {
@@ -63,7 +86,8 @@ export class NetworkMapRendererService {
   private frameCount = 0;
   
   // Capa de agrupamiento para mejorar rendimiento
-  private clusterGroup: L.MarkerClusterGroup | null = null;
+  // Usar 'any' o L.LayerGroup temporalmente para clusterGroup
+  private clusterGroup: any | null = null;
   
   // Configuración de rendimiento (ahora pública)
   public performanceConfig = {
@@ -94,13 +118,28 @@ export class NetworkMapRendererService {
   private renderTimer: any = null;
   private maxElementsPerFrame = 10; // Procesar máximo 10 elementos por cuadro de animación
   
+  // private defaultIcon = L.icon({ /* ... */ }); // Comentado - Reemplazado por getMarkerIcon
+  // private highlightedIcon = L.icon({ /* ... */ }); // Comentado - Reemplazado por getMarkerIcon
+
+  private isVirtualizationEnabled = true;
+  private currentBounds: L.LatLngBounds | null = null;
+  
+  // Propiedad para rastrear la conexión que se está editando actualmente
+  private currentEditingConnection: { polyline: L.Polyline, connection: NetworkConnection } | null = null;
+  
   constructor(
     private zone: NgZone,
     private logger: LoggerService,
-    private virtualizationService: VirtualizationService
+    private virtualizationService: VirtualizationService,
+    private mapStateManagerService: MapStateManagerService,
+    private elementManagerAdapter: MapElementManagerAdapter
   ) {
     // Iniciar medición de FPS
     this.startFPSMeasurement();
+    this.logger.debug('[NetworkMapRendererService] Constructor');
+    
+    // Agregar manejador de teclado para Enter y Delete
+    document.addEventListener('keydown', this.handleKeyDown);
   }
   
   /**
@@ -117,6 +156,7 @@ export class NetworkMapRendererService {
     // Inicializar capas
     this.elementsLayer.addTo(map);
     this.connectionsLayer.addTo(map);
+    this.labelsLayer.addTo(map);
     
     // Inicializar clustering si está habilitado
     if (this.options.clusteringEnabled) {
@@ -133,26 +173,82 @@ export class NetworkMapRendererService {
    * Inicializa clustering para elementos
    */
   private initClustering(): void {
-    try {
-      // Se asume que MarkerClusterGroup se ha cargado como extensión
-      if (L.markerClusterGroup) {
-        this.clustersLayer = L.markerClusterGroup({
+    if (!this.map) {
+      this.logger.warn('[Renderer] Mapa no inicializado, no se puede inicializar clustering.');
+      this.options.clusteringEnabled = false;
+      return;
+    }
+
+    let clusterLayerInitialized = false;
+
+    // Volver a usar el L importado, ahora que leaflet.markercluster se importa modularmente.
+    // Los (L as any) siguen siendo útiles si los tipos de @types/leaflet.markercluster no se fusionan bien.
+
+    // Intento 1: Usar L.markerClusterGroup (función camelCase)
+    if (typeof (L as any).markerClusterGroup === 'function') {
+      try {
+        this.clustersLayer = (L as any).markerClusterGroup({
           maxClusterRadius: 50,
           spiderfyOnMaxZoom: true,
           showCoverageOnHover: false,
-          zoomToBoundsOnClick: true
+          zoomToBoundsOnClick: true,
         });
-        
+
         if (this.map && this.clustersLayer) {
           this.map.addLayer(this.clustersLayer);
+          this.logger.info('[Renderer] Clustering inicializado exitosamente con L.markerClusterGroup().');
+          clusterLayerInitialized = true;
+        }
+      } catch (error: any) {
+        this.logger.warn(`[Renderer] Falló L.markerClusterGroup(): ${error.message}. Se intentarán alternativas.`, error);
+        // Fallback a L.MarkerClusterGroup si L.markerClusterGroup no está disponible o falla
+        if (this.clustersLayer && this.map && this.map.hasLayer(this.clustersLayer)) {
+            this.map.removeLayer(this.clustersLayer);
+        }
+        this.clustersLayer = null; 
+      }
+    } else {
+      this.logger.debug('[Renderer] L.markerClusterGroup no es una función.');
+    }
+
+    // Intento 2: Usar new L.MarkerClusterGroup (constructor PascalCase)
+    if (!clusterLayerInitialized) {
+      // Puede que necesitemos castear L a any si MarkerClusterGroup no está en los tipos de L directamente
+      const MarkerClusterGroupConstructor = (L as any).MarkerClusterGroup;
+      if (typeof MarkerClusterGroupConstructor === 'function') {
+        try {
+          this.clustersLayer = new MarkerClusterGroupConstructor({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+          });
+          if (this.map && this.clustersLayer) {
+            this.map.addLayer(this.clustersLayer);
+            this.logger.info('[Renderer] Clustering inicializado exitosamente con new L.MarkerClusterGroup().');
+            clusterLayerInitialized = true;
+          }
+        } catch (err: any) {
+          this.logger.warn(`[Renderer] Falló new L.MarkerClusterGroup(): ${err.message}`);
+          console.error('[Renderer] Error object new L.MarkerClusterGroup:', err);
+          if (this.clustersLayer && this.map && this.map.hasLayer(this.clustersLayer)) {
+              this.map.removeLayer(this.clustersLayer);
+          }
+          this.clustersLayer = null;
         }
       } else {
-        this.logger.error('Error: MarkerClusterGroup no está disponible');
-        this.options.clusteringEnabled = false;
+        this.logger.debug('[Renderer] L.MarkerClusterGroup (PascalCase) no es una función.');
       }
-    } catch (err) {
-      this.logger.error('Error al inicializar clustering:', err);
+    }
+    
+    if (clusterLayerInitialized) {
+      this.options.clusteringEnabled = true;
+      this.clusterGroup = this.clustersLayer;
+    } else {
+      this.logger.error('[Renderer] No se pudo inicializar el clustering. Clustering deshabilitado.');
       this.options.clusteringEnabled = false;
+      this.clustersLayer = null;
+      this.clusterGroup = null;
     }
   }
   
@@ -328,85 +424,134 @@ export class NetworkMapRendererService {
    * Crea o actualiza un marcador para un elemento
    */
   private createOrUpdateMarker(element: NetworkElement): void {
-    if (!element.position || !this.map) return;
+    if (!element.id) {
+      this.logger.warn('[Renderer] Elemento sin ID no puede ser renderizado', element);
+      return;
+    }
+    if (!element.position) {
+      this.logger.warn(`[Renderer] Elemento ${element.id} sin posición no puede ser renderizado.`);
+      return;
+    }
+
+    const latLng = L.latLng(element.position.lat, element.position.lng);
     
-    const latLng = new L.LatLng(element.position.lat, element.position.lng);
-    
-    // Verificar si ya existe el marcador
-    let marker = this.elementMarkers.get(element.id);
-    
-    if (marker) {
-      // Actualizar posición si cambió
-      const currentLatLng = marker.getLatLng();
+    const existingMarker = this.elementMarkers.get(element.id);
+    let markerToUse: L.Marker;
+
+    if (existingMarker) {
+      const currentLatLng = existingMarker.getLatLng();
       if (currentLatLng.lat !== latLng.lat || currentLatLng.lng !== latLng.lng) {
-        marker.setLatLng(latLng);
+        existingMarker.setLatLng(latLng);
       }
-      
-      // Actualizar icono si es necesario
       const newIcon = this.getMarkerIcon(element);
-      marker.setIcon(newIcon);
+      existingMarker.setIcon(newIcon);
+      markerToUse = existingMarker;
     } else {
-      // Crear nuevo marcador
       const icon = this.getMarkerIcon(element);
-      marker = L.marker(latLng, {
+      const newMarker = L.marker(latLng, {
         icon,
         draggable: false,
         title: element.name || `${element.type} ${element.id}`,
         riseOnHover: true
       });
       
-      // Almacenar en caché
-      this.elementMarkers.set(element.id, marker);
+      // Almacenar referencia al elemento en el marcador
+      newMarker.element = element;
       
-      // Añadir a la capa adecuada
+      // Añadir eventos del marcador
+      this.addMarkerEvents(newMarker, element);
+      
+      // Guardar en el mapa de marcadores
+      this.elementMarkers.set(element.id, newMarker);
+      markerToUse = newMarker;
+      
+      // Añadir a la capa apropiada
       if (this.options.clusteringEnabled && this.clustersLayer) {
-        this.clustersLayer.addLayer(marker);
+        this.clustersLayer.addLayer(newMarker);
+        // Log de verificación
+        this.logger.debug(`[Renderer] Marcador para elemento ${element.id} (${element.type}) añadido al clúster.`);
       } else {
-        this.elementsLayer.addLayer(marker);
+        this.elementsLayer.addLayer(newMarker);
+        // Log de verificación
+        this.logger.debug(`[Renderer] Marcador para elemento ${element.id} (${element.type}) añadido a la capa normal.`);
       }
-      
-      // Añadir datos para referencia
-      marker.element = element;
     }
+    
+    // Verificación adicional
+    if (element.type === ElementType.MANGA) {
+      this.logger.info(`[Renderer] Elemento MANGA procesado: ${element.id} en posición [${latLng.lat}, ${latLng.lng}]`);
+    }
+  }
+  
+  /**
+   * Añade los eventos necesarios al marcador
+   */
+  private addMarkerEvents(marker: L.Marker, element: NetworkElement): void {
+    // Evento de clic - seleccionar el elemento
+    marker.on('click', (e: L.LeafletMouseEvent) => {
+      // Notificar al servicio de estado sobre la selección
+      this.mapStateManagerService.setSelectedElements([element]);
+      
+      // Log de confirmación
+      this.logger.debug(`[Renderer] Elemento seleccionado por clic en marcador: ${element.id} (${element.type})`);
+      
+      // Evitar que el evento se propague al mapa
+      L.DomEvent.stopPropagation(e);
+    });
+    
+    // Evento de doble clic - editar el elemento
+    marker.on('dblclick', (e: L.LeafletMouseEvent) => {
+      // Seleccionamos el elemento primero para asegurar que está seleccionado
+      this.mapStateManagerService.setSelectedElements([element]);
+      
+      // Emitir evento de doble clic que será capturado por MapContainer
+      this.logger.debug(`[Renderer] Doble clic en marcador: ${element.id} (${element.type})`);
+      
+      // Detener propagación para evitar que el mapa también reciba el evento
+      L.DomEvent.stopPropagation(e);
+    });
+    
+    // Evento de mouseover - mostrar tooltip
+    marker.on('mouseover', () => {
+      marker.openTooltip();
+    });
+    
+    // Evento de mouseout - ocultar tooltip
+    marker.on('mouseout', () => {
+      marker.closeTooltip();
+    });
   }
   
   /**
    * Renderiza las conexiones entre elementos
    */
   renderConnections(connections: NetworkConnection[]): void {
-    if (!this.map || !this.options.showConnections) return;
-    
-    // En modo emergencia, limitar las conexiones
-    if (this.emergencyMode) {
-      connections = connections.slice(0, 30); // Mostrar solo hasta 30 conexiones
+    if (!this.map) {
+      this.logger.warn('[Renderer] Mapa no inicializado, no se pueden renderizar conexiones.');
+      return;
     }
+    this.logger.info(`[Renderer] Renderizando ${connections.length} conexiones.`);
     
-    this.zone.runOutsideAngular(() => {
-      // Limpiar líneas que ya no existen
-      this.cleanupInvisibleConnections(connections);
-      
-      // Proceso ligero - no más de 5 conexiones por frame
-      const BATCH_SIZE = this.emergencyMode ? 3 : 5;
-      let processed = 0;
-      
-      const processNextBatch = () => {
-        const batch = connections.slice(processed, processed + BATCH_SIZE);
-        
-        if (batch.length === 0) return;
-        
-        batch.forEach(connection => {
-          this.createOrUpdateConnection(connection);
-        });
-        
-        processed += batch.length;
-        
-        if (processed < connections.length) {
-          setTimeout(processNextBatch, this.emergencyMode ? 50 : 0);
+    const newConnectionIds = new Set(connections.filter(c => c.id).map(c => c.id!));
+
+    // Eliminar conexiones antiguas del mapa y de la caché connectionLines
+    this.connectionLines.forEach((line, id) => {
+      if (!newConnectionIds.has(id)) {
+        this.connectionsLayer.removeLayer(line);
+        if (typeof (line as any).disableEdit === 'function') {
+          (line as any).disableEdit(); // Deshabilitar edición antes de remover
         }
-      };
-      
-      // Iniciar procesamiento por lotes
-      processNextBatch();
+        this.connectionLines.delete(id);
+        this.logger.debug(`[Renderer] Conexión eliminada del mapa: ${id}`);
+      }
+    });
+
+    connections.forEach(connection => {
+      if (!connection.id) {
+        this.logger.warn('[Renderer] Se intentó renderizar una conexión sin ID.', connection);
+        return;
+      }
+      this.createOrUpdateConnection(connection);
     });
   }
   
@@ -414,40 +559,205 @@ export class NetworkMapRendererService {
    * Crea o actualiza una línea para una conexión
    */
   private createOrUpdateConnection(connection: NetworkConnection): void {
-    // Verificar que existen los elementos origen y destino
-    const sourceMarker = this.elementMarkers.get(connection.sourceId);
-    const targetMarker = this.elementMarkers.get(connection.targetId);
-    
-    if (!sourceMarker || !targetMarker) return;
-    
-    const connectionId = `${connection.sourceId}-${connection.targetId}`;
-    const sourceLatLng = sourceMarker.getLatLng();
-    const targetLatLng = targetMarker.getLatLng();
-    
-    // Verificar si ya existe la línea
-    let line = this.connectionLines.get(connectionId);
-    
-    if (line) {
-      // Actualizar puntos de la línea
-      line.setLatLngs([sourceLatLng, targetLatLng]);
-      
-      // Actualizar estilo si es necesario
-      const newOptions = this.getConnectionStyle(connection);
-      line.setStyle(newOptions);
-    } else {
-      // Crear nueva línea
-      const options = this.getConnectionStyle(connection);
-      line = L.polyline([sourceLatLng, targetLatLng], options);
-      
-      // Almacenar en caché
-      this.connectionLines.set(connectionId, line);
-      
-      // Añadir a la capa
-      this.connectionsLayer.addLayer(line);
-      
-      // Añadir datos para referencia
-      line.connection = connection;
+    if (!this.map) return;
+
+    // Asegurar que connection.id exista antes de proceder
+    if (!connection.id) {
+      this.logger.error('[Renderer] Intento de crear/actualizar conexión sin ID.');
+      return;
     }
+
+    const sourceMarker = this.elementMarkers.get(connection.sourceElementId);
+    const targetMarker = this.elementMarkers.get(connection.targetElementId);
+
+    this.logger.info(`[Renderer] createOrUpdateConnection for ${connection.id}: ` +
+                     `Source ID: ${connection.sourceElementId} -> Marker found: ${!!sourceMarker}, ` +
+                     `Target ID: ${connection.targetElementId} -> Marker found: ${!!targetMarker}`);
+
+    if (!sourceMarker || !targetMarker) {
+      this.logger.warn(`[Renderer] No se encontraron marcadores de origen o destino para la conexión ${connection.id}. No se puede renderizar.`);
+      const existingLine = this.connectionLines.get(connection.id); // connection.id aquí es seguro por la guarda anterior
+      if (existingLine) {
+        this.connectionsLayer.removeLayer(existingLine);
+        if (typeof (existingLine as any).disableEdit === 'function') {
+          (existingLine as any).disableEdit();
+        }
+        this.connectionLines.delete(connection.id); // connection.id aquí es seguro
+      }
+      return;
+    }
+
+    const latlngs: L.LatLngExpression[] = [
+      sourceMarker.getLatLng(),
+      ...(connection.vertices?.map(v => L.latLng(v.lat, v.lng)) || []),
+      targetMarker.getLatLng()
+    ];
+
+    let polyline = this.connectionLines.get(connection.id); // connection.id aquí es seguro
+
+    if (polyline) {
+      polyline.setLatLngs(latlngs);
+      this.logger.debug(`[Renderer] Conexión actualizada: ${connection.id}`);
+    } else {
+      polyline = L.polyline(latlngs, {
+        color: (connection.metadata as any)?.color || '#3388ff', // Type assertion
+        weight: (connection.metadata as any)?.weight || 3,   // Type assertion
+        opacity: (connection.metadata as any)?.opacity || 0.7 // Type assertion
+      }).addTo(this.connectionsLayer);
+      
+      this.connectionLines.set(connection.id, polyline); // connection.id aquí es seguro
+      this.logger.debug(`[Renderer] Conexión creada: ${connection.id}`);
+      
+      // Habilitar Leaflet.Editable para la nueva polilínea
+      if (this.map) { // Asegurarse de que this.map exista
+        (polyline as any).enableEdit(this.map);
+      } else {
+        this.logger.warn(`[Renderer] No se pudo habilitar la edición para ${connection.id} porque this.map es null.`);
+      }
+
+      this.setupPolylineEditEvents(polyline, connection);
+    }
+  }
+
+  private setupPolylineEditEvents(polyline: L.Polyline, connection: NetworkConnection): void {
+    if (!this.map) return;
+
+    // Escuchar eventos de edición de Leaflet.Editable
+    // 'editable:vertex:dragend' - un vértice existente fue arrastrado
+    // 'editable:vertex:new' - un nuevo vértice fue añadido (ej. desde un marcador intermedio)
+    // 'editable:vertex:deleted' - un vértice fue eliminado
+    // 'editable:editing' - cualquier cambio en la geometría (podría ser demasiado frecuente)
+    // (polyline as any).on('editable:vertex:dragend editable:vertex:new editable:vertex:deleted', (e: any) => {
+    //   this.logger.info(`[Renderer] Evento de edición de vértice para conexión ${connection.id}:`, e.type);
+    //   this.handlePolylineEdit(polyline, connection);
+    // });
+    // Leaflet.Editable puede no tener un evento específico 'editable:vertex:new'.    
+    // A menudo, la adición de un nuevo vértice se produce al arrastrar un "middle marker".
+    // El evento 'editable:editing' se dispara con cada cambio, incluyendo la adición/eliminación de vértices.
+    // O podemos usar 'editable:vertex:rawclick' y verificar si es un middle marker.
+    // Por simplicidad, usar 'editable:editing' y actualizar puede ser suficiente si no es muy costoso.
+    // O usar eventos más específicos si están disponibles y son fiables.
+    (polyline as any).on('editable:editing', (e: any) => {
+      // Este evento puede dispararse muy frecuentemente durante un arrastre.
+      // Considera usar un debounce si actualizas el backend en cada evento.
+      // O usar eventos más específicos como dragend, vertexdeleted.
+      this.logger.debug(`[Renderer] Evento 'editable:editing' para conexión ${connection.id}. Datos del evento:`, e);
+      // e.vertex (el vértice que se está editando), e.latlngs (todos los latlngs de la línea)
+      // e.layer (la polilínea misma)
+      this.handlePolylineEdit(e.layer as L.Polyline, connection);        
+      // Establecer esta conexión como la que está siendo editada actualmente
+      this.currentEditingConnection = { polyline, connection };
+    });
+    (polyline as any).on('editable:vertex:deleted', (e: any) => {
+      this.logger.info(`[Renderer] Evento 'editable:vertex:deleted' para conexión ${connection.id}. Datos del evento:`, e);
+      this.handlePolylineEdit(e.layer as L.Polyline, connection);
+      this.currentEditingConnection = { polyline, connection };
+    });
+    // Puedes añadir más listeners si es necesario, como para 'editable:vertex:dragstart' o 'editable:vertex:dragend'
+    (polyline as any).on('editable:vertex:dragend', (e: any) => {
+      this.logger.info(`[Renderer] Evento 'editable:vertex:dragend' para conexión ${connection.id}. Datos del evento:`, e);
+      this.handlePolylineEdit(e.layer as L.Polyline, connection);
+      this.currentEditingConnection = { polyline, connection };
+    });
+
+    (polyline as any).on('click', (e: any) => {
+      // Cuando se hace clic en una conexión, establecerla como la actual y activar edición
+      L.DomEvent.stopPropagation(e.originalEvent);
+      this.logger.debug(`[Renderer] Conexión seleccionada: ${connection.id}`);
+      
+      // Primero desactivamos cualquier editor activo
+      if (this.currentEditingConnection && this.currentEditingConnection.polyline !== polyline) {
+        if ((this.currentEditingConnection.polyline as any).editor) {
+          (this.currentEditingConnection.polyline as any).disableEdit();
+        }
+      }
+      
+      // Establecer como conexión actual
+      this.currentEditingConnection = { polyline, connection };
+      
+      // Activar el editor si no está ya activo
+      if (!(polyline as any).editEnabled) {
+        (polyline as any).enableEdit(this.map);
+        (polyline as any).editEnabled = true;
+        
+        // Añadir clase visual para indicar que está en modo edición
+        polyline.getElement()?.classList.add('connection-editing');
+        
+        this.logger.debug(`[Renderer] Editor de vértices activado para conexión: ${connection.id}`);
+      }
+    });
+
+    // Añadir evento de doble clic para editar propiedades adicionales
+    (polyline as any).on('dblclick', (e: any) => {
+      L.DomEvent.stopPropagation(e.originalEvent);
+      this.logger.debug(`[Renderer] Solicitando edición de propiedades para conexión: ${connection.id}`);
+      
+      // Establecer como conexión actual si no lo estaba ya
+      this.currentEditingConnection = { polyline, connection };
+      
+      // Emitir evento para abrir diálogo de edición de propiedades
+      this.mapStateManagerService.openConnectionPropertiesDialog(connection);
+    });
+
+    this.logger.debug(`[Renderer] Eventos de edición configurados para conexión: ${connection.id}`);
+  }
+
+  private handlePolylineEdit(polyline: L.Polyline, connection: NetworkConnection): void {
+    if (!this.map) return;
+
+    const newLatLngs = polyline.getLatLngs() as L.LatLng[];
+
+    // Los vértices son todos los puntos excepto el primero (sourceMarker) y el último (targetMarker)
+    // Leaflet.Editable mantiene los puntos finales de la polilínea correspondiendo a los marcadores de origen/destino
+    // si la polilínea se creó entre ellos. 
+    // Sin embargo, al obtener getLatLngs(), obtenemos toda la secuencia.
+    // Debemos asegurarnos de no incluir los puntos finales como vértices si estos representan los elementos conectados.
+    let vertices: GeographicPosition[] = [];
+    if (newLatLngs.length > 2) { // Solo hay vértices intermedios si hay más de 2 puntos en total
+        vertices = newLatLngs.slice(1, newLatLngs.length - 1).map(latlng => 
+          createGeographicPosition(latlng.lat, latlng.lng)
+        );
+    }
+
+    const updatedConnection: NetworkConnection = {
+      ...connection,
+      vertices: vertices
+    };
+
+    this.logger.info(`[Renderer] Actualizando conexión ${connection.id} con nuevos vértices:`, updatedConnection.vertices);
+    
+    this.elementManagerAdapter.updateConnection(updatedConnection).subscribe({
+      next: (success) => {
+        if (success) {
+          this.logger.info(`[Renderer] Conexión ${connection.id} actualizada en backend tras edición.`);
+          // La polilínea ya está actualizada visualmente por Leaflet.Editable.
+          // Si MapElementManagerService emite un evento connectionsChanged$, MapService lo recogerá y refrescará.
+          // No es necesario llamar a this.mapElementManagerService.refreshConnections() explícitamente aquí
+          // si el flujo de datos ya está configurado para ello.
+        } else {
+          this.logger.warn(`[Renderer] Falló la actualización en backend de la conexión ${connection.id} tras edición. Revirtiendo cambios visuales.`);
+          // Revertir la polilínea a su estado anterior (desde la 'connection' original)
+          const originalLatLngs: L.LatLngExpression[] = [
+            this.elementMarkers.get(connection.sourceElementId)!.getLatLng(),
+            ...(connection.vertices?.map(v => L.latLng(v.lat, v.lng)) || []),
+            this.elementMarkers.get(connection.targetElementId)!.getLatLng()
+          ];
+          polyline.setLatLngs(originalLatLngs);
+          // Puede que necesites forzar una reactualización de los editores de la polilínea si Leaflet.Editable no lo hace automáticamente.
+          (polyline as any).editor?.reset(); 
+        }
+      },
+      error: (err) => {
+        this.logger.error(`[Renderer] Error al actualizar conexión ${connection.id} en backend tras edición:`, err);
+        const originalLatLngs: L.LatLngExpression[] = [
+            this.elementMarkers.get(connection.sourceElementId)!.getLatLng(),
+            ...(connection.vertices?.map(v => L.latLng(v.lat, v.lng)) || []),
+            this.elementMarkers.get(connection.targetElementId)!.getLatLng()
+          ];
+        polyline.setLatLngs(originalLatLngs);
+        (polyline as any).editor?.reset();
+      }
+    });
   }
   
   /**
@@ -470,113 +780,17 @@ export class NetworkMapRendererService {
   }
   
   /**
-   * Limpia líneas que ya no existen
-   */
-  private cleanupInvisibleConnections(currentConnections: NetworkConnection[]): void {
-    const currentIds = new Set(
-      currentConnections.map(c => `${c.sourceId}-${c.targetId}`)
-    );
-    
-    // Eliminar líneas que ya no están en la lista
-    this.connectionLines.forEach((line, id) => {
-      if (!currentIds.has(id)) {
-        this.connectionsLayer.removeLayer(line);
-        this.connectionLines.delete(id);
-      }
-    });
-  }
-  
-  /**
-   * Obtiene el icono para un marcador basado en el tipo de elemento
-   */
-  private getMarkerIcon(element: NetworkElement): L.Icon {
-    // Determinar color basado en tipo
-    let color = '#999999';
-    let iconName = 'location_on';
-    
-    switch (element.type) {
-      case ElementType.OLT:
-        color = '#4caf50';
-        iconName = 'router';
-        break;
-      case ElementType.ONT:
-        color = '#ff9800';
-        iconName = 'settings_input_hdmi';
-        break;
-      case ElementType.FDP:
-        color = '#2196f3';
-        iconName = 'dns';
-        break;
-      case ElementType.SPLITTER:
-        color = '#9c27b0';
-        iconName = 'call_split';
-        break;
-      case ElementType.EDFA:
-        color = '#f44336';
-        iconName = 'amp_stories';
-        break;
-      case ElementType.MANGA:
-        color = '#795548';
-        iconName = 'input';
-        break;
-      default:
-        color = '#999999';
-        iconName = 'fiber_manual_record';
-    }
-    
-    // TODO: Implementar creación de icono personalizado
-    // Para este ejemplo, usamos un icono simple
-    return L.icon({
-      iconUrl: `assets/leaflet/map-icons/${element.type.toLowerCase()}.svg`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-      popupAnchor: [0, -12],
-    });
-  }
-  
-  /**
-   * Obtiene el estilo para una conexión
-   */
-  private getConnectionStyle(connection: NetworkConnection): L.PolylineOptions {
-    // Color basado en estado, ancho, etc.
-    let color = '#2196f3';
-    let weight = 2;
-    let opacity = 0.8;
-    let dashArray: string | number[] | undefined = undefined;
-    
-    // Personalizar basado en tipo/estado
-    if (connection.status === ElementStatus.FAULT) {
-      color = '#f44336';
-      weight = 3;
-    } else if (connection.status === ElementStatus.WARNING) {
-      color = '#ff9800';
-      weight = 2;
-    } else if (connection.status === ElementStatus.INACTIVE) {
-      color = '#757575';
-      opacity = 0.6;
-      dashArray = '4';
-    }
-    
-    return {
-      color,
-      weight,
-      opacity,
-      dashArray
-    };
-  }
-  
-  /**
    * Limpia todos los elementos renderizados
    */
   clearAll(): void {
-    this.elementsLayer.clearLayers();
+    if (!this.map) return;
+    this.logger.debug('[Renderer] Limpiando todas las capas del renderer.');
     this.connectionsLayer.clearLayers();
-    
-    if (this.clustersLayer) {
-      this.clustersLayer.clearLayers();
-    }
-    
+    this.elementsLayer.clearLayers();
+    this.labelsLayer.clearLayers();
     this.elementMarkers.clear();
+    // Asegúrate de deshabilitar la edición en todas las líneas antes de limpiar
+    this.connectionLines.forEach(line => (line as any).disableEdit());
     this.connectionLines.clear();
   }
   
@@ -661,6 +875,9 @@ export class NetworkMapRendererService {
   destroy(): void {
     this.clearAll();
     this.map = null;
+    
+    // Eliminar el event listener del teclado
+    document.removeEventListener('keydown', this.handleKeyDown);
   }
   
   /**
@@ -876,5 +1093,138 @@ export class NetworkMapRendererService {
     this.emergencyMode = false;
     this.maxElementsPerFrame = 10;
     this.logger.info('Modo de emergencia desactivado');
+  }
+
+  private getMarkerIcon(element: NetworkElement): L.Icon {
+    // Implementación básica de getMarkerIcon
+    // Deberás ajustar las rutas y la lógica según tus necesidades
+    let iconUrl = 'assets/leaflet/map-icons/default.svg'; // Un icono por defecto
+    const iconSize: L.PointExpression = [28, 28]; // Tamaño estándar
+    const iconAnchor: L.PointExpression = [14, 14]; // Ancla al centro
+    let className = 'network-element-marker';
+
+    if (element.type) {
+      iconUrl = `assets/leaflet/map-icons/${element.type.toLowerCase()}.svg`;
+    }
+
+    if (element.status) {
+      className += ` status-${element.status.toLowerCase()}`;
+    }
+    
+    // Ejemplo de cómo podrías diferenciar si está seleccionado (necesitarías acceso a ese estado)
+    // if (this.mapStateManagerService.isElementSelected(element.id)) {
+    //   className += ' selected';
+    //   iconSize: [32, 32]; // Más grande si está seleccionado
+    //   iconAnchor: [16, 16];
+    // }
+
+    return L.icon({
+      iconUrl: iconUrl,
+      iconSize: iconSize,
+      iconAnchor: iconAnchor,
+      className: className,
+      // shadowUrl: 'assets/leaflet/map-icons/marker-shadow.png', // Opcional: sombra
+      // shadowSize: [41, 41],
+      // shadowAnchor: [12, 41]
+    });
+  }
+
+  /**
+   * Manejador para eventos de teclado (Enter y Delete)
+   */
+  private handleKeyDown = (event: KeyboardEvent): void => {
+    // Enter para finalizar edición
+    if (event.key === 'Enter' && this.currentEditingConnection) {
+      this.logger.debug('[Renderer] Tecla Enter presionada, finalizando edición de conexión.');
+      this.finishConnectionEditing();
+    }
+    
+    // Delete para eliminar conexión seleccionada
+    if ((event.key === 'Delete' || event.key === 'Del') && this.currentEditingConnection) {
+      this.logger.debug('[Renderer] Tecla Delete presionada, eliminando conexión seleccionada.');
+      this.deleteSelectedConnection();
+    }
+  }
+  
+  /**
+   * Finaliza la edición de la conexión actual
+   */
+  private finishConnectionEditing(): void {
+    if (!this.currentEditingConnection) return;
+    
+    this.logger.info(`[Renderer] Finalizando edición de conexión: ${this.currentEditingConnection.connection.id}`);
+    
+    // Deshabilitar el editor de la polilínea
+    if (this.currentEditingConnection.polyline && (this.currentEditingConnection.polyline as any).editor) {
+      (this.currentEditingConnection.polyline as any).disableEdit();
+      (this.currentEditingConnection.polyline as any).editEnabled = false;
+      
+      // Quitar clase visual de modo edición
+      this.currentEditingConnection.polyline.getElement()?.classList.remove('connection-editing');
+    }
+    
+    // Guardar los cambios al finalizar
+    this.handlePolylineEdit(
+      this.currentEditingConnection.polyline,
+      this.currentEditingConnection.connection
+    );
+    
+    // Limpiar la referencia a la conexión actual
+    this.currentEditingConnection = null;
+    
+    this.logger.debug('[Renderer] Edición de conexión finalizada y cambios guardados.');
+  }
+  
+  /**
+   * Elimina la conexión seleccionada actualmente
+   */
+  private deleteSelectedConnection(): void {
+    if (!this.currentEditingConnection || !this.currentEditingConnection.connection.id) return;
+    
+    const connectionId = this.currentEditingConnection.connection.id;
+    this.logger.info(`[Renderer] Eliminando conexión seleccionada: ${connectionId}`);
+    
+    // Eliminar del mapa
+    if (this.currentEditingConnection.polyline) {
+      if (typeof (this.currentEditingConnection.polyline as any).disableEdit === 'function') {
+        (this.currentEditingConnection.polyline as any).disableEdit();
+        (this.currentEditingConnection.polyline as any).editEnabled = false;
+      }
+      
+      // Quitar clase visual si existe
+      this.currentEditingConnection.polyline.getElement()?.classList.remove('connection-editing');
+      
+      this.connectionsLayer.removeLayer(this.currentEditingConnection.polyline);
+    }
+    
+    // Eliminar de la caché
+    if (connectionId) {
+      this.connectionLines.delete(connectionId);
+    }
+    
+    // Eliminar en el backend utilizando updateConnection con una propiedad en metadata
+    const deleteRequest: NetworkConnection = {
+      ...this.currentEditingConnection.connection,
+      metadata: {
+        ...((this.currentEditingConnection.connection.metadata as any) || {}),
+        isDeleted: true
+      }
+    };
+    
+    this.elementManagerAdapter.updateConnection(deleteRequest).subscribe({
+      next: (success) => {
+        if (success) {
+          this.logger.info(`[Renderer] Conexión ${connectionId} marcada como eliminada correctamente`);
+        } else {
+          this.logger.warn(`[Renderer] No se pudo marcar como eliminada la conexión ${connectionId}`);
+        }
+      },
+      error: (err) => {
+        this.logger.error(`[Renderer] Error al marcar como eliminada la conexión ${connectionId}:`, err);
+      }
+    });
+    
+    // Limpiar la referencia actual
+    this.currentEditingConnection = null;
   }
 } 

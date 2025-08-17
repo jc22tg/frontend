@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import * as d3 from 'd3';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { IMapCoreService } from '../interfaces/map-core.interface';
-import { MapConfig } from '../../../shared/types/network.types';
+import { MapConfig } from './map-types';
 import { LoggerService } from '../../../core/services/logger.service';
 
 /**

@@ -8,6 +8,9 @@ import { User, RefreshTokenResponse, LoginResponse } from '../../features/auth/t
 import { UserRole } from '../../shared/models/user.model';
 import { AuthMapperService } from './auth-mapper.service';
 
+// Re-exportar los tipos para que puedan ser importados desde este servicio por los Effects
+export type { LoginResponse, RefreshTokenResponse };
+
 export interface AuthResponse {
   user: User;
   token: string;
@@ -72,7 +75,7 @@ const TOKEN_EXPIRATION_KEY = 'tokenExpiration';
 export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
-  private useMock = false; // Cambiar a false para usar el backend real
+  private useMock = environment.useMocks; // Usar la configuración del environment
   private refreshTokenTimeout: any;
   private isRefreshing = false;
   private authCheckPromise: Promise<boolean> | null = null;
@@ -251,6 +254,44 @@ export class AuthService {
     
     this.isRefreshing = true;
     
+    // Agregar soporte para modo mock
+    if (this.useMock) {
+      console.log('Using mock refresh token flow');
+      // Generar un nuevo token mock
+      const mockResponse: RefreshTokenResponse = {
+        token: 'mock-jwt-token-' + Math.random().toString(36).substring(2, 15),
+        refreshToken: 'mock-refresh-token-' + Math.random().toString(36).substring(2, 10),
+        expiresIn: 3600
+      };
+      
+      // Simular un pequeño delay para imitar la latencia del backend
+      return of(mockResponse).pipe(
+        delay(300),
+        tap((response: RefreshTokenResponse) => {
+          // Guardar el nuevo token y actualizar la expiración
+          localStorage.setItem(TOKEN_KEY, response.token);
+          localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
+          
+          const expirationDate = new Date();
+          expirationDate.setSeconds(expirationDate.getSeconds() + response.expiresIn);
+          localStorage.setItem(TOKEN_EXPIRATION_KEY, expirationDate.toISOString());
+          
+          // Si tenemos información del usuario en local storage, actualizamos solo el token
+          const currentUser = this.getCurrentUserFromStorage();
+          if (currentUser) {
+            this.currentUserSubject.next(currentUser);
+          }
+          
+          this.startRefreshTokenTimer();
+          console.log('Mock token refreshed successfully');
+        }),
+        finalize(() => {
+          this.isRefreshing = false;
+        })
+      );
+    }
+    
+    // Continuar con la lógica real si no estamos en modo mock
     return this.http.post<RefreshTokenResponse>(
       `${this.apiUrl}/refresh`, 
       { refreshToken }
@@ -447,6 +488,21 @@ export class AuthService {
       if (!token || typeof token !== 'string') {
         console.error('Token inválido:', token);
         return null;
+      }
+
+      // Si es un token mock, retornar un payload simulado
+      if (token.startsWith('mock-jwt-token-')) {
+        console.log('Token mock detectado, generando payload artificial');
+        const now = new Date();
+        // Añadir una hora a la fecha actual para la expiración
+        const expDate = new Date(now.getTime() + 3600 * 1000);
+        // Devolver un objeto con los campos mínimos necesarios para la aplicación
+        return {
+          exp: Math.floor(expDate.getTime() / 1000), // Convertir a timestamp Unix en segundos
+          iat: Math.floor(now.getTime() / 1000),
+          sub: 'mock-user',
+          isMock: true
+        };
       }
 
       // Verificar que el token tenga el formato correcto (tres partes separadas por puntos)

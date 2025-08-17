@@ -243,8 +243,9 @@ export class MonitoringService {
         id: '1',
         elementId: 'OLT-001',
         elementType: ElementType.OLT,
+        type: 'CRITICAL',
         deviceType: 'olt',
-        severity: 'critical',
+        severity: 'CRITICAL',
         title: 'Fallo de conectividad en OLT',
         message: 'OLT-001 ha reportado fallo de conectividad',
         timestamp: new Date(Date.now() - 120000),
@@ -255,8 +256,9 @@ export class MonitoringService {
         id: '2',
         elementId: 'FDP-003',
         elementType: ElementType.FDP,
+        type: 'WARNING',
         deviceType: 'general',
-        severity: 'warning',
+        severity: 'MEDIUM',
         title: 'Señal degradada en FDP',
         message: 'Señal de fibra degradada en conexión FDP-003 a ONT-005',
         timestamp: new Date(Date.now() - 3600000),
@@ -267,8 +269,9 @@ export class MonitoringService {
         id: '3',
         elementId: 'SECTOR-NORTE',
         elementType: ElementType.TERMINAL_BOX,
+        type: 'INFO',
         deviceType: 'general',
-        severity: 'info',
+        severity: 'LOW',
         title: 'Mantenimiento programado',
         message: 'Mantenimiento programado para el sector norte el 15/06/2023',
         timestamp: new Date(Date.now() - 86400000),
@@ -279,8 +282,9 @@ export class MonitoringService {
         id: '4',
         elementId: 'SPL-002',
         elementType: ElementType.SPLITTER,
+        type: 'WARNING',
         deviceType: 'splitter',
-        severity: 'warning',
+        severity: 'MEDIUM',
         title: 'Capacidad límite en Splitter',
         message: 'Splitter SPL-002 alcanzando límite de capacidad (85%)',
         timestamp: new Date(Date.now() - 7200000),
@@ -290,5 +294,72 @@ export class MonitoringService {
     ];
 
     this.alerts.next(sampleAlerts);
+  }
+
+  /**
+   * Obtiene alertas de prueba para simulación
+   */
+  private getTestAlerts(): NetworkAlert[] {
+    const currentTime = new Date();
+    return [
+      {
+        id: 'alert-001',
+        elementId: 'olt-001',
+        elementType: ElementType.OLT,
+        type: 'CRITICAL',
+        title: 'Pérdida de conexión OLT',
+        severity: 'CRITICAL',
+        message: 'Pérdida de conexión con OLT principal',
+        timestamp: new Date(currentTime.getTime() - 30 * 60000),
+        acknowledged: false,
+        details: {
+          reason: 'No responde a ICMP',
+          affectedCustomers: 120
+        }
+      },
+      {
+        id: 'alert-002',
+        elementId: 'edfa-001',
+        elementType: ElementType.EDFA,
+        type: 'ERROR',
+        title: 'Temperatura elevada EDFA',
+        severity: 'HIGH',
+        message: 'Temperatura elevada en amplificador EDFA',
+        timestamp: new Date(currentTime.getTime() - 120 * 60000),
+        acknowledged: true,
+        acknowledgedBy: 'admin',
+        acknowledgedAt: new Date(currentTime.getTime() - 90 * 60000),
+        details: {
+          temperature: 75,
+          threshold: 70
+        }
+      },
+      {
+        id: 'alert-003',
+        elementId: 'splitter-002',
+        elementType: ElementType.SPLITTER,
+        type: 'WARNING',
+        title: 'Degradación de señal',
+        severity: 'MEDIUM',
+        message: 'Degradación de señal en divisor óptico',
+        timestamp: new Date(currentTime.getTime() - 180 * 60000),
+        acknowledged: false,
+        details: {
+          signalLoss: '7.2dB',
+          expectedLoss: '3.5dB'
+        }
+      },
+      {
+        id: 'alert-004',
+        elementId: 'conn-001',
+        elementType: ElementType.FIBER_CONNECTION,
+        type: 'INFO',
+        title: 'Fluctuación de potencia',
+        severity: 'LOW',
+        message: 'Fluctuación de potencia óptica detectada',
+        timestamp: new Date(currentTime.getTime() - 240 * 60000),
+        acknowledged: false
+      }
+    ];
   }
 } 

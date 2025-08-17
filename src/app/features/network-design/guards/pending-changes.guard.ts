@@ -3,7 +3,7 @@ import { CanDeactivate } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { MatDialog } from '@angular/material/dialog';
-import { ElementEditorComponent } from '../components/element-editor/element-editor.component';
+import { ElementEditorComponent } from '../components/elements/element-editor/element-editor.component';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { NetworkStateService } from '../services/network-state.service';
 

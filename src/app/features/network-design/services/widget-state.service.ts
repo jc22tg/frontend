@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { Observable, BehaviorSubject, map, Subject } from 'rxjs';
+import { LoggerService } from '../../../core/services/logger.service';
 
 /**
  * Interfaz para el estado de un widget
@@ -18,6 +19,7 @@ export interface WidgetState {
     message?: string;
     timestamp?: Date;
   };
+  zIndex?: number;
 }
 
 /**
@@ -47,6 +49,33 @@ export class WidgetStateService {
   // Subject para solicitar actualización de datos a todos los widgets
   private refreshWidgetsRequest = new Subject<{ source: string, targets?: string[] }>();
   public refreshWidgetsRequest$ = this.refreshWidgetsRequest.asObservable();
+  
+  // Observable combinado para todos los estados de widgets
+  private _allStatesSubject = new BehaviorSubject<Record<string, WidgetState>>({});
+
+  // Estado global de redimensionamiento
+  private _isResizing = new BehaviorSubject<boolean>(false);
+  
+  /**
+   * Constructor del servicio
+   */
+  constructor(private logger: LoggerService) {
+    this.logger.debug('WidgetStateService inicializado');
+  }
+  
+  /**
+   * Obtiene el observable combinado de todos los estados de widgets
+   */
+  get allStates$(): Observable<Record<string, WidgetState>> {
+    return this._allStatesSubject.asObservable();
+  }
+
+  /**
+   * Obtiene el estado de redimensionamiento
+   */
+  get isResizing$(): Observable<boolean> {
+    return this._isResizing.asObservable();
+  }
   
   /**
    * Obtiene el estado de un widget como Observable
@@ -201,5 +230,71 @@ export class WidgetStateService {
         lastUpdated: new Date()
       });
     });
+  }
+
+  /**
+   * Actualiza el z-index de un widget
+   * @param widgetId ID del widget
+   * @param zIndex Nuevo z-index
+   */
+  updateWidgetZIndex(widgetId: string, zIndex: number): void {
+    this.updateWidgetState(widgetId, { zIndex });
+  }
+
+  /**
+   * Recalcula las posiciones de todos los widgets
+   * Útil cuando cambia el tamaño del contenedor
+   */
+  recalculateWidgetPositions(): void {
+    this._isResizing.next(true);
+    
+    // Implementar la lógica para recalcular posiciones
+    // Por ejemplo, distribuir los widgets en una cuadrícula
+    
+    const containerWidth = window.innerWidth;
+    const containerHeight = window.innerHeight;
+    
+    let index = 0;
+    const spacing = 20;
+    const widgetWidth = 250;
+    const widgetHeight = 150;
+    
+    // Reorganizar los widgets en una cuadrícula
+    this.widgetStates.forEach((subject, widgetId) => {
+      const currentState = subject.getValue();
+      
+      // Calcular nueva posición
+      const row = Math.floor(index / 3); // 3 widgets por fila
+      const col = index % 3;
+      
+      const x = spacing + col * (widgetWidth + spacing);
+      const y = spacing + row * (widgetHeight + spacing);
+      
+      // Asegurarse de que el widget no salga del contenedor
+      const adjustedX = Math.min(x, containerWidth - widgetWidth - spacing);
+      const adjustedY = Math.min(y, containerHeight - widgetHeight - spacing);
+      
+      // Actualizar posición
+      this.updateWidgetPosition(widgetId, { x: adjustedX, y: adjustedY });
+      
+      index++;
+    });
+    
+    this._isResizing.next(false);
+    this.logger.debug('Widget positions recalculated');
+  }
+
+  /**
+   * Actualiza el estado combinado de todos los widgets
+   * @private
+   */
+  private updateCombinedState(): void {
+    const combinedState: Record<string, WidgetState> = {};
+    
+    this.widgetStates.forEach((subject, widgetId) => {
+      combinedState[widgetId] = subject.getValue();
+    });
+    
+    this._allStatesSubject.next(combinedState);
   }
 } 

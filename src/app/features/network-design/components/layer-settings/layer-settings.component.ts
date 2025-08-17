@@ -357,7 +357,7 @@ export class LayerSettingsComponent implements OnInit, OnDestroy {
    * @returns Nombre descriptivo del tipo de elemento
    */
   getLayerName(type: ElementType): string {
-    return ElementType[type] || `Tipo ${type}`;
+    return this.layerManager.getLayerName(type);
   }
   
   /**

@@ -11,14 +11,21 @@ import { NetworkValidationService } from './network-validation.service';
 import { 
   NetworkElement, 
   ElementType, 
-  ElementStatus,
-  GeographicPosition,
+  ElementStatus
+} from '../../../shared/types/network.types';
+
+import {
   OLT,
   ONT,
-  FDP,
-  EDFA,
-  Splitter
-} from '../../../shared/types/network.types';
+  ODF,
+  Splitter,
+  TerminalBox,
+  SlackFiber,
+  FiberThread,
+  Rack
+} from '../interfaces/element.interface';
+import { EDFA } from '../../../shared/models/edfa.model';
+import { Manga as SharedManga } from '../../../shared/models/manga.model';
 
 // Interfaz para manejar propiedades temporales en elementos
 interface ExtendedNetworkElement extends NetworkElement {
@@ -151,17 +158,11 @@ export class ElementEditorService {
             model: ['', Validators.required],
             serialNumber: ['', Validators.required],
             ipAddress: ['', [Validators.pattern(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/)]],
-            totalPorts: [16, [Validators.required, Validators.min(1), Validators.max(128)]],
-            usedPorts: [0, [Validators.min(0)]],
-          });
-          break;
-          
-        case ElementType.FDP:
-          newPropertiesGroup = this.formBuilder.group({
-            capacity: [16, [Validators.required, Validators.min(1), Validators.max(144)]],
-            usedPorts: [0, [Validators.min(0)]],
-            installationType: ['WALL', Validators.required],
-            location: [''],
+            portCount: [16, [Validators.required, Validators.min(1), Validators.max(128)]],
+            ponPorts: [4, [Validators.required, Validators.min(1)]],
+            macAddress: ['', [Validators.pattern(/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/)]],
+            firmwareVersion: [''],
+            rackId: ['']
           });
           break;
           
@@ -196,6 +197,23 @@ export class ElementEditorService {
             model: [''],
             serialNumber: [''],
             supportedPONStandards: [[]]
+          });
+          break;
+        
+        case ElementType.SLACK_FIBER:
+          newPropertiesGroup = this.formBuilder.group({
+            length: [50, [Validators.required, Validators.min(1)]],
+            stockLength: [10, [Validators.min(0)]],
+            fiberConnectionId: [''],
+            fiberType: ['SINGLE_MODE'],
+            manufacturer: [''],
+            model: [''],
+            installationDate: [null],
+            diameter: [2, [Validators.min(0.1)]],
+            mountingType: ['aerial'],
+            color: ['Azul'],
+            location: ['', [Validators.maxLength(200)]],
+            notes: ['']
           });
           break;
           
@@ -240,7 +258,10 @@ export class ElementEditorService {
             installationDate: [new Date(), Validators.required],
             installationTechnician: [''],
             technicianId: [''],
-            workOrderNumber: ['']
+            workOrderNumber: [''],
+            spliceType: ['fusion'],
+            inputFiberThreadIds: [''],
+            outputFiberThreadIds: ['']
           });
           break;
           
@@ -287,6 +308,9 @@ export class ElementEditorService {
         form.patchValue(commonFields);
       }
     }
+    
+    // Actualizar el valor del tipo
+    form.get('type')?.setValue(type);
   }
 
   /**
@@ -296,33 +320,59 @@ export class ElementEditorService {
     // Aplicar valores comunes
     form.patchValue({
       name: element.name,
-      code: element.code,
       description: element.description || '',
       status: element.status,
       type: element.type
     });
-    
-    // Asignar coordenadas
-    const coordsArray = form.get('position.coordinates');
-    if (coordsArray && element.position?.coordinates) {
-      coordsArray.setValue(element.position.coordinates);
+    // Asignar posición (lat/lng)
+    if (element.position && typeof element.position.lat === 'number' && typeof element.position.lng === 'number') {
+      const positionGroup = form.get('position') as FormGroup;
+      if (positionGroup) {
+        positionGroup.patchValue({
+          lat: element.position.lat,
+          lng: element.position.lng
+        });
+      }
     }
-    
-    // Crear tags si existen
-    const extendedElement = element as ExtendedNetworkElement;
-    if (extendedElement.tags?.length) {
-      const tagsFormArray = form.get('tags') as FormArray;
-      tagsFormArray.clear(); // Limpiar array existente
-      
-      // Añadir cada tag
-      extendedElement.tags.forEach(tag => {
-        tagsFormArray.push(this.formBuilder.control(tag));
-      });
-    }
-    
-    // Aplicar propiedades específicas si existen
-    if (extendedElement.properties) {
-      form.get('properties')?.patchValue(extendedElement.properties);
+    // Aplicar propiedades específicas según el tipo usando type guards
+    switch (element.type) {
+      case ElementType.OLT:
+        // Cast seguro a OLT
+        form.get('properties')?.patchValue(element as OLT);
+        break;
+      case ElementType.ONT:
+        form.get('properties')?.patchValue(element as ONT);
+        break;
+      case ElementType.ODF:
+        form.get('properties')?.patchValue(element as ODF);
+        break;
+      case ElementType.EDFA:
+        form.get('properties')?.patchValue(element as EDFA);
+        break;
+      case ElementType.SPLITTER:
+        form.get('properties')?.patchValue(element as Splitter);
+        break;
+      case ElementType.MANGA:
+        form.get('properties')?.patchValue(element as SharedManga);
+        break;
+      case ElementType.TERMINAL_BOX:
+        form.get('properties')?.patchValue(element as TerminalBox);
+        break;
+      case ElementType.SLACK_FIBER:
+        form.get('properties')?.patchValue(element as SlackFiber);
+        break;
+      case ElementType.FIBER_THREAD:
+        form.get('properties')?.patchValue(element as FiberThread);
+        break;
+      case ElementType.RACK:
+        form.get('properties')?.patchValue(element as Rack);
+        break;
+      default:
+        // Si no es un tipo concreto, aplicar las propiedades genéricas
+        if ((element as any).properties) {
+          form.get('properties')?.patchValue((element as any).properties);
+        }
+        break;
     }
   }
 
@@ -331,26 +381,98 @@ export class ElementEditorService {
    */
   createElementFromForm(form: FormGroup, existingId?: string): NetworkElement {
     const formValue = form.value;
-    
     // Crear elemento base
-    const element: ExtendedNetworkElement = {
-      id: existingId || '',
-      name: formValue.name,
-      code: formValue.code,
-      type: formValue.type,
-      status: formValue.status,
-      description: formValue.description || '',
-      position: formValue.position,
-      properties: formValue.properties,
-      tags: formValue.tags,
-    };
-    
-    // Asignar fecha de creación/actualización si es nuevo
-    if (!existingId) {
-      element.createdAt = new Date();
+    let element: NetworkElement;
+    switch (formValue.type) {
+      case ElementType.OLT:
+        element = {
+          ...(formValue as OLT),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.ONT:
+        element = {
+          ...(formValue as ONT),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.ODF:
+        element = {
+          ...(formValue as ODF),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.EDFA:
+        element = {
+          ...(formValue as EDFA),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.SPLITTER:
+        element = {
+          ...(formValue as Splitter),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.MANGA:
+        element = {
+          ...(formValue as SharedManga),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.TERMINAL_BOX:
+        element = {
+          ...(formValue as TerminalBox),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.SLACK_FIBER:
+        element = {
+          ...(formValue as SlackFiber),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.FIBER_THREAD:
+        element = {
+          ...(formValue as FiberThread),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      case ElementType.RACK:
+        element = {
+          ...(formValue as Rack),
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
+      default:
+        element = {
+          ...formValue,
+          id: existingId || '',
+          updatedAt: new Date(),
+          createdAt: existingId ? formValue.createdAt : new Date()
+        };
+        break;
     }
-    element.updatedAt = new Date();
-    
     return element;
   }
 
@@ -378,8 +500,8 @@ export class ElementEditorService {
         if (isNew) {
           this.mapService.addElementAtPosition(
             savedElement,
-            savedElement.position?.coordinates?.[0] || 0,
-            savedElement.position?.coordinates?.[1] || 0
+            savedElement.position?.lat || 0,
+            savedElement.position?.lng || 0
           );
         } else {
           this.mapService.updateMapElements([savedElement], []);

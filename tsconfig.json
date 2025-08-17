@@ -22,7 +22,17 @@
       "@core/*": ["src/app/core/*"],
       "@features/*": ["src/app/features/*"],
       "@shared/*": ["src/app/shared/*"],
-      "@projects/*": ["src/app/projects/*"]
+      "@projects/*": ["src/app/projects/*"],
+      "@elements/*": ["src/app/features/network-design/components/elements/*"],
+      "@common-definitions/*": ["../common-definitions/*"],
+      "@common-definitions/dtos/*": ["../common-definitions/dtos/*"],
+      "@common-definitions/entities/*": ["../common-definitions/entities/*"],
+      "@common-definitions/enums/*": ["../common-definitions/enums/*"],
+      "@common-definitions/interfaces/*": ["../common-definitions/interfaces/*"],
+      "@common-definitions/types/*": ["../common-definitions/types/*"],
+      "@common-definitions/constants/*": ["../common-definitions/constants/*"],
+      "@common-definitions/validators/*": ["../common-definitions/validators/*"],
+      "@common-definitions/transformers/*": ["../common-definitions/transformers/*"]
     }
   },
   "angularCompilerOptions": {

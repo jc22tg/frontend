@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { ElementStatus, ElementType, GeographicPosition } from '../../../shared/types/network.types';
+import { ElementStatus, ElementType } from '../../../shared/types/network.types';
+import { GeographicPosition } from '../../../shared/types/geo-position';
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +13,7 @@ export class MapUtilsService {
    */
   calculateDistance(point1: GeographicPosition, point2: GeographicPosition): number {
     if (!point1 || !point2) return 0;
+    if (!point1.coordinates || !point2.coordinates) return 0;
 
     const lat1 = point1.coordinates[1];
     const lon1 = point1.coordinates[0];
@@ -103,6 +105,9 @@ export class MapUtilsService {
    * Convierte una posición geográfica a un punto en el mapa
    */
   geoPositionToMapPoint(position: GeographicPosition): [number, number] {
+    if (!position || !position.coordinates) {
+      return [0, 0]; // Valor predeterminado si no hay coordenadas
+    }
     return [position.coordinates[1], position.coordinates[0]];
   }
 

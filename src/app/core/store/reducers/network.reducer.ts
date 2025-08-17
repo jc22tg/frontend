@@ -1,23 +1,23 @@
 import { createReducer, on } from '@ngrx/store';
 import { 
-  FDP, 
-  OLT, 
-  ONT, 
-  EDFA, 
-  Splitter, 
-  Manga, 
-  FiberConnection,
+  FDPElement, 
+  OLTElement, 
+  ONTElement, 
+  EDFAElement, 
+  SplitterElement, 
+  MangaElement, 
   NetworkAlert
-} from '../../../shared/models/network.model';
+} from '../../../shared/types/network.types';
+import { FiberConnection } from '../../../shared/models/fiber-connection.model';
 import * as NetworkActions from '../actions/network.actions';
 
 export interface State {
-  fdps: FDP[];
-  olts: OLT[];
-  onts: ONT[];
-  edfas: EDFA[];
-  splitters: Splitter[];
-  mangas: Manga[];
+  fdps: FDPElement[];
+  olts: OLTElement[];
+  onts: ONTElement[];
+  edfas: EDFAElement[];
+  splitters: SplitterElement[];
+  mangas: MangaElement[];
   fiberConnections: FiberConnection[];
   alerts: NetworkAlert[];
   selectedElementType: string | null;

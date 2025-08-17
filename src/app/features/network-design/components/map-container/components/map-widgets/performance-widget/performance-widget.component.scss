@@ -1,0 +1,314 @@
+// Variables de estilo
+// $primary-color: #1976d2; // ELIMINADO
+// $text-primary: rgba(0, 0, 0, 0.87); // ELIMINADO
+// $text-secondary: rgba(0, 0, 0, 0.6); // ELIMINADO
+
+// Importamos los estilos de panel flotante
+@use 'src/app/features/network-design/components/elements/shared/styles/_floating-panel.scss' as panel-styles;
+
+.performance-widget {
+  // Aplicamos el panel con la posición y tamaño directamente como parámetros
+  @include panel-styles.floating-panel('bottom-right', 'small');
+  
+  // Aplicamos el tema de rendimiento (azul)
+  @include panel-styles.floating-panel-theme('primary');
+  
+  // Configuramos mediante variables CSS en lugar de redefinir estilos
+  --floating-panel-width: var(--performance-widget-width, 280px);
+  --floating-panel-max-height: calc(70vh - 100px);
+  --floating-panel-content-padding: 0;
+  --floating-panel-header-border: none;
+  --floating-panel-header-bg: var(--primary-color, #1976d2);
+  --floating-panel-header-color: var(--primary-contrast-color, white);
+  
+  // Aseguramos que esté dentro del contenedor del mapa
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1000;
+  max-width: 280px;
+  margin: 0;
+  
+  // Ajustamos para móviles
+  @media (max-width: 768px) {
+    bottom: 60px; // Espacio para controles inferiores
+    right: 8px;
+    --floating-panel-width: 240px;
+  }
+  
+  // La posición se configura mediante el atributo [ngClass]="position" en el HTML
+  // No es necesario redefinir las clases de posición aquí
+
+  // Sólo añadimos estilos específicos que no se pueden manejar con variables
+  .panel-title {
+    display: flex;
+    align-items: center;
+    
+    i, mat-icon {
+      margin-right: var(--spacing-xs, 8px);
+      font-size: var(--icon-size-md, 16px);
+    }
+  }
+  
+  .performance-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: var(--spacing-xs, 4px);
+    
+    &.high {
+      background-color: var(--color-success, #4caf50);
+    }
+    
+    &.medium {
+      background-color: var(--color-warning, #ff9800);
+    }
+    
+    &.low {
+      background-color: var(--color-danger, #f44336);
+    }
+    
+    &.unknown {
+      background-color: var(--color-neutral-light, #bdbdbd);
+    }
+  }
+}
+
+// Contenido del widget
+.tabs {
+  display: flex;
+  background-color: var(--surface-lighter, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  
+  .tab-button {
+    flex: 1;
+    padding: var(--spacing-sm, 10px);
+    background: none;
+    border: none;
+    font-size: var(--font-size-sm, 13px);
+    color: var(--text-color, rgba(0, 0, 0, 0.87));
+    cursor: pointer;
+    transition: var(--transition-fast, 0.15s);
+    
+    &:hover {
+      background-color: var(--surface-hover, #eeeeee);
+    }
+    
+    &.active {
+      color: var(--primary-color, #1976d2);
+      font-weight: 500;
+      border-bottom: 2px solid var(--primary-color, #1976d2);
+    }
+  }
+}
+
+.tab-content {
+  padding: var(--spacing-md, 15px);
+}
+
+// Estilos para la pestaña de rendimiento
+.performance-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--spacing-lg, 20px);
+  
+  .score-gauge {
+    width: var(--gauge-size, 80px);
+    height: var(--gauge-size, 80px);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: var(--spacing-sm, 8px);
+    border-width: 2px;
+    border-style: solid;
+    
+    &.high {
+      background-color: var(--color-success-bg, rgba(76, 175, 80, 0.15));
+      border-color: var(--color-success, #4caf50);
+      color: var(--color-success-dark, #2e7d32);
+    }
+    
+    &.medium {
+      background-color: var(--color-warning-bg, rgba(255, 152, 0, 0.15));
+      border-color: var(--color-warning, #ff9800);
+      color: var(--color-warning-dark, #ef6c00);
+    }
+    
+    &.low {
+      background-color: var(--color-danger-bg, rgba(244, 67, 54, 0.15));
+      border-color: var(--color-danger, #f44336);
+      color: var(--color-danger-dark, #c62828);
+    }
+    
+    &.unknown {
+      background-color: var(--color-neutral-bg, rgba(189, 189, 189, 0.15));
+      border-color: var(--color-neutral-light, #bdbdbd);
+      color: var(--color-neutral-dark, #757575);
+    }
+    
+    .score-value {
+      font-size: var(--font-size-xxxl, 24px);
+      font-weight: 600;
+    }
+  }
+  
+  .score-label {
+    font-size: var(--font-size-xs, 12px);
+    color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+  }
+}
+
+.metrics-grid {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: var(--spacing-lg, 20px);
+  
+  .metric-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    .metric-value {
+      font-size: var(--font-size-xl, 18px);
+      font-weight: 600;
+      color: var(--text-color, rgba(0, 0, 0, 0.87));
+    }
+    
+    .metric-label {
+      font-size: var(--font-size-xs, 12px);
+      color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+    }
+  }
+}
+
+.metrics-list {
+  background-color: var(--surface-lighter, #f9f9f9);
+  border-radius: var(--border-radius-sm, 4px);
+  padding: var(--spacing-sm, 10px);
+  
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs, 6px) 0;
+    font-size: var(--font-size-sm, 13px);
+    border-bottom: 1px solid var(--border-color-light, #eeeeee);
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    .metric-name {
+      color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+    }
+    
+    .metric-value {
+      font-weight: 500;
+      color: var(--text-color, rgba(0, 0, 0, 0.87));
+    }
+  }
+}
+
+// Estilos para la pestaña de optimización
+.optimization-controls {
+  .control-group {
+    margin-bottom: var(--spacing-md, 15px);
+    
+    label {
+      display: block;
+      margin-bottom: var(--spacing-sm, 8px);
+      font-size: var(--font-size-sm, 13px);
+      font-weight: 500;
+    }
+  }
+  
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: var(--toggle-width, 44px);
+    height: var(--toggle-height, 24px);
+    
+    input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      
+      &:checked + .slider {
+        background-color: var(--primary-color, #1976d2);
+      }
+      
+      &:checked + .slider:before {
+        transform: translateX(var(--toggle-thumb-translate, 20px));
+      }
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--color-neutral, #ccc);
+      transition: var(--transition-normal, .4s);
+      border-radius: var(--toggle-height, 24px);
+      
+      &:before {
+        position: absolute;
+        content: "";
+        height: var(--toggle-thumb-size, 18px);
+        width: var(--toggle-thumb-size, 18px);
+        left: var(--toggle-thumb-margin, 3px);
+        bottom: var(--toggle-thumb-margin, 3px);
+        background-color: white;
+        transition: var(--transition-normal, .4s);
+        border-radius: 50%;
+      }
+    }
+  }
+  
+  .optimization-levels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs, 6px);
+    
+    .level-button {
+      padding: var(--spacing-xs, 6px) var(--spacing-sm, 12px);
+      border-radius: var(--border-radius-pill, 16px);
+      border: 1px solid var(--border-color, #e0e0e0);
+      background: none;
+      font-size: var(--font-size-xs, 12px);
+      cursor: pointer;
+      text-transform: capitalize;
+      transition: var(--transition-fast, 0.15s);
+      
+      &:hover {
+        background-color: var(--surface-hover, #f5f5f5);
+      }
+      
+      &.active {
+        background-color: var(--primary-color, #1976d2);
+        color: var(--primary-contrast-color, white);
+        border-color: var(--primary-color, #1976d2);
+      }
+    }
+  }
+  
+  .optimization-info {
+    margin-top: var(--spacing-md, 15px);
+    padding: var(--spacing-sm, 10px);
+    background-color: var(--surface-lighter, #f5f5f5);
+    border-radius: var(--border-radius-sm, 4px);
+    font-size: var(--font-size-xs, 12px);
+    line-height: 1.4;
+    color: var(--text-secondary-color, rgba(0, 0, 0, 0.6));
+  }
+}
+
+// Responsive design simplificado usando variables CSS
+@media (max-width: 768px) {
+  .performance-widget {
+    --floating-panel-width: var(--performance-widget-width-mobile, 240px);
+  }
+} 

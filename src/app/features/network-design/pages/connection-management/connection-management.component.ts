@@ -88,7 +88,7 @@ export class ConnectionManagementComponent implements OnInit, OnDestroy {
 
   onSearch(): void {
     if (this.searchQuery) {
-      this.connectionService.searchConnections(this.searchQuery)
+      this.connectionService.filterConnections({ search: this.searchQuery })
         .pipe(takeUntil(this.destroy$))
         .subscribe(connections => {
           this.connections = connections;
@@ -120,7 +120,7 @@ export class ConnectionManagementComponent implements OnInit, OnDestroy {
   }
 
   onDeleteConnection(connection: FiberConnection): void {
-    if (confirm(`¿Está seguro de eliminar la conexión ${connection.id}?`)) {
+    if (connection.id && confirm(`¿Está seguro de eliminar la conexión ${connection.id}?`)) {
       this.connectionService.deleteConnection(connection.id);
     }
   }

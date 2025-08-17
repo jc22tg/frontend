@@ -1,19 +1,27 @@
-import { Component, OnInit, inject, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, OnInit, inject, Input, OnChanges, SimpleChanges, DestroyRef, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatChipsModule } from '@angular/material/chips';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { filter, tap } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { filter, tap, catchError } from 'rxjs/operators';
 
 import { BaseWidgetComponent } from '../../base/base-widget.component';
 import { WidgetDataService } from '../../../../services/widget-data.service';
+import { MonitoringService } from '../../../../services/monitoring.service';
+import { ElementService } from '../../../../services/element.service';
+import { LoggerService } from '../../../../../../core/services/logger.service';
 import { fadeAnimation, slideInUpAnimation } from '../../../../../../shared/animations/common.animations';
 import { WidgetStateService } from '../../../../services/widget-state.service';
 import { ErrorDisplayComponent } from '../../../../../../shared/components/error-display/error-display.component';
-import { NetworkElement, ElementStatus } from '../../../../../../shared/types/network.types';
+import { NetworkElement } from '../../../../../../shared/types/network.types';
+import { ElementStatus } from 'src/app/shared/types/network.types';
+import { ElementType } from 'src/app/shared/types/network.types';
+import { WidgetActionEvent, WidgetErrorEvent, WidgetUpdateEvent } from '../../container/map-widgets-container/map-widgets-container.component';
 
 interface NetworkMetrics {
   elementCount: number;
@@ -23,6 +31,31 @@ interface NetworkMetrics {
   lastUpdated?: Date;
 }
 
+interface ElementStats {
+  total: number;
+  active: number;
+  warning: number;
+  error: number;
+  maintenance: number;
+  inactive: number;
+}
+
+interface StatusItem {
+  status: ElementStatus;
+  label: string;
+  count: number;
+  color: string;
+}
+
+/**
+ * Widget para visualizar el estado de salud de la red
+ * 
+ * Muestra métricas generales del estado de la red, incluyendo:
+ * - Indicador de salud general
+ * - Estadísticas de elementos y conexiones
+ * - Distribución de elementos por estado
+ * - Indicadores de elementos críticos
+ */
 @Component({
   selector: 'app-network-health-widget',
   standalone: true,
@@ -33,12 +66,16 @@ interface NetworkMetrics {
     MatDividerModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
+    MatChipsModule,
     ErrorDisplayComponent
   ],
   template: `
     <div class="widget-container network-health-widget" *ngIf="(widgetState$ | async)?.isVisible">
       <div class="widget-header">
-        <h3>{{ title }}</h3>
+        <h3>
+          <mat-icon>health_and_safety</mat-icon>
+          <span>{{ title }}</span>
+        </h3>
         <div class="widget-controls">
           <button mat-icon-button (click)="refreshData()" matTooltip="Actualizar datos">
             <mat-icon>refresh</mat-icon>
@@ -52,21 +89,21 @@ interface NetworkMetrics {
         </div>
       </div>
       
-      <div class="widget-content" *ngIf="!(widgetState$ | async)?.isCollapsed" [@fadeAnimation]="'in'">
-        <!-- Componente de Error -->
-        <app-error-display 
-          *ngIf="(widgetState$ | async)?.hasError"
-          [message]="(widgetState$ | async)?.errorInfo?.message || 'Error desconocido'"
-          [title]="'Error en Salud de Red'"
-          (retry)="refreshData()">
-        </app-error-display>
+      <div class="widget-content" *ngIf="!(widgetState$ | async)?.isCollapsed" [@slideInUp]>
+        <!-- Indicador de carga -->
+        <div *ngIf="isLoading" class="loading-container">
+          <mat-spinner diameter="30"></mat-spinner>
+        </div>
         
         <!-- Contenido principal -->
-        <div *ngIf="!((widgetState$ | async)?.hasError)" class="health-stats-container">
-          <!-- Indicador de carga -->
-          <div *ngIf="isLoading" class="loading-container">
-            <mat-spinner diameter="30"></mat-spinner>
-          </div>
+        <div *ngIf="!isLoading" class="health-stats-container">
+          <!-- Componente de Error -->
+          <app-error-display 
+            *ngIf="(widgetState$ | async)?.hasError"
+            [message]="(widgetState$ | async)?.errorInfo?.message || 'Error desconocido'"
+            [title]="'Error en Salud de Red'"
+            (retry)="refreshData()">
+          </app-error-display>
           
           <!-- Métrica principal de salud -->
           <div class="health-primary">
@@ -76,10 +113,21 @@ interface NetworkMetrics {
             <div class="health-label">Salud General</div>
           </div>
           
+          <!-- Resumen de estados -->
+          <div class="status-summary">
+            <div class="status-circle" 
+                *ngFor="let status of statusDistribution" 
+                [style.background-color]="status.color"
+                [style.width.px]="calculateStatusCircleSize(status.count)"
+                [style.height.px]="calculateStatusCircleSize(status.count)"
+                [matTooltip]="status.label + ': ' + status.count">
+            </div>
+          </div>
+          
           <!-- Métricas secundarias -->
           <div class="secondary-stats">
             <div class="stat-item">
-              <div class="stat-value">{{ networkMetrics?.elementCount || 0 }}</div>
+              <div class="stat-value">{{ elementStats.total || 0 }}</div>
               <div class="stat-label">Elementos</div>
               <div class="stat-breakdown" *ngIf="elementStats">
                 <span class="active-count">{{ elementStats.active }} activos</span>
@@ -103,56 +151,49 @@ interface NetworkMetrics {
             </div>
           </div>
           
-          <div class="status-summary">
-            <div class="status-circle" 
-                *ngFor="let status of statusDistribution" 
-                [style.background-color]="status.color"
-                [style.width.px]="calculateStatusCircleSize(status.count)"
-                [style.height.px]="calculateStatusCircleSize(status.count)"
-                [matTooltip]="status.label + ': ' + status.count">
+          <!-- Elementos críticos -->
+          <mat-divider></mat-divider>
+          
+          <div class="critical-elements" *ngIf="criticalElements.length > 0">
+            <h4>Elementos críticos</h4>
+            <div class="critical-list">
+              <div *ngFor="let element of criticalElements" class="critical-item" [ngClass]="getStatusClass(element.status)">
+                <mat-icon class="element-type-icon">{{ getElementTypeIcon(element.type) }}</mat-icon>
+                <div class="element-details">
+                  <div class="element-name">{{ element.name }}</div>
+                  <div class="element-status">{{ getStatusLabel(element.status) }}</div>
+                </div>
+                <mat-icon class="status-icon">{{ getStatusIcon(element.status) }}</mat-icon>
+              </div>
             </div>
           </div>
           
           <!-- Información de última actualización -->
           <div class="last-updated" *ngIf="networkMetrics?.lastUpdated">
             <mat-icon>update</mat-icon>
-            Actualizado: {{ networkMetrics?.lastUpdated | date:'HH:mm:ss' }}
+            Actualizado: {{ formatTime(networkMetrics?.lastUpdated) }}
           </div>
         </div>
       </div>
     </div>
   `,
   styles: [`
-    :host {
-      display: block;
-    }
-    
     .network-health-widget {
-      min-width: 230px;
-    }
-    
-    .widget-content {
-      padding: 12px;
-    }
-    
-    .health-stats-container {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      min-width: 280px;
+      max-width: 350px;
     }
     
     .loading-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
-      background-color: rgba(255, 255, 255, 0.7);
-      z-index: 10;
+      min-height: 200px;
+    }
+    
+    .health-stats-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
     
     .health-primary {
@@ -167,8 +208,8 @@ interface NetworkMetrics {
       font-size: 32px;
       font-weight: 700;
       border-radius: 50%;
-      width: 80px;
-      height: 80px;
+      width: 90px;
+      height: 90px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -176,15 +217,23 @@ interface NetworkMetrics {
       color: white;
     }
     
-    .health-indicator.primary {
-      background-color: #2196f3;
+    .health-indicator.excellent {
+      background-color: #4caf50;
     }
     
-    .health-indicator.accent {
+    .health-indicator.good {
+      background-color: #8bc34a;
+    }
+    
+    .health-indicator.fair {
+      background-color: #ffc107;
+    }
+    
+    .health-indicator.warning {
       background-color: #ff9800;
     }
     
-    .health-indicator.warn {
+    .health-indicator.critical {
       background-color: #f44336;
     }
     
@@ -194,10 +243,25 @@ interface NetworkMetrics {
       color: rgba(0, 0, 0, 0.6);
     }
     
+    .status-summary {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px;
+    }
+    
+    .status-circle {
+      border-radius: 50%;
+      min-width: 12px;
+      min-height: 12px;
+    }
+    
     .secondary-stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 8px;
     }
     
     .stat-item {
@@ -205,16 +269,15 @@ interface NetworkMetrics {
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 8px 4px;
+      padding: 12px 4px;
       border-radius: 4px;
       background-color: rgba(0, 0, 0, 0.03);
     }
     
     .stat-value {
-      font-size: 24px;
-      font-weight: 500;
+      font-size: 20px;
+      font-weight: 700;
       color: #2196f3;
-      line-height: 1;
     }
     
     .stat-label {
@@ -244,105 +307,134 @@ interface NetworkMetrics {
       color: #f44336;
     }
     
-    .status-summary {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 8px;
+    .critical-elements {
+      margin-top: 12px;
     }
     
-    .status-circle {
-      border-radius: 50%;
-      transition: all 0.3s ease;
+    .critical-elements h4 {
+      font-size: 14px;
+      font-weight: 500;
+      margin: 0 0 8px 0;
+      color: rgba(0, 0, 0, 0.7);
+    }
+    
+    .critical-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    
+    .critical-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-radius: 4px;
+      background-color: rgba(0, 0, 0, 0.03);
+    }
+    
+    .critical-item.status-fault {
+      border-left: 3px solid #f44336;
+      background-color: rgba(244, 67, 54, 0.05);
+    }
+    
+    .critical-item.status-warning {
+      border-left: 3px solid #ff9800;
+      background-color: rgba(255, 152, 0, 0.05);
+    }
+    
+    .critical-item.status-critical {
+      border-left: 3px solid #f44336;
+      background-color: rgba(244, 67, 54, 0.05);
+    }
+    
+    .element-type-icon {
+      margin-right: 8px;
+      font-size: 20px;
+    }
+    
+    .element-details {
+      flex: 1;
+    }
+    
+    .element-name {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .element-status {
+      font-size: 11px;
+      color: rgba(0, 0, 0, 0.6);
+    }
+    
+    .status-icon {
+      font-size: 18px;
+    }
+    
+    .status-fault .status-icon {
+      color: #f44336;
+    }
+    
+    .status-warning .status-icon {
+      color: #ff9800;
+    }
+    
+    .status-critical .status-icon {
+      color: #f44336;
     }
     
     .last-updated {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
       font-size: 11px;
       color: rgba(0, 0, 0, 0.5);
-      margin-top: 8px;
+      margin-top: 12px;
     }
     
     .last-updated mat-icon {
       font-size: 14px;
-      width: 14px;
       height: 14px;
+      width: 14px;
       margin-right: 4px;
-    }
-    
-    :host-context(.dark-theme) .loading-container {
-      background-color: rgba(48, 48, 48, 0.7);
-    }
-    
-    :host-context(.dark-theme) .stat-item {
-      background-color: rgba(255, 255, 255, 0.05);
-    }
-    
-    :host-context(.dark-theme) .health-label,
-    :host-context(.dark-theme) .stat-label {
-      color: rgba(255, 255, 255, 0.7);
-    }
-    
-    :host-context(.dark-theme) .last-updated {
-      color: rgba(255, 255, 255, 0.5);
     }
   `],
   animations: [fadeAnimation, slideInUpAnimation]
 })
 export class NetworkHealthWidgetComponent extends BaseWidgetComponent implements OnInit, OnChanges {
-  @Input() elementStats: { total: number, active: number, warning: number, error: number } | null = null;
+  @Input() elementStats: { total: number, active: number, warning: number, error: number, maintenance: number, inactive: number } = { total: 0, active: 0, warning: 0, error: 0, maintenance: 0, inactive: 0 };
+
+  @Output() widgetAction = new EventEmitter<WidgetActionEvent>();
+  @Output() widgetError = new EventEmitter<WidgetErrorEvent>();
+  @Output() widgetUpdate = new EventEmitter<WidgetUpdateEvent>();
   
-  // Estado interno
-  isLoading = false;
+  /** Datos de métricas de la red */
   networkMetrics: NetworkMetrics | null = null;
-  statusDistribution: {label: string, count: number, color: string}[] = [];
   
-  // Servicio adicional para datos
-  private widgetDataService = inject(WidgetDataService);
+  /** Distribución de estados de los elementos */
+  statusDistribution: StatusItem[] = [];
+  
+  /** Lista de elementos críticos */
+  criticalElements: NetworkElement[] = [];
+  
+  /** Indicador de carga */
+  isLoading = false;
+  
+  // Servicios inyectados
+  private monitoringService = inject(MonitoringService);
+  private elementService = inject(ElementService);
+  private logger = inject(LoggerService);
   
   constructor() {
     super();
     this.widgetId = 'network-health-widget';
-    this.title = 'Salud de Red';
-    this.position = 'top-right';
+    this.title = 'Salud de la Red';
+    this.position = 'top-left';
   }
   
   override ngOnInit(): void {
     super.ngOnInit();
-    
-    // Suscribirse a actualizaciones de datos compartidos
-    this.widgetDataService.networkMetrics$.pipe(
-      takeUntilDestroyed(this.destroyRef),
-      filter(metrics => !!metrics)
-    ).subscribe(metrics => {
-      this.networkMetrics = metrics;
-      
-      // Si no tenemos estadísticas de elementos, calcular aproximadamente
-      if (!this.elementStats && this.networkMetrics) {
-        this.calculateApproximateElementStats();
-      }
-      
-      // Actualizar la visualización de distribución de estado
-      this.updateStatusDistribution();
-      
-      // Notificar actualización
-      this.emitUpdateEvent('data', { metrics: this.networkMetrics });
-      
-      this.isLoading = false;
-    });
-    
-    // Reaccionar a solicitudes de actualización
-    this.widgetStateService.refreshWidgetsRequest$.pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(request => {
-      this.refreshData();
-    });
-    
-    // Cargar datos iniciales
-    this.refreshData();
+    this.loadData();
   }
   
   ngOnChanges(changes: SimpleChanges): void {
@@ -353,124 +445,292 @@ export class NetworkHealthWidgetComponent extends BaseWidgetComponent implements
   }
   
   /**
-   * Actualiza la distribución de estado para visualización
+   * Carga todos los datos necesarios para el widget
    */
-  private updateStatusDistribution(): void {
-    if (!this.elementStats) return;
-    
-    this.statusDistribution = [
-      { label: 'Activo', count: this.elementStats.active || 0, color: '#4caf50' },
-      { label: 'Advertencia', count: this.elementStats.warning || 0, color: '#ff9800' },
-      { label: 'Error', count: this.elementStats.error || 0, color: '#f44336' }
-    ];
-  }
-  
-  /**
-   * Calcula estadísticas aproximadas basadas en métricas generales
-   */
-  private calculateApproximateElementStats(): void {
-    if (!this.networkMetrics) return;
-    
-    const total = this.networkMetrics.elementCount;
-    const healthPercentage = this.networkMetrics.health / 100;
-    
-    // Aproximación basada en la salud de la red
-    const active = Math.round(total * healthPercentage);
-    const warning = Math.round(total * (1 - healthPercentage) * 0.7);
-    const error = total - active - warning;
-    
-    this.elementStats = {
-      total,
-      active: Math.max(0, active),
-      warning: Math.max(0, warning),
-      error: Math.max(0, error)
-    };
-  }
-  
-  /**
-   * Calcular el tamaño de los círculos de estado en función de la proporción
-   */
-  calculateStatusCircleSize(count: number): number {
-    if (!this.elementStats || this.elementStats.total === 0) return 16;
-    
-    // Proteger contra valores inválidos
-    const safeCount = count || 0;
-    const total = this.elementStats.total || 1; // Evitar división por cero
-    
-    // Tamaño mínimo de 16px, máximo de 40px
-    const minSize = 16;
-    const maxSize = 40;
-    
-    const proportion = safeCount / total;
-    return Math.max(minSize, Math.min(maxSize, minSize + Math.round(proportion * 40)));
-  }
-  
-  /**
-   * Devuelve el color según el valor de salud
-   */
-  getHealthColor(health: number): string {
-    // Asegurar que health sea un número
-    const safeHealth = Number(health) || 0;
-    
-    if (safeHealth < 40) return 'warn';
-    if (safeHealth < 70) return 'accent';
-    return 'primary';
-  }
-  
-  /**
-   * Actualiza los datos de la red
-   */
-  override refreshData(): void {
-    // Limpiar errores previos
-    this.widgetStateService.clearWidgetError(this.widgetId);
-    
-    // Indicar que estamos cargando
+  private loadData(): void {
     this.isLoading = true;
     
-    // Utilizar el servicio de datos compartidos para obtener métricas
-    this.widgetDataService.fetchNetworkMetrics().pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: (metrics) => {
-        this.networkMetrics = metrics;
-        
-        // Si no tenemos estadísticas de elementos, calcular aproximadamente
-        if (!this.elementStats) {
-          this.calculateApproximateElementStats();
-        }
-        
-        // Actualizar distribución visualización de estado
-        this.updateStatusDistribution();
-        
-        // Notificar actualización
-        this.emitUpdateEvent('data', { metrics: this.networkMetrics });
-        
-        this.isLoading = false;
-      },
-      error: (error) => {
-        // Manejar el error
-        this.handleError('fetchNetworkMetrics', error);
-        
-        // Registrar error en el estado del widget
-        this.widgetStateService.registerWidgetError(this.widgetId, {
-          code: 'FETCH_METRICS_ERROR',
-          message: 'Error al cargar métricas de red',
-          details: error
-        });
-        
-        // Usar estadísticas elementales si están disponibles para estimar métricas
-        if (this.elementStats) {
+    // Cargar métricas generales
+    this.monitoringService.getMetrics()
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(error => {
+          this.handleError('loadMetrics', error);
+          return of({
+            elementCount: 0,
+            connectionCount: 0,
+            utilization: 0,
+            health: 0,
+            lastUpdated: new Date()
+          });
+        })
+      )
+      .subscribe({
+        next: (metrics) => {
           this.networkMetrics = {
-            elementCount: this.elementStats.total,
-            connectionCount: 0, // No podemos estimar esto
-            utilization: 0, // No podemos estimar esto
-            health: Math.round((this.elementStats.active / this.elementStats.total) * 100),
+            ...metrics,
             lastUpdated: new Date()
           };
+          
+          // Una vez que tenemos las métricas, cargar los elementos
+          this.loadElements();
+        },
+        error: (error) => {
+          this.handleError('loadMetrics', error);
+          this.isLoading = false;
         }
-        
-        this.isLoading = false;
+      });
+  }
+  
+  /**
+   * Carga los elementos para obtener estadísticas y elementos críticos
+   */
+  private loadElements(): void {
+    this.elementService.getAllElements()
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(error => {
+          this.handleError('loadElements', error);
+          return of([]);
+        })
+      )
+      .subscribe({
+        next: (elements) => {
+          this.calculateElementStats(elements);
+          this.updateStatusDistribution();
+          this.findCriticalElements(elements);
+          this.isLoading = false;
+        },
+        error: (error) => {
+          this.handleError('loadElements', error);
+          this.isLoading = false;
+        }
+      });
+  }
+  
+  /**
+   * Calcula las estadísticas de elementos
+   */
+  private calculateElementStats(elements: NetworkElement[]): void {
+    // Inicializar contadores
+    const stats: ElementStats = {
+      total: elements.length,
+      active: 0,
+      warning: 0,
+      error: 0,
+      maintenance: 0,
+      inactive: 0
+    };
+    
+    // Contar elementos por estado
+    elements.forEach(element => {
+      // Convertir el estado del network.types.ElementStatus a models.element-status.model.ElementStatus
+      const status = element.status as unknown as ElementStatus;
+      
+      switch (status) {
+        case ElementStatus.ACTIVE:
+          stats.active++;
+          break;
+        case ElementStatus.WARNING:
+          stats.warning++;
+          break;
+        case ElementStatus.FAULT:
+          stats.error++;
+          break;
+        case ElementStatus.MAINTENANCE:
+          stats.maintenance++;
+          break;
+        case ElementStatus.INACTIVE:
+        case ElementStatus.PLANNED:
+        case ElementStatus.UNKNOWN:
+          stats.inactive++;
+          break;
       }
     });
+    
+    this.elementStats = stats;
+  }
+  
+  /**
+   * Actualiza la distribución de estados para la visualización
+   */
+  private updateStatusDistribution(): void {
+    this.statusDistribution = [
+      {
+        status: ElementStatus.ACTIVE,
+        label: 'Activos',
+        count: this.elementStats.active,
+        color: '#4caf50'
+      },
+      {
+        status: ElementStatus.WARNING,
+        label: 'Advertencia',
+        count: this.elementStats.warning,
+        color: '#ff9800'
+      },
+      {
+        status: ElementStatus.FAULT,
+        label: 'Fallo',
+        count: this.elementStats.error,
+        color: '#f44336'
+      },
+      {
+        status: ElementStatus.MAINTENANCE,
+        label: 'Mantenimiento',
+        count: this.elementStats.maintenance,
+        color: '#9c27b0'
+      },
+      {
+        status: ElementStatus.INACTIVE,
+        label: 'Inactivos',
+        count: this.elementStats.inactive,
+        color: '#9e9e9e'
+      }
+    ].filter(item => item.count > 0);
+  }
+  
+  /**
+   * Identifica los elementos críticos para mostrar
+   */
+  private findCriticalElements(elements: NetworkElement[]): void {
+    // Identificar elementos en estado fallo o advertencia
+    const criticalStatuses = [ElementStatus.FAULT, ElementStatus.WARNING];
+    
+    this.criticalElements = elements
+      .filter(element => {
+        // Convertir el status a nuestro enum local
+        const status = element.status as unknown as ElementStatus;
+        return criticalStatuses.includes(status);
+      })
+      .sort((a, b) => {
+        // Ordenar por severidad (fallo > advertencia)
+        const severityOrder = {
+          [ElementStatus.FAULT]: 0,
+          [ElementStatus.WARNING]: 1
+        };
+        const statusA = a.status as unknown as ElementStatus;
+        const statusB = b.status as unknown as ElementStatus;
+        return severityOrder[statusA] - severityOrder[statusB];
+      })
+      .slice(0, 5); // Limitar a los 5 elementos más críticos
+  }
+  
+  /**
+   * Calcula el tamaño de los círculos de estado basado en la cantidad
+   */
+  calculateStatusCircleSize(count: number): number {
+    const minSize = 12;
+    const maxSize = 36;
+    const totalItems = this.elementStats.total || 1;
+    const percentage = Math.min(1, count / totalItems);
+    
+    return Math.max(minSize, Math.round(minSize + (maxSize - minSize) * percentage));
+  }
+  
+  /**
+   * Determina el color para el indicador de salud
+   */
+  getHealthColor(health: number): string {
+    if (health >= 90) return 'excellent';
+    if (health >= 75) return 'good';
+    if (health >= 60) return 'fair';
+    if (health >= 40) return 'warning';
+    return 'critical';
+  }
+  
+  /**
+   * Obtiene la clase CSS para un estado
+   */
+  getStatusClass(status: ElementStatus): string {
+    switch (status) {
+      case ElementStatus.WARNING:
+        return 'status-warning';
+      case ElementStatus.FAULT:
+        return 'status-fault';
+      case ElementStatus.MAINTENANCE:
+        return 'status-maintenance';
+      default:
+        return '';
+    }
+  }
+  
+  /**
+   * Obtiene el icono para un tipo de elemento
+   */
+  getElementTypeIcon(type: ElementType): string {
+    switch (type) {
+      case ElementType.OLT:
+        return 'router';
+      case ElementType.ONT:
+        return 'devices';
+      case ElementType.FDP:
+        return 'hub';
+      case ElementType.SPLITTER:
+        return 'call_split';
+      // Manejar tipos que podrían no estar definidos en nuestra enumeración
+      default:
+        // Tratar tipo como any para comparaciones seguras
+        const typeAny = type as any;
+        if (typeAny === 'EDFA') return 'power';
+        if (typeAny === 'MANGA') return 'cable';
+        return 'device_hub';
+    }
+  }
+  
+  /**
+   * Obtiene el icono para un estado de elemento
+   */
+  getStatusIcon(status: ElementStatus): string {
+    switch (status) {
+      case ElementStatus.WARNING:
+        return 'warning';
+      case ElementStatus.FAULT:
+        return 'error';
+      case ElementStatus.MAINTENANCE:
+        return 'build';
+      case ElementStatus.ACTIVE:
+        return 'check_circle';
+      default:
+        return 'help';
+    }
+  }
+  
+  /**
+   * Obtiene la etiqueta para un estado
+   */
+  getStatusLabel(status: ElementStatus): string {
+    switch (status) {
+      case ElementStatus.ACTIVE:
+        return 'Activo';
+      case ElementStatus.INACTIVE:
+        return 'Inactivo';
+      case ElementStatus.WARNING:
+        return 'Advertencia';
+      case ElementStatus.FAULT:
+        return 'Fallo';
+      case ElementStatus.MAINTENANCE:
+        return 'Mantenimiento';
+      case ElementStatus.PLANNED:
+        return 'Planificado';
+      case ElementStatus.UNKNOWN:
+        return 'Desconocido';
+      default:
+        return status;
+    }
+  }
+  
+  /**
+   * Formatea una fecha/hora para mostrar
+   */
+  formatTime(date?: Date): string {
+    if (!date) return '';
+    return date.toLocaleTimeString();
+  }
+  
+  /**
+   * Refresca los datos
+   */
+  override refreshData(): void {
+    this.loadData();
   }
 } 

@@ -9,16 +9,23 @@ import { RouterModule, Router, RouterOutlet, ActivatedRoute, NavigationEnd } fro
 import { NetworkDesignService } from './services/network-design.service';
 import { NetworkStateService } from './services/network-state.service';
 import { MapService } from './services/map.service';
-import { ElementType, NetworkElement, NetworkConnection, GeographicPosition } from '../../shared/types/network.types';
+import { ElementType, NetworkElement, NetworkConnection } from '../../shared/types/network.types';
+import { GeographicPosition } from '../../shared/types/geo-position';
+import { 
+  MapViewMode, 
+  ElementEditMode, 
+  MapActionType,
+  NetworkDesignState
+} from './types/network-design.types';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { catchError, finalize, take, filter, map, takeUntil, tap } from 'rxjs/operators';
-import { of, Subject, Observable } from 'rxjs';
+import { catchError, finalize, take, filter, map, takeUntil, tap, timeout } from 'rxjs/operators';
+import { of, Subject, Observable, forkJoin } from 'rxjs';
 import { LoggerService } from '../../core/services/logger.service';
 import { trigger, transition, style, animate, query, group } from '@angular/animations';
-import { ElementQuickViewComponent } from './components/element-quick-view/element-quick-view.component';
+import { ElementQuickViewComponent } from './components/elements/element-quick-view/element-quick-view.component';
 import { HelpDialogService } from './services/help-dialog.service';
 import { NetworkMapDialogService } from './services/network-map-dialog.service';
 import { NetworkEventBusService, NetworkEventType } from './services/network-event-bus.service';
@@ -99,6 +106,8 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   showSearchWidget = true; // Control de visibilidad del widget de búsqueda
   showElementsPanel = true; // Control de visibilidad del panel de elementos
+  mapViewMode: MapViewMode = MapViewMode.DEFAULT;
+  elementEditMode: ElementEditMode = ElementEditMode.VIEW;
 
   /**
    * Constructor del componente
@@ -248,35 +257,12 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
       });
     
     // Suscribirse a cambios en el modo de vista
-    this.networkStateService.getCurrentViewMode()
+    this.networkStateService.getMapViewMode()
       .pipe(takeUntil(this.destroy$))
       .subscribe(mode => {
-        this.animationState = mode;
-        // Sincronizar el estado con el router si es necesario
-        const currentUrl = this.router.url;
-        const shouldBeInEditor = mode === 'editor' && !currentUrl.includes('/editor');
-        const shouldBeInMap = mode === 'map' && !currentUrl.includes('/map');
-        
-        if (shouldBeInEditor) {
-          this.router.navigate(['editor'], { relativeTo: this.route });
-        } else if (shouldBeInMap) {
-          this.router.navigate(['map'], { relativeTo: this.route });
-        }
+        this.mapViewMode = mode;
+        this.logger.debug(`Modo de vista del mapa actualizado: ${mode}`);
       });
-    
-    // Suscribirse a cambios sin guardar
-    this.networkStateService.getIsDirty()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(isDirty => {
-        if (isDirty) {
-          // Opcional: Mostrar algún indicador visual de cambios sin guardar
-          this.logger.debug('Hay cambios sin guardar en el editor');
-        }
-      });
-    
-    // Actualizar el estado de visibilidad en el servicio
-    this.networkStateService.setShowSearchWidget(this.showSearchWidget);
-    this.networkStateService.setShowElementsPanel(this.showElementsPanel);
   }
 
   /**
@@ -286,118 +272,123 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    */
   private initializeDesignSafely(): void {
     this.isLoading = true;
-    
-    // Marcar el estado del servicio como cargando (usando NetworkState en memoria)
-    const currentState = this.networkStateService.getCurrentState();
-    // No podemos usar setState directamente, así que actualizamos elementos individuales
-    this.networkStateService.updateCurrentTool('loading');
-    
-    // Tipos de elementos principales en la red
-    const elementTypes = [
-      ElementType.OLT, 
-      ElementType.ONT,
+    this.networkStateService.updateCurrentTool('loading'); // Informar estado de carga
+
+    const criticalElementTypes = [ElementType.OLT, ElementType.SPLITTER];
+    const secondaryElementTypes = [
       ElementType.ODF, // Usando ODF en lugar de FDT
       ElementType.FDP,
-      ElementType.SPLITTER,
+      ElementType.ONT,
       ElementType.EDFA
     ];
-    
-    // MEJORA: Cargar elementos de forma progresiva por prioridad
-    // Primero cargar solo los elementos críticos (OLT y SPLITTER)
-    const criticalTypes = [ElementType.OLT, ElementType.SPLITTER];
-    const secondaryTypes = elementTypes.filter(type => !criticalTypes.includes(type));
-    
-    const loadingCounter = { count: 0, total: criticalTypes.length + secondaryTypes.length + 1 }; // +1 para las conexiones
-    
-    // 1. Cargar conexiones con un límite de tiempo
-    const connectionTimeoutId = setTimeout(() => {
-      this.logger.warn('Tiempo límite excedido cargando conexiones, continuando con carga parcial');
-      loadingCounter.count++;
-      this.checkLoadingComplete(loadingCounter);
-    }, 5000); // 5 segundos máximo para las conexiones
-    
-    this.networkDesignService.getConnections()
-      .pipe(
+
+    const initTimeoutOverall = setTimeout(() => {
+      if (this.isLoading) {
+        this.isLoading = false;
+        this.networkStateService.setCurrentTool('pan'); // Restaurar herramienta
+        this.logger.warn('Tiempo de carga general excedido. Mostrando interfaz parcial.');
+        this.snackBar.open('La carga de datos está tardando más de lo esperado. Algunas funciones pueden estar limitadas.', 'Cerrar', {
+          duration: 10000,
+          panelClass: ['warning-snackbar']
+        });
+        this.eventBus.emit({
+          type: NetworkEventType.MAP_ERROR,
+          timestamp: new Date(),
+          payload: { source: 'network-design-init', error: 'overall-timeout', message: 'Tiempo de carga general excedido' }
+        });
+      }
+    }, 20000); // Timeout global de 20 segundos para toda la inicialización
+
+    // 1. Observable para cargar conexiones
+    const connections$ = this.networkDesignService.getConnections().pipe(
+      take(1),
+      timeout(5000), // Timeout específico para conexiones
+      catchError(error => {
+        this.logger.error('Error o timeout al cargar conexiones:', error);
+        this.snackBar.open('Error al cargar las conexiones de red. Podrían no visualizarse correctamente.', 'Cerrar', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+        return of([]); // Continuar con un array vacío
+      }),
+      tap(connections => this.logger.info(`Conexiones cargadas: ${connections.length}`))
+    );
+
+    // 2. Función para crear observables de carga de elementos por tipo
+    const createElementTypeLoadObservable = (type: ElementType, typeTimeout = 4000) => {
+      return this.networkDesignService.getElementsByType(type).pipe(
         take(1),
-        finalize(() => {
-          clearTimeout(connectionTimeoutId);
-          loadingCounter.count++;
-          this.checkLoadingComplete(loadingCounter);
-        }),
+        timeout(typeTimeout),
         catchError(error => {
-          this.logger.error('Error al cargar conexiones:', error);
-          this.snackBar.open('Error al cargar las conexiones de red', 'Cerrar', {
+          this.logger.error(`Error o timeout al cargar elementos de tipo ${type}:`, error);
+          this.snackBar.open(`Error al cargar elementos de tipo ${type}.`, 'Cerrar', {
             duration: 3000,
             panelClass: ['error-snackbar']
           });
-          return of([]);
-        })
-      )
-      .subscribe(connections => {
-        this.logger.info(`Conexiones cargadas: ${connections.length}`);
-      });
-    
-    // 2. Cargar primero los elementos críticos
-    this.loadElementsByTypes(criticalTypes, loadingCounter);
-    
-    // 3. Después cargar el resto de elementos con un retraso
-    setTimeout(() => {
-      this.loadElementsByTypes(secondaryTypes, loadingCounter);
-    }, 3000); // 3 segundos después de iniciar, comenzar a cargar elementos secundarios
-  }
-  
-  /**
-   * Carga elementos por tipos de forma eficiente, con límites de tiempo
-   */
-  private loadElementsByTypes(types: ElementType[], loadingCounter: {count: number, total: number}): void {
-    types.forEach(type => {
-      // Establecer un límite de tiempo para cada tipo de elemento
-      const timeoutId = setTimeout(() => {
-        this.logger.warn(`Tiempo límite excedido cargando elementos de tipo ${type}, continuando con carga parcial`);
-        loadingCounter.count++;
-        this.checkLoadingComplete(loadingCounter);
-      }, 4000); // 4 segundos máximo para cada tipo
-      
-      this.networkDesignService.getElementsByType(type)
-        .pipe(
-          take(1),
-          finalize(() => {
-            clearTimeout(timeoutId);
-            loadingCounter.count++;
-            this.checkLoadingComplete(loadingCounter);
-          }),
-          catchError(error => {
-            this.logger.error(`Error al cargar elementos de tipo ${type}:`, error);
-            this.snackBar.open(`Error al cargar elementos de tipo ${type}`, 'Cerrar', {
-              duration: 3000,
-              panelClass: ['error-snackbar']
-            });
-            return of([]);
-          })
-        )
-        .subscribe(elements => {
-          this.logger.info(`Elementos de tipo ${type} cargados: ${elements.length}`);
-        });
+          return of([]); // Continuar con un array vacío
+        }),
+        tap(elements => this.logger.info(`Elementos de tipo ${type} cargados: ${elements.length}`))
+      );
+    };
+
+    // 3. Crear observables para tipos de elementos críticos
+    const criticalElementsLoadObservables = criticalElementTypes.map(type =>
+      createElementTypeLoadObservable(type, 5000) // Un poco más de tiempo para críticos
+    );
+
+    // 4. Cargar conexiones y elementos críticos en paralelo
+    forkJoin([connections$, ...criticalElementsLoadObservables]).pipe(
+      takeUntil(this.destroy$) // Asegurar desuscripción si el componente se destruye
+    ).subscribe({
+      next: (results) => {
+        // results[0] son las conexiones, results[1]... son los elementos críticos
+        this.logger.info('Conexiones y elementos críticos cargados.');
+
+        // 5. Crear observables para tipos de elementos secundarios y cargarlos
+        const secondaryElementsLoadObservables = secondaryElementTypes.map(type =>
+          createElementTypeLoadObservable(type)
+        );
+
+        if (secondaryElementsLoadObservables.length > 0) {
+          forkJoin(secondaryElementsLoadObservables).pipe(
+            takeUntil(this.destroy$)
+          ).subscribe({
+            next: () => {
+              this.logger.info('Elementos secundarios cargados.');
+              this.finalizeLoading(initTimeoutOverall);
+            },
+            error: (err) => { // Error en forkJoin de secundarios
+              this.logger.error('Error en el bloque de carga de elementos secundarios:', err);
+              this.finalizeLoading(initTimeoutOverall); // Finalizar incluso si hay errores parciales
+            }
+          });
+        } else {
+          this.finalizeLoading(initTimeoutOverall); // No hay secundarios, finalizar directamente
+        }
+      },
+      error: (err) => { // Error en el primer forkJoin (conexiones o críticos)
+        this.logger.error('Error crítico durante la carga inicial (conexiones o elementos críticos):', err);
+        this.finalizeLoading(initTimeoutOverall); // Finalizar incluso si hay errores críticos
+      }
     });
   }
   
   /**
-   * Verifica si la carga está completa y actualiza el estado
+   * Finaliza el proceso de carga, actualiza el estado y limpia los timeouts.
+   * @param initTimeoutOverall ID del timeout global de inicialización.
    */
-  private checkLoadingComplete(counter: {count: number, total: number}): void {
-    // Si hemos cargado todos los tipos planificados, completar la carga
-    if (counter.count >= counter.total) {
+  private finalizeLoading(initTimeoutOverall: NodeJS.Timeout): void {
+    clearTimeout(initTimeoutOverall); // Limpiar el timeout global
+    if (this.isLoading) { // Solo actuar si todavía estábamos en estado de carga
       this.isLoading = false;
-      // Restaurar herramienta a la predeterminada
-      this.networkStateService.setCurrentTool('pan');
-      this.logger.info('Carga de red completada');
-      
-      // Notificar al event bus que la carga se completó
+      this.networkStateService.setCurrentTool('pan'); // Restaurar herramienta a la predeterminada
+      this.logger.info('Carga de red completada (o finalizada con errores parciales).');
       this.eventBus.emit({
         type: NetworkEventType.MAP_READY,
         timestamp: new Date(),
-        payload: { message: 'Carga de red completada' }
+        payload: { message: 'Carga de red y elementos completada.' }
       });
+      // Podrías querer emitir un evento diferente si hubo errores parciales
     }
   }
 
@@ -415,9 +406,12 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param type Tipo de elemento a crear
    */
   createNewElement(type?: ElementType): void {
-    const navigateParams = type ? ['editor', { type }] : ['editor'];
-    this.router.navigate(navigateParams, { relativeTo: this.route });
-    this.networkStateService.setCurrentViewMode('editor');
+    this.elementEditMode = ElementEditMode.CREATE;
+    if (type) {
+      this.router.navigate(['element', 'new', type.toLowerCase()], { relativeTo: this.route });
+    } else {
+      this.router.navigate(['element', 'new'], { relativeTo: this.route });
+    }
   }
   
   /**
@@ -425,10 +419,10 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param elementId ID del elemento a editar
    */
   editElement(elementId: string): void {
-    if (!elementId) return;
-    
-    this.router.navigate(['editor', elementId], { relativeTo: this.route });
-    this.networkStateService.setCurrentViewMode('editor');
+    this.elementEditMode = ElementEditMode.UPDATE;
+    if (elementId) {
+      this.router.navigate(['element', 'edit', elementId], { relativeTo: this.route });
+    }
   }
   
   /**
@@ -438,9 +432,20 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
   viewElementHistory(elementId: string): void {
     if (!elementId) return;
     
-    this.router.navigate(['history', elementId], { relativeTo: this.route });
-    this.logger.debug(`Navegando al historial del elemento: ${elementId}`);
-    this.networkStateService.setCurrentViewMode('details');
+    this.networkDesignService.getElementHistory(elementId)
+      .pipe(
+        take(1),
+        catchError(error => {
+          this.logger.error('Error al cargar historial de elemento:', error);
+          this.snackBar.open('No se pudo cargar el historial del elemento', 'Cerrar', {
+            duration: 5000
+          });
+          return of([]);
+        })
+      )
+      .subscribe(history => {
+        // Implementación específica para mostrar historial...
+      });
   }
 
   /**
@@ -452,8 +457,8 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
     this.showSearchWidget = !this.showSearchWidget;
     this.logger.debug(`Widget de búsqueda: ${this.showSearchWidget ? 'visible' : 'oculto'}`);
     
-    // Almacenar preferencia del usuario
-    localStorage.setItem('searchWidgetVisible', String(this.showSearchWidget));
+    // Notificar al estado compartido
+    this.networkStateService.updateWidgetVisibility('search', this.showSearchWidget);
   }
 
   /**
@@ -461,8 +466,10 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    */
   toggleElementsPanel(): void {
     this.showElementsPanel = !this.showElementsPanel;
-    this.networkStateService.setShowElementsPanel(this.showElementsPanel);
     this.logger.debug(`Panel de elementos: ${this.showElementsPanel ? 'visible' : 'oculto'}`);
+    
+    // Notificar al estado compartido
+    this.networkStateService.updateWidgetVisibility('elements-panel', this.showElementsPanel);
   }
 
   /**
@@ -471,13 +478,14 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param isNewElement Indica si se está creando un nuevo elemento o editando uno existente
    */
   openHelpDialog(elementType?: ElementType, isNewElement = true): void {
-    if (elementType) {
-      this.helpDialogService.openHelpDialog(elementType, isNewElement);
-      this.logger.debug(`Mostrando ayuda para: ${elementType}`);
-    } else {
-      this.helpDialogService.openGeneralHelp();
-      this.logger.debug('Mostrando ayuda general de diseño de red');
-    }
+    (this.helpDialogService.openHelpDialog as any)({
+      context: isNewElement ? 'new-element' : 'edit-element',
+      elementType: elementType,
+      title: `Ayuda: ${isNewElement ? 'Crear nuevo' : 'Editar'} ${elementType || 'elemento'}`,
+      width: '600px'
+    }).afterClosed().subscribe(result => {
+      // Manejar resultado del diálogo si es necesario
+    });
   }
 
   /**
@@ -487,8 +495,15 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    */
   handleElementSelected(element: NetworkElement): void {
     this.selectedElement = element;
-    this.networkStateService.setSelectedElement(element);
-    this.logger.debug(`Elemento seleccionado desde el mapa: ${element.name} (${element.id})`);
+    this.networkStateService.setEditingElement(element);
+    this.logger.debug(`Elemento seleccionado por usuario: ${element.name} (${element.id})`);
+    
+    // Actualizar la URL para reflejar el elemento seleccionado sin navegar
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { elementId: element.id },
+      queryParamsHandling: 'merge'
+    });
   }
 
   /**
@@ -497,8 +512,14 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param connection Conexión seleccionada
    */
   handleConnectionSelected(connection: NetworkConnection): void {
-    this.networkStateService.setSelectedConnection(connection);
-    this.logger.debug(`Conexión seleccionada desde el mapa con ID: ${connection.id}`);
+    this.logger.debug(`Conexión seleccionada: ${connection.name} (${connection.id})`);
+    
+    // Mostrar detalles de la conexión o navegar a su vista detallada
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { connectionId: connection.id },
+      queryParamsHandling: 'merge'
+    });
   }
 
   /**
@@ -507,7 +528,9 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param element Elemento a editar
    */
   handleEditElementRequest(element: NetworkElement): void {
-    this.editElement(element.id);
+    if (element && element.id) {
+      this.editElement(element.id);
+    }
   }
 
   /**
@@ -516,30 +539,41 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param element Elemento a eliminar
    */
   handleDeleteElementRequest(element: NetworkElement): void {
-    if (!element) return;
-
-    const confirmDelete = window.confirm(`¿Está seguro de eliminar el elemento "${element.name}"?`);
-    if (confirmDelete) {
-      this.networkDesignService.deleteElement(element.id).subscribe({
-        next: () => {
-          this.snackBar.open(`Elemento "${element.name}" eliminado correctamente`, 'Cerrar', {
-            duration: 3000
-          });
-          // Actualizar el estado para reflejar los cambios
-          this.networkStateService.setHasUnsavedChanges(true);
-          if (this.selectedElement?.id === element.id) {
-            this.selectedElement = null;
-          }
-        },
-        error: (error) => {
-          this.logger.error('Error al eliminar elemento:', error);
-          this.snackBar.open(`Error al eliminar el elemento: ${error.message || 'Error desconocido'}`, 'Cerrar', {
-            duration: 5000,
-            panelClass: ['error-snackbar']
+    if (!element || !element.id) return;
+    
+    // Confirmar la eliminación y proceder si el usuario confirma
+    const dialogRef = this.networkMapDialogService.openConfirmDialog({
+      title: 'Confirmar eliminación',
+      message: `¿Está seguro de eliminar el elemento "${element.name}"? Esta acción no se puede deshacer.`,
+      confirmButtonText: 'Eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: 'warn'
+    });
+    
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        if (element.id) {
+          this.networkDesignService.deleteElement(element.id).pipe(
+            take(1),
+            catchError(error => {
+              this.logger.error('Error al eliminar elemento:', error);
+              this.snackBar.open('Error al eliminar el elemento. Intente nuevamente.', 'Cerrar', {
+                duration: 5000,
+                panelClass: ['error-snackbar']
+              });
+              return of(null);
+            })
+          ).subscribe(result => {
+            if (result !== null) {
+              this.snackBar.open(`Elemento "${element.name}" eliminado correctamente.`, 'Cerrar', {
+                duration: 3000
+              });
+              // Actualizar vista o estado si es necesario
+            }
           });
         }
-      });
-    }
+      }
+    });
   }
 
   /**
@@ -548,21 +582,27 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * @param event Evento de cambio de estado
    */
   handleMapStateChanged(event: {type: string, data: any}): void {
-    this.logger.debug(`Cambio de estado en el mapa: ${event.type}`, event.data);
-    
     switch (event.type) {
-      case 'mapReady':
-        // El mapa está listo, podemos realizar operaciones adicionales si es necesario
+      case 'zoom':
+        this.logger.debug(`Zoom del mapa cambiado a: ${event.data}`);
         break;
-      case 'zoomChanged':
-        // Actualizar el zoom en el servicio compartido
-        this.networkStateService.setZoomLevel(event.data);
+      
+      case 'center':
+        this.logger.debug(`Centro del mapa cambiado a: ${JSON.stringify(event.data)}`);
         break;
-      case 'layerToggled':
-        // Actualizar la visibilidad de las capas
-        this.networkStateService.setLayerActive(event.data.layer, event.data.active);
+      
+      case 'bounds':
+        // Límites del mapa cambiados, actualizar estado si es necesario
         break;
-      // Otros casos según sea necesario
+      
+      case 'layer-visibility':
+        // Visibilidad de capa cambiada
+        this.logger.debug(`Visibilidad de capa cambiada: ${event.data.layerId} = ${event.data.visible}`);
+        break;
+      
+      default:
+        // Otros eventos del mapa
+        break;
     }
   }
 
@@ -570,8 +610,13 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
    * Navega a la página de diagnóstico del mapa
    */
   navigateToDiagnostic(): void {
-    this.router.navigate(['diagnostic'], { relativeTo: this.route });
-    this.logger.debug('Navegando a diagnóstico del mapa');
+    this.mapViewMode = MapViewMode.DIAGNOSTIC;
+    this.networkStateService.setMapViewMode(MapViewMode.DIAGNOSTIC);
+    
+    this.router.navigate(['diagnostic'], { 
+      relativeTo: this.route,
+      queryParamsHandling: 'preserve'
+    });
   }
 
   /**
@@ -588,40 +633,16 @@ export class NetworkDesignComponent implements OnInit, OnDestroy {
       elementType?: string;
     }
   ): Observable<GeographicPosition> {
-    this.logger.debug('Abriendo selector de posición en el mapa');
-    
-    try {
-      const dialogRef = this.networkMapDialogService.openMapPositionDialog(
-        initialPosition,
-        options
-      );
-      
-      return dialogRef.afterClosed().pipe(
-        filter(result => !!result), // Solo continuar si hay resultado
-        tap(position => {
-          if (position) {
-            this.logger.debug(`Posición seleccionada: [${position.coordinates[1]}, ${position.coordinates[0]}]`);
-            try {
-              // Actualizar estado global si es necesario
-              this.networkStateService.setSelectedPosition(position);
-            } catch (error) {
-              this.logger.error('Error al actualizar la posición seleccionada:', error);
-            }
-          }
-        })
-      );
-    } catch (error) {
-      this.logger.error('Error al abrir el selector de posición:', error);
-      this.snackBar.open('Error al abrir el selector de posición', 'Cerrar', {
-        duration: 3000,
-        panelClass: ['error-snackbar']
-      });
-      // Devolver un observable vacío en caso de error
-      return of().pipe(
-        map(() => {
-          throw new Error('Error al abrir el selector de posición');
-        })
-      );
-    }
+    return this.networkMapDialogService.openMapPositionSelector({
+      initialPosition,
+      title: options?.title || 'Seleccionar ubicación',
+      description: options?.description || 'Haga clic en el mapa para seleccionar la ubicación del elemento.',
+      elementType: options?.elementType,
+      width: '800px',
+      height: '600px'
+    }).afterClosed().pipe(
+      filter(result => !!result),
+      map(result => result as GeographicPosition)
+    );
   }
 }

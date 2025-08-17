@@ -1,3 +1,5 @@
+@use '../../../../_variables.scss' as vars;
+
 // Variables
 $widget-background: var(--map-widget-bg-color, rgba(255, 255, 255, 0.65));
 $widget-background-dark: var(--map-widget-bg-color-dark, rgba(48, 48, 48, 0.65));
@@ -12,6 +14,13 @@ $primary-color: #3f51b5;
 $accent-color: #ff4081;
 $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.25s ease;
 
+// Sistema estandarizado de z-index para prevenir solapamientos
+$z-index-map: 1;
+$z-index-widgets-container: var(--z-index-widget-container, 100);
+$z-index-toolbar: var(--z-index-toolbar, 110);
+$z-index-context-menu: var(--z-index-context-menu, 120);
+$z-index-dragging-widget: var(--z-index-dragging, 500);
+
 // Contenedor principal que organiza todos los widgets
 .map-widgets-container {
   position: absolute;
@@ -20,7 +29,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
   bottom: 0;
   left: 0; // Expandir a toda la pantalla
   pointer-events: none;
-  z-index: 100;
+  z-index: vars.$z-index-widgets-container;
   transition: all 0.3s ease;
   padding: 10px;
   
@@ -59,13 +68,13 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: $toolbar-background;
+  background-color: vars.$toolbar-background;
   border-radius: 12px; // Bordes más redondeados
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1); // Sombra más suave
   margin-bottom: 10px;
   padding: 10px 6px; // Ajustar el padding
   transition: all 0.3s ease, background-color 0.3s ease;
-  z-index: 110;
+  z-index: vars.$z-index-toolbar;
   backdrop-filter: blur(10px); // Más blur para efecto glass
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2); // Borde sutil para efecto glass
@@ -81,11 +90,11 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
     
     &:hover {
       transform: scale(1.15);
-      background-color: rgba($primary-color, 0.15);
+      background-color: rgba(vars.$primary-color, 0.15);
     }
     
     &.active {
-      background-color: rgba($primary-color, 0.85); // Hacer el botón activo ligeramente transparente
+      background-color: rgba(vars.$primary-color, 0.85); // Hacer el botón activo ligeramente transparente
       color: white;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); // Agregar sombra para destacar
     }
@@ -140,16 +149,16 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
 
 // Estilo base para todos los widgets - Alineado con .map-widget
 .widget-panel {
-  background-color: $widget-background;
-  border-radius: $widget-border-radius;
-  box-shadow: $widget-box-shadow;
+  background-color: vars.$widget-background;
+  border-radius: vars.$widget-border-radius;
+  box-shadow: vars.$widget-box-shadow;
   padding: 18px;
   width: 100%;
   max-width: 350px;
   max-height: calc(50vh - 40px); // Limitar altura para evitar que ocupen toda la pantalla
   overflow-y: auto;
   overflow-x: hidden;
-  transition: $widget-transition;
+  transition: vars.$widget-transition;
   transform-origin: top right;
   will-change: transform, opacity;
   position: relative; // Asegurar que tenga posición relativa por defecto
@@ -169,13 +178,13 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
     opacity: 0.5;
-    border-radius: $widget-border-radius $widget-border-radius 0 0;
+    border-radius: vars.$widget-border-radius vars.$widget-border-radius 0 0;
   }
   
   // Estilo unificado para todos los widgets del sistema
   &[id^="widget-"] {
-    background-color: $widget-background;
-    border-radius: $widget-border-radius;
+    background-color: vars.$widget-background;
+    border-radius: vars.$widget-border-radius;
     border: 1px solid rgba(255, 255, 255, 0.3);
   }
   
@@ -215,7 +224,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
     transform: scale(1.02);
     
     // Asegurarnos que el widget que se arrastra esté siempre encima
-    z-index: 9999 !important;
+    z-index: vars.$z-index-dragging-widget !important;
   }
   
   // Encabezado con controles para cada widget
@@ -226,7 +235,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
     right: 0;
     height: 36px; // Un poco más alto para comodidad
     background-color: rgba(0, 0, 0, 0.05);
-    border-radius: $widget-border-radius $widget-border-radius 0 0;
+    border-radius: vars.$widget-border-radius vars.$widget-border-radius 0 0;
     cursor: grab;
     display: flex;
     justify-content: space-between;
@@ -274,7 +283,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
   // Estilo para encabezados dentro de widgets
   h3, h4 {
     margin-top: 0;
-    color: $primary-color;
+    color: vars.$primary-color;
     font-size: 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
     padding-bottom: 8px;
@@ -338,11 +347,11 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
 // Estilo para el menú contextual
 .context-menu-panel {
   position: absolute;
-  background-color: $widget-background;
-  border-radius: $widget-border-radius;
-  box-shadow: $widget-box-shadow;
+  background-color: vars.$widget-background;
+  border-radius: vars.$widget-border-radius;
+  box-shadow: vars.$widget-box-shadow;
   overflow: hidden;
-  z-index: 120; // Asegurar que esté encima de otros widgets
+  z-index: vars.$z-index-context-menu; // Usar variable estandarizada
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
@@ -354,7 +363,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: vars.$breakpoint-tablet) {
   .widgets-panel {
     grid-template-columns: 1fr;
     padding: 70px 10px 10px 60px;
@@ -377,7 +386,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
 // Soporte para modo oscuro
 :host-context(.dark-theme) {
   .widgets-toolbar {
-    background-color: $toolbar-background-dark;
+    background-color: vars.$toolbar-background-dark;
     border: 1px solid rgba(255, 255, 255, 0.1);
     
     &:hover {
@@ -392,14 +401,14 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
       }
       
       &.active {
-        background-color: rgba($primary-color, 0.7);
+        background-color: rgba(vars.$primary-color, 0.7);
       }
     }
   }
   
   .widget-panel {
-    background-color: $widget-background-dark;
-    box-shadow: $widget-box-shadow-dark;
+    background-color: vars.$widget-background-dark;
+    box-shadow: vars.$widget-box-shadow-dark;
     border-color: rgba(255, 255, 255, 0.08);
     
     .widget-header {
@@ -411,7 +420,7 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
     }
     
     h3, h4 {
-      color: $accent-color;
+      color: vars.$accent-color;
       border-bottom-color: rgba(255, 255, 255, 0.1);
     }
     
@@ -437,8 +446,8 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
   }
   
   .context-menu-panel {
-    background-color: $widget-background-dark;
-    box-shadow: $widget-box-shadow-dark;
+    background-color: vars.$widget-background-dark;
+    box-shadow: vars.$widget-box-shadow-dark;
     border-color: rgba(255, 255, 255, 0.05);
   }
 }
@@ -487,4 +496,88 @@ $widget-transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.
   0% { opacity: 0.3; }
   50% { opacity: 0.7; }
   100% { opacity: 0.3; }
+}
+
+/* Estilos adicionales para accesibilidad */
+.widgets-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+/* Los widgets tendrán pointer-events: auto para que sean interactivos */
+.widgets-container ::ng-deep .widget-container {
+  pointer-events: auto;
+}
+
+/* Estilos para el botón de accesibilidad */
+.a11y-toggle-button {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  
+  &:focus {
+    outline: 2px solid #4a90e2;
+    outline-offset: 2px;
+  }
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Clase de utilidad para ocultar elementos visualmente pero mantenerlos disponibles para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Estilos para contenedor de anuncios de accesibilidad */
+#accessibility-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Estilos para mejorar el foco en elementos interactivos */
+:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+/* Asegurar que los elementos interactivos tienen un buen contraste */
+button, a, [role="button"] {
+  &:focus-visible {
+    outline: 3px solid #4a90e2;
+    outline-offset: 3px;
+  }
 } 

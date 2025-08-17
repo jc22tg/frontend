@@ -1,27 +1,29 @@
 export * from '../types/network.types';
 
-// Exportación explícita para evitar errores de importación
+// Importación explícita para evitar errores de importación
 import {
   ElementType,
   ElementStatus,
   NetworkElement,
   NetworkConnection,
-  FiberConnection,
   NetworkAlert,
-  OLT,
-  ONT,
-  ODF,
-  EDFA,
-  Splitter,
-  Manga,
-  FDP,
-  TerminalBox,
-  FiberThread,
-  MSAN,
-  WDMFilter,
-  Router as NetworkRouter,
-  Rack
+  OLTElement,
+  ONTElement,
+  ODFElement,
+  EDFAElement,
+  SplitterElement,
+  MangaElement,
+  FDPElement,
+  TerminalBoxElement,
+  FiberThreadElement,
+  MSANElement,
+  WDMFilterElement,
+  RouterElement,
+  SlackFiberElement
 } from '../types/network.types';
+
+// Importar el modelo detallado FiberConnection
+import { FiberConnection as DetailedFiberConnectionModel } from './fiber-connection.model';
 
 // Re-exportar explícitamente para compatibilidad
 export {
@@ -33,20 +35,19 @@ export {
 export type {
   NetworkElement,
   NetworkConnection,
-  FiberConnection,
   NetworkAlert,
-  OLT,
-  ONT,
-  ODF,
-  EDFA,
-  Splitter,
-  Manga,
-  FDP,
-  TerminalBox,
-  FiberThread,
-  MSAN,
-  WDMFilter,
-  // Renombrando Router para evitar conflicto con Angular Router
-  NetworkRouter as Router,
-  Rack
+  OLTElement,
+  ONTElement,
+  ODFElement,
+  EDFAElement,
+  SplitterElement,
+  MangaElement,
+  FDPElement,
+  TerminalBoxElement,
+  FiberThreadElement,
+  MSANElement,
+  WDMFilterElement,
+  RouterElement as Router,
+  SlackFiberElement,
+  DetailedFiberConnectionModel as FiberConnection
 };

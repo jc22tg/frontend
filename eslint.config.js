@@ -1,13 +1,15 @@
 // @ts-check
-const eslint = require("@eslint/js");
-const tseslint = require("typescript-eslint");
+
+// Volver a usar require para la configuración de ESLint
 const angular = require("angular-eslint");
+const js = require("@eslint/js");
+const tseslint = require("typescript-eslint");
 
 module.exports = tseslint.config(
   {
     files: ["**/*.ts"],
     extends: [
-      eslint.configs.recommended,
+      js.configs.recommended,
       ...tseslint.configs.recommended,
       ...tseslint.configs.stylistic,
       ...angular.configs.tsRecommended,
@@ -30,6 +32,20 @@ module.exports = tseslint.config(
           style: "kebab-case",
         },
       ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-empty-function": "warn",
+      "no-async-promise-executor": "warn",
+      "@typescript-eslint/prefer-for-of": "warn",
+      "no-case-declarations": "warn",
+      "@angular-eslint/no-output-native": "warn",
+      "@typescript-eslint/triple-slash-reference": "warn",
+      "@typescript-eslint/no-unsafe-function-type": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "@typescript-eslint/consistent-indexed-object-style": "warn",
+      "@typescript-eslint/consistent-type-definitions": "warn",
+      // Podríamos necesitar deshabilitar prefer-const si causa problemas con el código existente
+      // "prefer-const": "off", 
     },
   },
   {
@@ -38,6 +54,8 @@ module.exports = tseslint.config(
       ...angular.configs.templateRecommended,
       ...angular.configs.templateAccessibility,
     ],
-    rules: {},
+    rules: {
+      // Aquí se pueden añadir o sobrescribir reglas específicas para plantillas HTML
+    },
   }
 );

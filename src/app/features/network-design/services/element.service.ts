@@ -6,23 +6,31 @@ import { environment } from '../../../../environments/environment';
 import { 
   NetworkElement, 
   ElementType, 
-  ElementStatus, 
-  OLT, 
-  ONT, 
-  ODF, 
-  EDFA, 
-  Splitter, 
-  Manga, 
-  MSAN, 
+  ElementStatus,
+  ElementDetailView,
+  ClosureType,
+  SealingType
+} from '../../../shared/types/network.types';
+import { GeoPosition, createGeographicPosition } from '../../../shared/types/geo-position';
+
+// Importamos las interfaces específicas desde element.interface.ts en lugar de network.types.ts
+import { 
+  IElementService,
+  OLT,
+  ONT,
+  ODF,
+  Splitter,
   TerminalBox,
   FiberThread,
-  GeographicPosition,
-  Accessibility,
-  ODFType,
-  NetworkConnection,
-  createPosition
-} from '../../../shared/types/network.types';
-import { IElementService } from '../interfaces/element.interface';
+  SlackFiber,
+  Rack
+} from '../interfaces/element.interface';
+
+// AÑADIR NUEVA IMPORTACIÓN PARA EL MODELO EDFA CORRECTO
+import { EDFA } from '../../../shared/models/edfa.model';
+import { Manga as SharedManga } from '../../../shared/models/manga.model';
+import { WavelengthConfig } from '../../../shared/models/wavelength-config.model';
+
 import { LoggerService } from '../../../core/services/logger.service';
 import { ELEMENT_TYPE_NAMES, ELEMENT_STATUS_CLASSES } from '../../../shared/constants/network.constants';
 import { CacheService, CacheOptions } from '../../../shared/services/cache.service';
@@ -56,14 +64,13 @@ export class ElementService implements IElementService {
    */
   getAllElements(): Observable<NetworkElement[]> {
     try {
-      // Si useMocks está habilitado en environment, devolver elementos simulados
-      if (environment.useMocks) {
+      // Usar datos mock si está habilitado el featureFlag correspondiente
+      if (environment.featureFlags.enableMockData) {
         this.loggerService.info('Usando datos mock para elementos de red');
         return of(this.getMockElements()).pipe(
-          delay(environment.mockDelay),
+          delay(500),
           tap(elements => {
             this.loggerService.debug('Elementos mock cargados:', elements.length);
-            // Guardar elementos en caché
             this.cacheService.set(this.ELEMENTS_CACHE_KEY, elements, { useLocalStorage: true });
             this.notifyElementsChanged();
           })
@@ -89,9 +96,7 @@ export class ElementService implements IElementService {
           
           // Si no hay caché, devolver datos mock
           this.loggerService.info('Sin caché disponible, usando elementos mock');
-          return of(this.getMockElements()).pipe(
-            delay(environment.mockDelay || 500)
-          );
+          return of(this.getMockElements()).pipe(delay(500));
         }),
         // Compartir la respuesta entre múltiples suscriptores
         shareReplay(1)
@@ -129,6 +134,31 @@ export class ElementService implements IElementService {
    * Crea un nuevo elemento
    */
   createElement(element: NetworkElement): Observable<NetworkElement> {
+    // Usar datos mock si está habilitado el featureFlag correspondiente
+    if (environment.featureFlags.enableMockData || environment.useMocks) {
+      this.loggerService.info('Usando datos mock para crear elemento');
+      // Simular respuesta del servidor con delay
+      const newElement = {
+        ...element,
+        id: element.id || this.generateTemporaryId(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Guardar en caché
+      const cacheKey = `element-${newElement.id}`;
+      this.cacheService.set(cacheKey, newElement, { useLocalStorage: true });
+      
+      // Actualizar caché de listado completo
+      const cachedElements = this.cacheService.get<NetworkElement[]>(this.ELEMENTS_CACHE_KEY, { useLocalStorage: true }) || [];
+      cachedElements.push(newElement);
+      this.cacheService.set(this.ELEMENTS_CACHE_KEY, cachedElements, { useLocalStorage: true });
+      
+      this.notifyElementsChanged();
+      return of(newElement).pipe(delay(500));
+    }
+    
+    // Si no está habilitado el modo mock, usar API
     return this.http.post<NetworkElement>(this.apiUrl, element).pipe(
       tap(newElement => {
         if (newElement.id) {
@@ -215,16 +245,15 @@ export class ElementService implements IElementService {
    * @returns true si es OLT, false en caso contrario
    */
   isOLT(element: NetworkElement): element is (NetworkElement & OLT) {
-    const isOlt = element.type === ElementType.OLT;
-    if (!isOlt) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const oltElement = element as any;
+    if (element.type !== ElementType.OLT) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
     return (
-      typeof oltElement.manufacturer === 'string' &&
-      typeof oltElement.model === 'string' &&
-      typeof oltElement.portCount === 'number' &&
-      typeof oltElement.ponPorts === 'number'
+      typeof e.manufacturer === 'string' && 
+      typeof e.model === 'string' && 
+      typeof e.portCount === 'number' &&
+      typeof e.ponPorts === 'number'
     );
   }
 
@@ -234,15 +263,14 @@ export class ElementService implements IElementService {
    * @returns true si es ONT, false en caso contrario
    */
   isONT(element: NetworkElement): element is (NetworkElement & ONT) {
-    const isOnt = element.type === ElementType.ONT;
-    if (!isOnt) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const ontElement = element as any;
+    if (element.type !== ElementType.ONT) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
     return (
-      typeof ontElement.manufacturer === 'string' &&
-      typeof ontElement.model === 'string' &&
-      typeof ontElement.serialNumber === 'string'
+      typeof e.manufacturer === 'string' && 
+      typeof e.model === 'string' && 
+      typeof e.serialNumber === 'string'
     );
   }
 
@@ -252,16 +280,15 @@ export class ElementService implements IElementService {
    * @returns true si es ODF, false en caso contrario
    */
   isODF(element: NetworkElement): element is (NetworkElement & ODF) {
-    const isOdf = element.type === ElementType.ODF;
-    if (!isOdf) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const odfElement = element as any;
+    if (element.type !== ElementType.ODF) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
     return (
-      typeof odfElement.manufacturer === 'string' &&
-      typeof odfElement.model === 'string' &&
-      typeof odfElement.totalPortCapacity === 'number' &&
-      typeof odfElement.usedPorts === 'number'
+      typeof e.manufacturer === 'string' && 
+      typeof e.model === 'string' && 
+      typeof e.totalPortCapacity === 'number' &&
+      typeof e.usedPorts === 'number'
     );
   }
 
@@ -270,18 +297,12 @@ export class ElementService implements IElementService {
    * @param element Elemento a verificar
    * @returns true si es EDFA, false en caso contrario
    */
-  isEDFA(element: NetworkElement): element is (NetworkElement & EDFA) {
-    const isEdfa = element.type === ElementType.EDFA;
-    if (!isEdfa) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const edfaElement = element as any;
-    return (
-      typeof edfaElement.manufacturer === 'string' &&
-      typeof edfaElement.model === 'string' &&
-      typeof edfaElement.gainDb === 'number' &&
-      edfaElement.inputPowerRange !== undefined
-    );
+  isEDFA(element: NetworkElement): element is NetworkElement & EDFA {
+    // Esta implementación asume que `element` puede ser casteado a la `EDFA` importada de shared/models
+    // si `element.type` es `ElementType.EDFA`.
+    // La definición original de isEDFA en IElementService usa `(NetworkElement & EDFA_local)`
+    // donde EDFA_local es la de element.interface.ts
+    return element.type === ElementType.EDFA;
   }
 
   /**
@@ -290,14 +311,11 @@ export class ElementService implements IElementService {
    * @returns true si es Splitter, false en caso contrario
    */
   isSplitter(element: NetworkElement): element is (NetworkElement & Splitter) {
-    const isSplitter = element.type === ElementType.SPLITTER;
-    if (!isSplitter) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const splitterElement = element as any;
-    return (
-      typeof splitterElement.splitRatio === 'string'
-    );
+    if (element.type !== ElementType.SPLITTER) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
+    return typeof e.splitRatio === 'string';
   }
 
   /**
@@ -305,25 +323,15 @@ export class ElementService implements IElementService {
    * @param element Elemento a verificar
    * @returns true si es Manga, false en caso contrario
    */
-  isManga(element: NetworkElement): element is (NetworkElement & Manga) {
-    const isManga = element.type === ElementType.MANGA;
-    if (!isManga) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const mangaElement = element as any;
+  isManga(element: NetworkElement): element is (NetworkElement & SharedManga) {
+    if (element.type !== ElementType.MANGA) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
     return (
-      typeof mangaElement.capacity === 'number' &&
-      typeof mangaElement.usedCapacity === 'number'
+      typeof e.capacity === 'number' &&
+      typeof e.usedCapacity === 'number'
     );
-  }
-
-  /**
-   * Verifica si un elemento es de tipo MSAN
-   * @param element Elemento a verificar
-   * @returns true si es MSAN, false en caso contrario
-   */
-  isMSAN(element: NetworkElement): element is MSAN {
-    return element && element.type === ElementType.MSAN;
   }
 
   /**
@@ -332,14 +340,13 @@ export class ElementService implements IElementService {
    * @returns true si es TerminalBox, false en caso contrario
    */
   isTerminalBox(element: NetworkElement): element is TerminalBox {
-    const isTerminalBox = element.type === ElementType.TERMINAL_BOX;
-    if (!isTerminalBox) return false;
-
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const terminalElement = element as any;
+    if (element.type !== ElementType.TERMINAL_BOX) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
     return (
-      typeof terminalElement.portCapacity === 'number' &&
-      typeof terminalElement.usedPorts === 'number'
+      typeof e.portCapacity === 'number' &&
+      typeof e.usedPorts === 'number'
     );
   }
 
@@ -349,14 +356,27 @@ export class ElementService implements IElementService {
    * @returns true si es FiberThread, false en caso contrario
    */
   isFiberThread(element: NetworkElement): element is FiberThread {
-    const isFiberThread = element.type === ElementType.FIBER_THREAD;
-    if (!isFiberThread) return false;
+    if (element.type !== ElementType.FIBER_THREAD) return false;
+    
+    // Verificar si tiene las propiedades requeridas según element.interface.ts
+    const e = element as any;
+    return typeof e.length === 'number';
+  }
 
-    // Verificación de campos requeridos en interfaces/element.interface.ts
-    const fiberElement = element as any;
-    return (
-      typeof fiberElement.length === 'number'
-    );
+  /**
+   * Verifica si un elemento es de tipo SlackFiber
+   */
+  isSlackFiber(element: NetworkElement): element is SlackFiber {
+    return element.type === ElementType.SLACK_FIBER;
+  }
+
+  /**
+   * Verifica si un elemento es de tipo Rack
+   * @param element Elemento a verificar
+   * @returns true si es Rack, false en caso contrario
+   */
+  isRack(element: NetworkElement): element is Rack {
+    return element.type === ElementType.RACK;
   }
 
   /**
@@ -374,67 +394,125 @@ export class ElementService implements IElementService {
    * Crea un elemento con propiedades por defecto según su tipo
    */
   createDefaultElement(type: ElementType): NetworkElement {
-    const defaultAccessibility: Accessibility = {
-      needsPermission: false,
-      isLocked: false,
-      hasRestrictedAccess: false
-    };
-    
     const baseElement: NetworkElement = {
       id: this.generateTemporaryId(),
-      code: `NEW-${type}-${Date.now().toString(36)}`,
       name: `Nuevo ${this.getElementTypeName(type)}`,
       type,
       status: ElementStatus.INACTIVE,
-      position: createPosition([0, 0]),
+      position: createGeographicPosition(0, 0),
       description: '',
-      accessibility: defaultAccessibility,
       createdAt: new Date(),
       updatedAt: new Date()
     };
-
-    // Añadir propiedades específicas según el tipo
     switch (type) {
       case ElementType.OLT:
         return {
           ...baseElement,
           type: ElementType.OLT,
-          model: 'Modelo OLT Genérico',
           manufacturer: 'Proveedor Genérico',
+          model: 'Modelo OLT Genérico',
           portCount: 16,
-          slotCount: 4
+          ponPorts: 4,
+          serialNumber: `OLT-${Date.now().toString(36)}`,
+          ipAddress: '192.168.1.100',
+          macAddress: '00:11:22:33:44:55',
+          firmwareVersion: '1.0.0'
         } as OLT;
       case ElementType.ONT:
         return {
           ...baseElement,
           type: ElementType.ONT,
-          serialNumber: `ONT-${Date.now().toString(36)}`,
-          model: 'Modelo ONT Genérico',
           manufacturer: 'Proveedor Genérico',
+          model: 'Modelo ONT Genérico',
+          serialNumber: `ONT-${Date.now().toString(36)}`,
+          ipAddress: '192.168.1.200',
+          macAddress: '00:11:22:33:44:66',
+          installationDate: new Date(),
           clientId: undefined
         } as ONT;
       case ElementType.ODF:
         return {
           ...baseElement,
           type: ElementType.ODF,
-          odfType: ODFType.PRIMARY,
-          totalPortCapacity: 16,
-          usedPorts: 0,
           manufacturer: 'Proveedor Genérico',
           model: 'Modelo ODF Genérico',
-          installationDate: new Date(),
-          mountingType: 'wall'
+          totalPortCapacity: 48,
+          usedPorts: 0,
+          installationDate: new Date()
         } as ODF;
       case ElementType.SPLITTER:
         return {
           ...baseElement,
           type: ElementType.SPLITTER,
+          manufacturer: 'Proveedor Genérico',
+          model: 'Modelo Splitter Genérico',
           splitRatio: '1:8',
-          insertionLossDb: 10.5,
-          level: 1,
-          totalPorts: 8,
-          usedPorts: 0
+          insertionLoss: 10.5,
+          serialNumber: `SPL-${Date.now().toString(36)}`,
+          installationDate: new Date()
         } as Splitter;
+      case ElementType.MANGA:
+        return {
+          ...baseElement,
+          type: ElementType.MANGA,
+          manufacturer: 'Proveedor Genérico',
+          model: 'Modelo Manga Genérico',
+          serialNumber: `MNG-${Date.now().toString(36)}`,
+          closureType: ClosureType.UNDERGROUND,
+          maxCableEntries: 24,
+          maxSpliceCapacity: 48,
+          isAerial: false,
+          ipRating: 'IP65',
+          sealingType: SealingType.MECHANICAL,
+          hasSplitter: false,
+          usedSplices: 0,
+          usedCableEntries: 0,
+          installationDate: new Date()
+        } as SharedManga;
+      case ElementType.TERMINAL_BOX:
+        return {
+          ...baseElement,
+          type: ElementType.TERMINAL_BOX,
+          manufacturer: 'Proveedor Genérico',
+          model: 'Modelo Terminal Box Genérico',
+          portCapacity: 12,
+          usedPorts: 0,
+          mountingType: 'wall',
+          serialNumber: `TB-${Date.now().toString(36)}`,
+          installationDate: new Date()
+        } as TerminalBox;
+      case ElementType.SLACK_FIBER:
+        return {
+          ...baseElement,
+          type: ElementType.SLACK_FIBER,
+          length: 30,
+          fiberType: undefined
+        } as SlackFiber;
+      case ElementType.FIBER_THREAD:
+        return {
+          ...baseElement,
+          type: ElementType.FIBER_THREAD,
+          length: 100,
+          color: 'Azul',
+          coreNumber: 1,
+          cableId: `CBL-${Date.now().toString(36)}`,
+          fiberType: undefined
+        } as FiberThread;
+      case ElementType.RACK:
+        return {
+          ...baseElement,
+          type: ElementType.RACK,
+          manufacturer: 'Fabricante Genérico',
+          model: 'Modelo Rack Genérico',
+          serialNumber: `RACK-${Date.now().toString(36)}`,
+          installationDate: new Date(),
+          heightUnits: 42,
+          width: 600,
+          depth: 1000,
+          totalU: 42,
+          usedU: 0,
+          roomName: 'Sala Principal'
+        } as Rack;
       default:
         return baseElement;
     }
@@ -457,43 +535,60 @@ export class ElementService implements IElementService {
     if (!element.name || element.name.trim() === '') {
       return 'El nombre del elemento es obligatorio';
     }
-
     if (!element.type) {
       return 'El tipo de elemento es obligatorio';
     }
-
-    if (!element.position || !element.position.coordinates || 
-        element.position.coordinates.length < 2) {
+    if (!element.position || typeof element.position.lat !== 'number' || typeof element.position.lng !== 'number') {
       return 'La posición del elemento es obligatoria y debe tener coordenadas válidas';
     }
-
-    // Validar posición geográfica
-    if (element.position.coordinates.length >= 2) {
-      const [lon, lat] = element.position.coordinates;
-      if (!this.utilsService.validateCoordinates(lat, lon)) {
-        return 'Las coordenadas geográficas no son válidas';
-      }
-    }
-
     // Validaciones específicas por tipo
     switch (element.type) {
       case ElementType.OLT:
-        if (!('ports' in element) || element.ports === undefined) {
+        if (!('portCount' in element) || (element as any).portCount === undefined) {
           return 'El número de puertos es obligatorio para OLT';
         }
         break;
       case ElementType.ODF:
-        if (!('totalPortCapacity' in element) || element.totalPortCapacity === undefined) {
+        if (!('totalPortCapacity' in element) || (element as any).totalPortCapacity === undefined) {
           return 'La capacidad total de puertos es obligatoria para ODF';
         }
         break;
       case ElementType.SPLITTER:
-        if (!('ratio' in element) || !element.ratio) {
+        if (!('splitRatio' in element) || !(element as any).splitRatio) {
           return 'La relación de división es obligatoria para Splitter';
         }
         break;
+      case ElementType.SLACK_FIBER:
+        if (!('length' in element) || (element as any).length === undefined) {
+          return 'La longitud es obligatoria para Flojo de Fibra';
+        }
+        break;
+      case ElementType.FIBER_THREAD:
+        if (!('length' in element) || (element as any).length === undefined) {
+          return 'La longitud es obligatoria para Hilo de Fibra';
+        }
+        break;
+      case ElementType.RACK:
+        if (!('heightUnits' in element) || (element as any).heightUnits === undefined) {
+          return 'La altura (U) es obligatoria para Rack';
+        }
+        if (!('width' in element) || (element as any).width === undefined) {
+          return 'El ancho es obligatorio para Rack';
+        }
+        if (!('depth' in element) || (element as any).depth === undefined) {
+          return 'La profundidad es obligatoria para Rack';
+        }
+        if (!('totalU' in element) || (element as any).totalU === undefined) {
+          return 'El total de unidades U es obligatorio para Rack';
+        }
+        if (!('usedU' in element) || (element as any).usedU === undefined) {
+          return 'Las unidades U utilizadas son obligatorias para Rack';
+        }
+        if (!('roomName' in element) || !(element as any).roomName) {
+          return 'El nombre de la sala es obligatorio para Rack';
+        }
+        break;
     }
-
     return true;
   }
 
@@ -507,7 +602,7 @@ export class ElementService implements IElementService {
   /**
    * Maneja errores HTTP
    */
-  private handleError(error: HttpErrorResponse): Observable<never> {
+  private handleError = (error: HttpErrorResponse): Observable<never> => {
     let errorMessage = 'Error desconocido';
     
     if (error.error instanceof ErrorEvent) {
@@ -558,103 +653,70 @@ export class ElementService implements IElementService {
     return [
       {
         id: 'olt-001',
-        code: 'OLT-CENTRAL-001',
         name: 'OLT Central Norte',
         type: ElementType.OLT,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9312, 18.4821]
-        },
+        position: createGeographicPosition(18.4821, -69.9312),
         description: 'OLT principal del sector norte'
-      } as NetworkElement,
+      },
       {
         id: 'odf-001',
-        code: 'ODF-N-001',
         name: 'ODF Zona Norte 1',
         type: ElementType.ODF,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9287, 18.4835]
-        },
+        position: createGeographicPosition(18.4835, -69.9287),
         description: 'Distribuidor de fibra óptica para la zona norte'
-      } as NetworkElement,
+      },
       {
         id: 'splitter-001',
-        code: 'SPL-N1-001',
         name: 'Splitter 1:8 Zona Norte',
         type: ElementType.SPLITTER,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9276, 18.4845]
-        },
+        position: createGeographicPosition(18.4845, -69.9276),
         description: 'Splitter principal para distribución residencial'
-      } as NetworkElement,
+      },
       {
         id: 'ont-001',
-        code: 'ONT-N1-001',
         name: 'ONT Cliente Residencial',
         type: ElementType.ONT,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9265, 18.4842]
-        },
+        position: createGeographicPosition(18.4842, -69.9265),
         description: 'ONT instalada en cliente residencial'
-      } as NetworkElement,
-      {
-        id: 'ont-002',
-        code: 'ONT-N1-002',
-        name: 'ONT Cliente Comercial',
-        type: ElementType.ONT,
-        status: ElementStatus.MAINTENANCE,
-        position: {
-          coordinates: [-69.9277, 18.4857]
-        },
-        description: 'ONT instalada en cliente comercial - en mantenimiento'
-      } as NetworkElement,
+      },
       {
         id: 'edfa-001',
-        code: 'EDFA-TR-001',
         name: 'Amplificador Troncal',
         type: ElementType.EDFA,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9340, 18.4815]
-        },
+        position: createGeographicPosition(18.4815, -69.9340),
         description: 'Amplificador para enlace de larga distancia'
-      } as NetworkElement,
+      },
       {
         id: 'manga-001',
-        code: 'MNG-N1-001',
         name: 'Manga Av. Principal',
         type: ElementType.MANGA,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9299, 18.4827]
-        },
+        position: createGeographicPosition(18.4827, -69.9299),
         description: 'Manga para empalmes de fibra en avenida principal'
-      } as NetworkElement,
+      },
       {
-        id: 'odf-002',
-        code: 'ODF-E-001',
-        name: 'ODF Zona Este',
-        type: ElementType.ODF,
-        status: ElementStatus.FAULT,
-        position: {
-          coordinates: [-69.9257, 18.4812]
-        },
-        description: 'Distribuidor de fibra óptica para la zona este - con falla'
-      } as NetworkElement,
-      {
-        id: 'msan-001',
-        code: 'MSAN-N1-001',
-        name: 'MSAN Sector Comercial',
-        type: ElementType.MSAN,
+        id: 'slack-001',
+        name: 'Flojo de Fibra Principal',
+        type: ElementType.SLACK_FIBER,
         status: ElementStatus.ACTIVE,
-        position: {
-          coordinates: [-69.9302, 18.4848]
-        },
-        description: 'MSAN para servicios múltiples en sector comercial'
-      } as NetworkElement
+        position: createGeographicPosition(18.4850, -69.9300),
+        description: 'Reserva de cable de fibra óptica',
+        properties: { length: 30 }
+      },
+      {
+        id: 'fiber-001',
+        name: 'Hilo de Fibra Azul',
+        type: ElementType.FIBER_THREAD,
+        status: ElementStatus.ACTIVE,
+        position: createGeographicPosition(18.4860, -69.9310),
+        description: 'Hilo de fibra individual para pruebas',
+        properties: { length: 100, color: 'Azul' }
+      }
     ];
   }
 
@@ -680,13 +742,10 @@ export class ElementService implements IElementService {
         if (!term || term.trim() === '') {
           return elements;
         }
-        
         const searchTerm = term.toLowerCase().trim();
         return elements.filter(element => {
-          // Buscar en diferentes propiedades del elemento
           return (
             element.name?.toLowerCase().includes(searchTerm) ||
-            element.code?.toLowerCase().includes(searchTerm) ||
             element.description?.toLowerCase().includes(searchTerm) ||
             (element.id && element.id.toLowerCase().includes(searchTerm))
           );

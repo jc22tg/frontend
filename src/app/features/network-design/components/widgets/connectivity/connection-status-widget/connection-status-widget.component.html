@@ -134,7 +134,7 @@
             </div>
             <div class="connection-endpoint">
               <mat-icon class="endpoint-icon">{{ getEndpointIcon(connection) }}</mat-icon>
-              <span>{{ connection.sourceId === selectedElement.id ? 
+              <span>{{ connection.sourceElementId === selectedElement.id ? 
                        'Hacia: ' + getTargetName(connection) : 
                        'Desde: ' + getSourceName(connection) }}</span>
             </div>

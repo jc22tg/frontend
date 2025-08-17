@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Input, ElementRef, ViewChild, AfterViewInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, Output, EventEmitter, ElementRef, ViewChild, AfterViewInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,7 +16,16 @@ import { ElementService } from '../../../../services/element.service';
 import { ConnectionService } from '../../../../services/connection.service';
 import { MapEventsService } from '../../../../services/map-events.service';
 import { fadeAnimation } from '../../../../../../shared/animations/common.animations';
+import { MapStateService } from '../../../../services/map/state/map-state.service';
+import { LoggerService } from '../../../../../../core/services/logger.service';
 
+/**
+ * Widget de mini-mapa para mostrar una vista general de la red
+ * 
+ * Este widget muestra una versión reducida del mapa principal permitiendo
+ * una navegación rápida y visualizar la ubicación actual en el contexto
+ * del mapa completo.
+ */
 @Component({
   selector: 'app-mini-map-widget',
   standalone: true,
@@ -53,28 +62,21 @@ import { fadeAnimation } from '../../../../../../shared/animations/common.animat
            [@fadeAnimation]="(widgetState$ | async)?.isCollapsed ? 'collapsed' : 'expanded'">
         <!-- Contenedor del mini mapa -->
         <div class="mini-map-container" #miniMapContainer>
-          <svg #miniMapSvg width="100%" height="100%">
-            <g class="mini-map-content">
-              <g class="connections-layer"></g>
-              <g class="elements-layer"></g>
-              <rect class="viewport-indicator" 
-                    [attr.x]="viewportInfo.x" 
-                    [attr.y]="viewportInfo.y" 
-                    [attr.width]="viewportInfo.width" 
-                    [attr.height]="viewportInfo.height">
-              </rect>
-            </g>
-          </svg>
-          <div class="mini-map-controls">
-            <div class="mini-map-stats">
-              <span>{{ visibleElements }}/{{ totalElements }} elementos</span>
-            </div>
-            <div class="status-indicators">
-              <span class="status-dot active" [matTooltip]="'Activo: ' + activeCount"></span>
-              <span class="status-dot warning" [matTooltip]="'Advertencia: ' + warningCount"></span>
-              <span class="status-dot error" [matTooltip]="'Error: ' + errorCount"></span>
-            </div>
-          </div>
+          <canvas #miniMapCanvas width="200" height="150"></canvas>
+          <div class="viewport-indicator" [style.left.px]="viewportLeft" [style.top.px]="viewportTop" 
+               [style.width.px]="viewportWidth" [style.height.px]="viewportHeight"></div>
+        </div>
+        
+        <div class="mini-map-controls">
+          <button class="mini-map-control" (click)="zoomIn()">
+            <i class="fa fa-plus"></i>
+          </button>
+          <button class="mini-map-control" (click)="zoomOut()">
+            <i class="fa fa-minus"></i>
+          </button>
+          <button class="mini-map-control" (click)="resetView()">
+            <i class="fa fa-home"></i>
+          </button>
         </div>
         
         <div class="sync-status" *ngIf="lastSyncTime">
@@ -102,67 +104,62 @@ import { fadeAnimation } from '../../../../../../shared/animations/common.animat
     
     .mini-map-container {
       position: relative;
-      background-color: #f5f5f5;
-      border-radius: 4px;
+      width: 200px;
+      height: 150px;
+      border: 1px solid #ccc;
       overflow: hidden;
-      height: 180px;
-      width: 100%;
-      box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
+      background-color: #f5f5f5;
     }
     
-    .mini-map-controls {
-      position: absolute;
-      bottom: 5px;
-      right: 5px;
-      font-size: 10px;
-      background: rgba(255, 255, 255, 0.8);
-      border-radius: 2px;
-      padding: 2px 5px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+    :host-context(.dark-mode) .mini-map-container {
+      background-color: #333;
+      border-color: #555;
     }
     
-    .status-indicators {
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
-    
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    
-    .status-dot.active {
-      background-color: #4caf50;
-    }
-    
-    .status-dot.warning {
-      background-color: #ffc107;
-    }
-    
-    .status-dot.error {
-      background-color: #f44336;
-    }
-    
-    svg {
+    canvas {
       width: 100%;
       height: 100%;
     }
     
     .viewport-indicator {
-      fill: rgba(30, 136, 229, 0.2);
-      stroke: #1976d2;
-      stroke-width: 1px;
-      cursor: move;
+      position: absolute;
+      border: 2px solid rgba(255, 0, 0, 0.7);
+      background-color: rgba(255, 0, 0, 0.1);
+      pointer-events: none;
+      z-index: 10;
     }
     
-    .mini-map-stats {
-      color: #555;
-      font-weight: 500;
+    .mini-map-controls {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    
+    .mini-map-control {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    :host-context(.dark-mode) .mini-map-control {
+      background-color: #444;
+      border-color: #555;
+      color: #fff;
+    }
+    
+    .mini-map-control:hover {
+      background-color: #e0e0e0;
+    }
+    
+    :host-context(.dark-mode) .mini-map-control:hover {
+      background-color: #555;
     }
     
     .sync-status {
@@ -180,22 +177,13 @@ import { fadeAnimation } from '../../../../../../shared/animations/common.animat
       width: 14px;
       margin-right: 4px;
     }
-    
-    :host-context(.dark-theme) .mini-map-container {
-      background-color: #303030;
-    }
-    
-    :host-context(.dark-theme) .mini-map-controls {
-      background: rgba(48, 48, 48, 0.8);
-      color: #e0e0e0;
-    }
   `],
   animations: [fadeAnimation],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('miniMapContainer') miniMapContainer!: ElementRef;
-  @ViewChild('miniMapSvg') miniMapSvg!: ElementRef;
+  @ViewChild('miniMapCanvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
   
   // Inputs para datos de elementos y conexiones
   @Input() allElements: NetworkElement[] = [];
@@ -204,10 +192,14 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
   // Inputs para información del viewport
   @Input() viewportOffsetX = 0;
   @Input() viewportOffsetY = 0;
-  @Input() viewportWidth = 800;
-  @Input() viewportHeight = 600;
+  @Input() viewportWidth = 50;
+  @Input() viewportHeight = 40;
   @Input() zoomLevel = 100;
   @Input() isDarkMode = false;
+  
+  // Variables para el indicador de viewport
+  viewportLeft = 0;
+  viewportTop = 0;
   
   // Variables para estadísticas visuales
   totalElements = 0;
@@ -239,6 +231,19 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
   private connectionService = inject(ConnectionService);
   private mapEventsService = inject(MapEventsService);
   private cdr = inject(ChangeDetectorRef);
+  private mapStateService = inject(MapStateService);
+  private logger = inject(LoggerService);
+  
+  // Contenedor del widget
+  private widgetElement: HTMLElement | null = null;
+  
+  // Canvas context
+  private ctx: CanvasRenderingContext2D | null = null;
+  
+  // Salidas de eventos para el contenedor
+  @Output() widgetAction = new EventEmitter<any>();
+  @Output() widgetError = new EventEmitter<any>();
+  @Output() widgetUpdate = new EventEmitter<any>();
   
   constructor() {
     super();
@@ -267,6 +272,22 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     if (this.allConnections.length === 0) {
       this.loadConnections();
     }
+    
+    // Suscribirse a cambios en el estado del mapa
+    this.mapStateService.mapState$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(state => {
+        // Actualizar indicador de viewport
+        this.updateViewportIndicator(state.bounds);
+      });
+      
+    // Suscribirse a cambios en los elementos
+    this.mapStateService.selectedElementIds$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        // Redibujar el mapa con selección
+        this.redrawMiniMap();
+      });
   }
   
   ngAfterViewInit(): void {
@@ -278,55 +299,45 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
   }
   
   private initializeMiniMap(): void {
-    if (!this.miniMapSvg?.nativeElement) {
-      console.error('Error: miniMapSvg no inicializado');
+    if (!this.canvasRef) {
+      this.logger.error('Referencia al canvas no disponible');
       return;
     }
     
-    this.svg = d3.select(this.miniMapSvg.nativeElement);
-    this.elementsGroup = this.svg.select('.elements-layer');
-    this.connectionsGroup = this.svg.select('.connections-layer');
+    const canvas = this.canvasRef.nativeElement;
+    this.ctx = canvas.getContext('2d');
+    
+    if (!this.ctx) {
+      this.logger.error('No se pudo obtener el contexto 2D del canvas');
+      return;
+    }
+    
+    // Configurar evento de clic para navegación
+    canvas.addEventListener('click', this.handleCanvasClick.bind(this));
     
     if (this.allElements.length > 0) {
       this.calculateMapBounds();
-      this.drawMiniMap();
-      this.updateViewportIndicator();
+      this.redrawMiniMap();
     }
     
     this.calculateElementStats();
   }
   
   private setupEventListeners(): void {
-    // Configurar eventos de arrastre para el indicador de viewport
+    // Escuchar arrastre del indicador de viewport
     const drag = d3.drag()
-      .on('start', () => {
-        this.draggingViewport = true;
-      })
-      .on('drag', (event: any) => {
-        if (!this.draggingViewport) return;
-        
-        const scale = this.calculateScale();
-        const newX = this.viewportInfo.x + event.dx;
-        const newY = this.viewportInfo.y + event.dy;
-        
-        // Actualizar la posición del indicador
-        this.viewportInfo.x = newX;
-        this.viewportInfo.y = newY;
-        
-        // Calcular la posición real en el mapa
-        const mapX = (newX / scale) + this.mapBounds.minX;
-        const mapY = (newY / scale) + this.mapBounds.minY;
-        
-        // Notificar al servicio de posición del mapa
-        this.mapPositionService.updatePosition(mapX, mapY);
-        
-        this.cdr.markForCheck();
-      })
-      .on('end', () => {
-        this.draggingViewport = false;
-      });
-    
-    this.svg.select('.viewport-indicator').call(drag);
+        .on('start', () => {
+          // Lógica de inicio de arrastre
+        })
+        .on('drag', (event: any) => {
+          // Actualizar posición del viewport
+        })
+        .on('end', () => {
+          // Finalizar arrastre
+        });
+      
+    // Usar un selector para escuchar eventos de arrastre, no directamente en el canvas
+    // this.ctx!.canvas.addEventListener('click', drag);
     
     // Escuchar cambios de tamaño de ventana
     fromEvent(window, 'resize')
@@ -335,50 +346,37 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
         debounceTime(200)
       )
       .subscribe(() => {
-        this.drawMiniMap();
-        this.updateViewportIndicator();
+        this.redrawMiniMap();
       });
-      
-    // Escuchar eventos del mapa provenientes del servicio
-    if (this.mapEventsService.getEvents) {
-      this.mapEventsService.getEvents().pipe(
-        takeUntil(this.destroy$)
-      ).subscribe(event => {
-        // Verificar cualquier cambio en el mapa que requiera actualizar el viewport
-        if (event && typeof event === 'object' && 'type' in event) {
-          this.updateViewportIndicator();
-        }
-      });
-    }
   }
   
-  private updateViewportIndicator(): void {
-    // Obtener el estado actual del mapa
-    this.networkStateService.state$.pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(mapState => {
-      const viewport = this.mapPositionService.getCurrentViewport();
-      
-      // Calcular escala para el mini mapa
-      const scale = this.calculateScale();
-      
-      // Actualizar la posición del indicador de viewport
-      this.viewportInfo = {
-        x: (viewport.x - this.mapBounds.minX) * scale,        
-        y: (viewport.y - this.mapBounds.minY) * scale,        
-        width: viewport.width * scale / viewport.zoom,   
-        height: viewport.height * scale / viewport.zoom  
-      };
-      
-      this.cdr.markForCheck();
-    });
+  private updateViewportIndicator(bounds?: [[number, number], [number, number]]): void {
+    if (!bounds || !this.canvasRef) return;
+    
+    const canvas = this.canvasRef.nativeElement;
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Calcular posición y tamaño del viewport
+    const [[minX, minY], [maxX, maxY]] = bounds;
+    
+    // Transformar a coordenadas del canvas
+    this.viewportInfo = {
+      x: ((minX - this.mapBounds.minX) / (this.mapBounds.maxX - this.mapBounds.minX)) * width,
+      y: ((1 - (maxY - this.mapBounds.minY) / (this.mapBounds.maxY - this.mapBounds.minY)) * height),
+      width: ((maxX - minX) / (this.mapBounds.maxX - this.mapBounds.minX)) * width,
+      height: ((maxY - minY) / (this.mapBounds.maxY - this.mapBounds.minY)) * height
+    };
+    
+    this.cdr.markForCheck();
   }
   
   private calculateScale(): number {
-    if (!this.miniMapContainer) return 1;
+    if (!this.canvasRef) return 1;
     
-    const containerWidth = this.miniMapContainer.nativeElement.clientWidth;
-    const containerHeight = this.miniMapContainer.nativeElement.clientHeight;
+    const canvas = this.canvasRef.nativeElement;
+    const width = canvas.width;
+    const height = canvas.height;
     
     const mapWidth = this.mapBounds.maxX - this.mapBounds.minX;
     const mapHeight = this.mapBounds.maxY - this.mapBounds.minY;
@@ -386,98 +384,66 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     if (mapWidth <= 0 || mapHeight <= 0) return 1;
     
     // Calcular escalas para ancho y alto
-    const scaleX = containerWidth / mapWidth;
-    const scaleY = containerHeight / mapHeight;
+    const scaleX = width / mapWidth;
+    const scaleY = height / mapHeight;
     
     // Usar la escala menor para mantener la proporción
     return Math.min(scaleX, scaleY) * 0.9; // 90% para dejar un margen
   }
   
-  private drawMiniMap(): void {
-    if (!this.svg || this.allElements.length === 0) return;
+  private redrawMiniMap(): void {
+    if (!this.ctx || !this.canvasRef) return;
     
-    // Limpiar capas
-    this.elementsGroup.selectAll('*').remove();
-    this.connectionsGroup.selectAll('*').remove();
+    const canvas = this.canvasRef.nativeElement;
+    const width = canvas.width;
+    const height = canvas.height;
     
-    const scale = this.calculateScale();
+    // Limpiar canvas
+    this.ctx.clearRect(0, 0, width, height);
     
-    // Dibujar conexiones
-    this.drawConnections(scale);
+    // Dibujar fondo
+    this.ctx.fillStyle = this.isDarkMode ? '#222' : '#f8f8f8';
+    this.ctx.fillRect(0, 0, width, height);
+    
+    // Calcular escala para ajustar elementos al canvas
+    const boundsWidth = this.mapBounds.maxX - this.mapBounds.minX;
+    const boundsHeight = this.mapBounds.maxY - this.mapBounds.minY;
+    
+    const scaleX = width / boundsWidth;
+    const scaleY = height / boundsHeight;
+    
+    // Usar la menor escala para mantener proporciones
+    const scale = Math.min(scaleX, scaleY) * 0.9;
+    
+    // Obtener los elementos seleccionados
+    const selectedIds: string[] = (this.mapStateService.getState().selectedElementIds || []).filter((id: any) => typeof id === 'string');
     
     // Dibujar elementos
-    this.drawElements(scale);
-    
-    // Actualizar el indicador de viewport
-    this.updateViewportIndicator();
-  }
-  
-  private drawElements(scale: number): void {
-    const elements = this.allElements;
-    
-    this.elementsGroup.selectAll('circle')
-      .data(elements)
-      .enter()
-      .append('circle')
-      .attr('cx', (d: NetworkElement) => {
-        // Verificar y acceder a las coordenadas x e y desde d.position.coordinates
-        const lng = d.position.coordinates ? d.position.coordinates[0] : 0;
-        return (lng - this.mapBounds.minX) * scale;
-      })
-      .attr('cy', (d: NetworkElement) => {
-        // Verificar y acceder a las coordenadas x e y desde d.position.coordinates
-        const lat = d.position.coordinates ? d.position.coordinates[1] : 0;
-        return (lat - this.mapBounds.minY) * scale;
-      })
-      .attr('r', 3)
-      .attr('fill', (d: NetworkElement) => this.getElementColor(d))
-      .attr('stroke', '#000')
-      .attr('stroke-width', 0.5)
-      .style('cursor', 'pointer')
-      .on('click', (event: any, d: NetworkElement) => {
-        this.centerOnElement(d);
-      });
-  }
-  
-  private drawConnections(scale: number): void {
-    const connections = this.allConnections;
-    
-    connections.forEach(connection => {
-      const sourceElement = this.findElementById(connection.sourceId);
-      const targetElement = this.findElementById(connection.targetId);
+    this.allElements.forEach(el => {
+      const pos = (el.position as any)?.coordinates;
+      if (!pos) return;
       
-      if (sourceElement && targetElement) {
-        this.connectionsGroup.append('line')
-          .attr('x1', () => {
-            // Obtener coordenadas desde sourceElement.position.coordinates
-            const lng = sourceElement.position.coordinates ? sourceElement.position.coordinates[0] : 0;
-            return (lng - this.mapBounds.minX) * scale;
-          })
-          .attr('y1', () => {
-            // Obtener coordenadas desde sourceElement.position.coordinates
-            const lat = sourceElement.position.coordinates ? sourceElement.position.coordinates[1] : 0;
-            return (lat - this.mapBounds.minY) * scale;
-          })
-          .attr('x2', () => {
-            // Obtener coordenadas desde targetElement.position.coordinates
-            const lng = targetElement.position.coordinates ? targetElement.position.coordinates[0] : 0;
-            return (lng - this.mapBounds.minX) * scale;
-          })
-          .attr('y2', () => {
-            // Obtener coordenadas desde targetElement.position.coordinates
-            const lat = targetElement.position.coordinates ? targetElement.position.coordinates[1] : 0;
-            return (lat - this.mapBounds.minY) * scale;
-          })
-          .attr('stroke', this.getConnectionColor(connection))
-          .attr('stroke-width', 1)
-          .attr('opacity', 0.6);
-      }
+      const [x, y] = pos;
+      
+      // Transformar coordenadas
+      const canvasX = (x - this.mapBounds.minX) * scale;
+      const canvasY = height - (y - this.mapBounds.minY) * scale; // Invertir Y
+      
+      // Determinar color según tipo y selección
+      const isSelected = selectedIds.includes(el.id || '');
+      const color = this.getElementColor(el.type, isSelected);
+      
+      // Dibujar punto
+      this.ctx!.fillStyle = color;
+      this.ctx!.beginPath();
+      this.ctx!.arc(canvasX, canvasY, isSelected ? 4 : 2, 0, Math.PI * 2);
+      this.ctx!.fill();
     });
   }
   
   private calculateMapBounds(): void {
     if (!this.allElements || this.allElements.length === 0) {
-      this.mapBounds = { minX: 0, maxX: 100, minY: 0, maxY: 100 };
+      this.mapBounds = { minX: -100, maxX: 100, minY: -100, maxY: 100 };
       return;
     }
     
@@ -492,9 +458,10 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     // Calcular los límites basados en las posiciones de los elementos
     this.allElements.forEach(element => {
       // Verificar y acceder a las coordenadas desde element.position.coordinates
-      if (element.position && element.position.coordinates) {
-        const lng = element.position.coordinates[0];
-        const lat = element.position.coordinates[1];
+      const coords = (element.position as any)?.coordinates;
+      if (coords) {
+        const lng = coords[0];
+        const lat = coords[1];
         
         this.mapBounds.minX = Math.min(this.mapBounds.minX, lng);
         this.mapBounds.maxX = Math.max(this.mapBounds.maxX, lng);
@@ -516,13 +483,11 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
   }
   
   private centerOnElement(element: NetworkElement): void {
-    if (!element || !element.position || !element.position.coordinates) return;
-    
-    // Usar la API correcta para centrar en el elemento
-    // Pasamos las coordenadas en formato [lng, lat] al servicio
+    if (!element || !element.position || !(element.position as any).coordinates) return;
+    const coords = (element.position as any).coordinates;
     this.mapPositionService.centerAt(
-      element.position.coordinates[0],
-      element.position.coordinates[1]
+      coords[0],
+      coords[1]
     );
   }
   
@@ -535,17 +500,23 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     
     // Usar el servicio para centrar el mapa
     this.mapPositionService.centerAt(centerX, centerY);
+    
+    // Emitir acción
+    this.widgetAction.emit({ source: 'mini-map-widget', type: 'center', timestamp: new Date(), payload: { centerX, centerY } });
   }
   
   toggleMiniMapMode(): void {
     this.showActiveElements = !this.showActiveElements;
     
     // Redibujar con el nuevo modo
-    if (this.svg) {
-      this.drawMiniMap();
+    if (this.ctx) {
+      this.redrawMiniMap();
     }
     
     this.cdr.markForCheck();
+    
+    // Emitir acción
+    this.widgetAction.emit({ source: 'mini-map-widget', type: 'toggleMode', timestamp: new Date(), payload: { showActiveElements: this.showActiveElements } });
   }
   
   override refreshData(): void {
@@ -563,13 +534,19 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
         this.allElements = elements;
         this.processElements();
         this.calculateMapBounds();
-        this.drawMiniMap();
+        this.redrawMiniMap();
         this.lastSyncTime = new Date();
         this.cdr.markForCheck();
+        
+        // Emitir actualización
+        this.widgetUpdate.emit({ source: 'mini-map-widget', type: 'update', timestamp: new Date(), updateType: 'data', currentState: { elements } });
       },
       error: (error) => {
         console.error('Error al cargar elementos:', error);
         this.handleError('refreshData', error);
+        
+        // Emitir error
+        this.widgetError.emit({ source: 'mini-map-widget', type: 'error', timestamp: new Date(), error: { code: 'LOAD_ELEMENTS', message: 'Error al cargar elementos', details: error } });
       }
     });
     
@@ -578,11 +555,17 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     ).subscribe({
       next: (connections) => {
         this.allConnections = connections;
-        this.drawMiniMap();
+        this.redrawMiniMap();
+        
+        // Emitir actualización
+        this.widgetUpdate.emit({ source: 'mini-map-widget', type: 'update', timestamp: new Date(), updateType: 'data', currentState: { connections } });
       },
       error: (error) => {
         console.error('Error al cargar conexiones:', error);
         this.handleError('refreshData', error);
+        
+        // Emitir error
+        this.widgetError.emit({ source: 'mini-map-widget', type: 'error', timestamp: new Date(), error: { code: 'LOAD_CONNECTIONS', message: 'Error al cargar conexiones', details: error } });
       }
     });
     
@@ -597,7 +580,7 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
         this.allElements = elements;
         this.processElements();
         this.calculateMapBounds();
-        this.drawMiniMap();
+        this.redrawMiniMap();
         this.cdr.markForCheck();
       },
       error: (error) => {
@@ -614,7 +597,7 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
       next: (connections) => {
         this.allConnections = connections;
         if (this.allElements.length > 0) {
-          this.drawMiniMap();
+          this.redrawMiniMap();
         }
       },
       error: (error) => {
@@ -644,44 +627,37 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
         case ElementStatus.ACTIVE:
           this.activeCount++;
           break;
-        case ElementStatus.WARNING:
+        case ElementStatus.MAINTENANCE:
           this.warningCount++;
           break;
-        case ElementStatus.FAULT:
+        case ElementStatus.ERROR:
           this.errorCount++;
           break;
-        // No incluir estado ERROR ya que no existe en ElementStatus
+        // Otros estados no se cuentan
         default:
-          // No contar otros estados
           break;
       }
     });
   }
   
-  private getElementColor(element: NetworkElement): string {
-    // Colores por defecto según estado
-    switch (element.status) {
-      case ElementStatus.ACTIVE:
+  private getElementColor(type: string, isSelected: boolean): string {
+    if (isSelected) {
+      return '#ff4500'; // Color para elementos seleccionados
+    }
+    
+    switch (type) {
+      case 'OLT':
         return '#4caf50';
-      case ElementStatus.WARNING:
-        return '#ffc107';
-      case ElementStatus.FAULT:
-        return '#f44336';
-      // No incluir caso para ERROR ya que no existe en ElementStatus
-      case ElementStatus.INACTIVE:
-        return '#9e9e9e';
-      case ElementStatus.MAINTENANCE:
+      case 'ONT':
         return '#2196f3';
-      case ElementStatus.PLANNED:
-        return '#3f51b5';
-      case ElementStatus.BUILDING:
-        return '#795548';
-      case ElementStatus.RESERVED:
-        return '#009688';
-      case ElementStatus.DECOMMISSIONED:
-        return '#607d8b';
-      case ElementStatus.UNKNOWN:
+      case 'FDP':
+        return '#ff9800';
+      case 'SPLITTER':
         return '#9c27b0';
+      case 'EDFA':
+        return '#f44336';
+      case 'MANGA':
+        return '#795548';
       default:
         return '#9e9e9e';
     }
@@ -692,11 +668,10 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     if (typeof connection.status === 'string') {
       // Type assertion para evitar error de TypeScript
       const statusAsString = connection.status as unknown as string;
-      
       switch (statusAsString) {
         case 'error':
           return '#f44336';
-        case 'warning':
+        case 'maintenance':
           return '#ffc107';
         case 'inactive':
           return '#9e9e9e';
@@ -709,9 +684,9 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     switch (connection.status) {
       case ElementStatus.ACTIVE:
         return '#4caf50';
-      case ElementStatus.WARNING:
+      case ElementStatus.MAINTENANCE:
         return '#ffc107';
-      case ElementStatus.FAULT:
+      case ElementStatus.ERROR:
         return '#f44336';
       case ElementStatus.INACTIVE:
         return '#9e9e9e';
@@ -766,8 +741,72 @@ export class MiniMapWidgetComponent extends BaseWidgetComponent implements OnIni
     this.destroy$.complete();
     
     // Limpiar referencias de D3
-    if (this.svg) {
-      this.svg.selectAll('*').remove();
+    if (this.ctx) {
+      this.ctx.canvas.removeEventListener('click', this.handleCanvasClick.bind(this));
     }
+  }
+  
+  /**
+   * Maneja el clic en el canvas
+   */
+  private handleCanvasClick(event: MouseEvent): void {
+    if (!this.canvasRef) return;
+    
+    const canvas = this.canvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Calcular posición relativa al canvas
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Convertir a coordenadas del mapa
+    const mapX = this.mapBounds.minX + (x / canvas.width) * (this.mapBounds.maxX - this.mapBounds.minX);
+    const mapY = this.mapBounds.minY + ((canvas.height - y) / canvas.height) * (this.mapBounds.maxY - this.mapBounds.minY);
+    
+    // Centrar mapa en la posición
+    this.mapStateService.setCenter([mapX, mapY]);
+    
+    // Emitir acción
+    this.widgetAction.emit({ source: 'mini-map-widget', type: 'canvasClick', timestamp: new Date(), payload: { mapX, mapY } });
+  }
+  
+  /**
+   * Aumenta el zoom del mapa principal
+   */
+  zoomIn(): void {
+    const currentState = this.mapStateService.getState();
+    const newZoom = currentState.zoom + 1;
+    this.mapStateService.setZoom(newZoom);
+    
+    // Emitir acción
+    this.widgetAction.emit({ source: 'mini-map-widget', type: 'zoomIn', timestamp: new Date(), payload: { newZoom } });
+  }
+  
+  /**
+   * Disminuye el zoom del mapa principal
+   */
+  zoomOut(): void {
+    const currentState = this.mapStateService.getState();
+    const newZoom = Math.max(1, currentState.zoom - 1);
+    this.mapStateService.setZoom(newZoom);
+    
+    // Emitir acción
+    this.widgetAction.emit({ source: 'mini-map-widget', type: 'zoomOut', timestamp: new Date(), payload: { newZoom } });
+  }
+  
+  /**
+   * Restablece la vista del mapa
+   */
+  resetView(): void {
+    // Calcular el centro del mapa
+    const centerX = (this.mapBounds.minX + this.mapBounds.maxX) / 2;
+    const centerY = (this.mapBounds.minY + this.mapBounds.maxY) / 2;
+    
+    // Restablecer zoom y centro
+    this.mapStateService.setZoom(10);
+    this.mapStateService.setCenter([centerX, centerY]);
+    
+    // Emitir acción
+    this.widgetAction.emit({ source: 'mini-map-widget', type: 'resetView', timestamp: new Date(), payload: { centerX, centerY } });
   }
 } 

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { GeographicPosition } from '../../../shared/types/network.types';
+import { GeographicPosition } from '../../../shared/types/geo-position';
 
 @Injectable({
   providedIn: 'root'
@@ -17,6 +17,10 @@ export class GeoUtilsService {
    * Valida si una posición está dentro de los límites de la República Dominicana
    */
   validatePosition(position: GeographicPosition): boolean {
+    if (!position.coordinates || position.coordinates.length !== 2) {
+      return false;
+    }
+    
     return (
       position.coordinates[1] >= this.DOMINICAN_REPUBLIC_BOUNDS.south &&
       position.coordinates[1] <= this.DOMINICAN_REPUBLIC_BOUNDS.north &&
@@ -29,6 +33,15 @@ export class GeoUtilsService {
    * Calcula la distancia entre dos puntos usando la fórmula de Haversine
    */
   calculateDistance(point1: GeographicPosition, point2: GeographicPosition): number {
+    if (!point1.coordinates || !point2.coordinates || 
+        point1.coordinates.length !== 2 || point2.coordinates.length !== 2) {
+      // Si no hay coordenadas disponibles, usar lat/lng directamente
+      return this.calculateDistanceFromLatLng(
+        point1.lat, point1.lng, 
+        point2.lat, point2.lng
+      );
+    }
+    
     const R = 6371; // Radio de la Tierra en km
     const dLat = this.toRad(point2.coordinates[1] - point1.coordinates[1]);
     const dLon = this.toRad(point2.coordinates[0] - point1.coordinates[0]);
@@ -38,6 +51,23 @@ export class GeoUtilsService {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+  
+  /**
+   * Calcula la distancia usando los valores de lat/lng directamente
+   */
+  private calculateDistanceFromLatLng(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // Radio de la Tierra en km
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lng2 - lng1);
+    const radLat1 = this.toRad(lat1);
+    const radLat2 = this.toRad(lat2);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(radLat1) * Math.cos(radLat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -53,14 +83,20 @@ export class GeoUtilsService {
    * Calcula el punto medio entre dos posiciones
    */
   calculateMidpoint(point1: GeographicPosition, point2: GeographicPosition): GeographicPosition {
-    const lng = (point1.coordinates[0] + point2.coordinates[0]) / 2;
-    const lat = (point1.coordinates[1] + point2.coordinates[1]) / 2;
+    // Obtener las coordenadas, o usar lat/lng si no están disponibles
+    const lng1 = point1.coordinates?.[0] ?? point1.lng;
+    const lat1 = point1.coordinates?.[1] ?? point1.lat;
+    const lng2 = point2.coordinates?.[0] ?? point2.lng;
+    const lat2 = point2.coordinates?.[1] ?? point2.lat;
+    
+    const midLng = (lng1 + lng2) / 2;
+    const midLat = (lat1 + lat2) / 2;
     
     return {
       type: 'Point',
-      coordinates: [lng, lat],
-      lat: lat,
-      lng: lng
+      coordinates: [midLng, midLat],
+      lat: midLat,
+      lng: midLng
     };
   }
 

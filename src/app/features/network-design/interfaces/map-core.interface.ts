@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs';
-import { MapConfig } from '../types/network.types';
+import { MapConfig } from '../services/map-types';
 
 /**
  * Interfaz para el servicio principal del mapa

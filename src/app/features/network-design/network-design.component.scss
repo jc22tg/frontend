@@ -1,133 +1,116 @@
-@use "../../../app/features/network-design/network-design.styles.scss";
+@use 'network-design.styles.scss' as global-styles;
+@use './../elements/shared/styles/_floating-panel.scss' as panel-styles;
 
-.network-design {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  position: relative;
-  background-color: var(--background-color);
-  color: var(--text-color);
-  
-  .network-design-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    overflow: hidden;
-    
-    .network-design-container {
-      flex: 1;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      
-      &.map-hidden {
-        background-color: rgba(0, 0, 0, 0.03);
-      }
-      
-      .router-container {
-        flex: 1;
-        position: relative;
-        overflow: hidden;
-      }
-    }
-    
-    .search-widget-container {
-      position: absolute;
-      top: 80px;
-      right: 20px;
-      width: 350px;
-      max-height: 70%;
-      overflow-y: auto;
-      z-index: 1000;
-      box-shadow: var(--shadow-lg);
-      border-radius: var(--border-radius-lg);
-      transition: transform 0.3s ease-in-out;
-      
-      &.draggable {
-        cursor: move;
-      }
-    }
-    
-    app-element-quick-view {
-      position: absolute;
-      bottom: 80px;
-      right: 20px;
-      width: 350px;
-      max-height: 45vh;
-      z-index: 900;
-      box-shadow: var(--shadow-lg);
-      border-radius: var(--border-radius-lg);
-      overflow: hidden;
-    }
-  }
-  
-  .editor-visible {
-    .map-container {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  }
-  
-  .floating-controls {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    
-    .mat-fab {
-      box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 
-                  0 6px 10px 0 rgba(0,0,0,.14), 
-                  0 1px 18px 0 rgba(0,0,0,.12);
-    }
-  }
-}
-
-:host-context(.dark-theme) {
-  .network-design {
-    background-color: var(--dark-background);
-    color: var(--dark-text-color);
-  }
-}
-
+// :host se asegura que el componente toma el espacio necesario para que
+// la clase .network-design (aplicada en el template y estilada globalmente)
+// pueda usar height: 100%.
 :host {
   display: block;
   height: 100%;
+  width: 100%;
 }
 
-@media (max-width: 768px) {
-  .network-design {
-    .network-design-content {
-      .search-widget-container,
-      app-element-quick-view {
-        width: 90%;
-        right: 5%;
-      }
-      
-      .search-widget-container {
-        top: 75px;
-      }
-      
-      app-element-quick-view {
-        bottom: 70px;
-      }
-    }
+// Suponiendo que el template de NetworkDesignComponent usa la estructura BEM
+// (ej. <div class="network-design__main">), estos son ajustes o adiciones.
+.network-design__main {
+  // La definición base de .network-design__main (flex:1, etc.) viene del global.
+  // Esta sección es para estilos específicos dentro de __main en este componente.
+  .router-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.network-design__sidebar {
+  // La definición base de .network-design__sidebar viene del global.
+  // Estos son ajustes específicos de z-index para este componente.
+  position: relative;
+  z-index: var(--z-index-sidebar, 1005);
+
+  @media (max-width: global-styles.$breakpoint-tablet) {
+    // La transformación y otros estilos responsivos vienen del global.
+    // Solo se ajusta el z-index si es específicamente necesario para este componente.
+    z-index: var(--z-index-sidebar-mobile, 1010);
+  }
+}
+
+// Estilos para widgets flotantes y controles, específicos de la implementación
+// en NetworkDesignComponent.
+.search-widget-container, 
+.element-details-panel, 
+app-element-quick-view {
+  @include panel-styles.floating-panel('top-right', 'default');
+  
+  --floating-panel-width: clamp(280px, 30vw, 380px);
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: var(--z-index-network-design-panels, 900);
+}
+
+.search-widget-container {
+  top: clamp(60px, 10vh, 80px);
+  right: clamp(var(--spacing-md, 12px), 2vw, var(--spacing-lg, 16px));
+  
+  &.draggable {
+    cursor: move;
   }
 }
 
 .element-details-panel {
+  top: clamp(60px, 10vh, 80px);
+  right: clamp(var(--spacing-md, 12px), 2vw, var(--spacing-lg, 16px));
+}
+
+app-element-quick-view {
+  @include panel-styles.floating-panel('bottom-right', 'default');
+  top: auto;
+  bottom: clamp(60px, 10vh, 80px);
+  right: clamp(var(--spacing-md, 12px), 2vw, var(--spacing-lg, 16px));
+  max-height: 45vh;
+  overflow: hidden;
+}
+
+// Esta clase podría ser aplicada al contenedor del mapa por el TS del componente
+// cuando un editor (widget) está visible.
+.editor-visible .map-container { // Asumiendo que .map-container es una clase dentro del template del mapa
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.floating-controls {
   position: absolute;
-  top: 80px;
-  right: 20px;
-  max-width: 350px;
-  max-height: 70vh;
-  overflow-y: auto;
-  z-index: 100;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  bottom: clamp(var(--spacing-lg, 16px), 3vh, var(--spacing-lg, 16px));
+  right: clamp(var(--spacing-lg, 16px), 3vh, var(--spacing-lg, 16px));
+  z-index: var(--z-index-floating-panel-base, 1000);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+  
+  .mat-fab {
+    box-shadow: var(--shadow-md);
+  }
+}
+
+
+@media (max-width: global-styles.$breakpoint-tablet) {
+  // Ajustes responsivos SOLO para los widgets/elementos definidos en este archivo.
+  // Los ajustes responsivos para el layout .network-design general están en el archivo global.
+  .search-widget-container,
+  .element-details-panel,
+  app-element-quick-view {
+    width: calc(100% - 2 * clamp(var(--spacing-md, 12px), 2vw, var(--spacing-lg, 16px)));
+    left: clamp(var(--spacing-md, 12px), 2vw, var(--spacing-lg, 16px));
+    right: clamp(var(--spacing-md, 12px), 2vw, var(--spacing-lg, 16px));
+  }
+  
+  .search-widget-container {
+    top: clamp(50px, 8vh, 75px);
+  }
+  
+  app-element-quick-view {
+    bottom: clamp(50px, 8vh, 70px);
+  }
 } 

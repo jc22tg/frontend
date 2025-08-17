@@ -2,12 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { of } from 'rxjs';
-import { catchError, map, switchMap, tap, finalize, delay } from 'rxjs/operators';
-import { AuthService } from '@core/services/auth.service';
-import { AuthMapperService } from '@core/services/auth-mapper.service';
-import * as AuthActions from '@core/store/actions/auth.actions';
+import { catchError, map, switchMap, tap, finalize } from 'rxjs/operators';
+import { AuthService, LoginResponse, RefreshTokenResponse } from '../services/auth.service';
+import { AuthMapperService } from '../services/auth-mapper.service';
+import * as AuthActions from '../store/actions/auth.actions';
 import { User } from '../../features/auth/types/auth.types';
-import { UserRole } from '../../shared/models/user.model';
 
 @Injectable()
 export class AuthEffects {
@@ -28,13 +27,12 @@ export class AuthEffects {
       switchMap((action) => {
         console.log('Login effect triggered:', action);
         return this.authService.login(action.email, action.password).pipe(
-          map((response) => {
+          map((response: LoginResponse) => {
             console.log('Login response in effect:', response);
             if (!response || !response.user || !response.token || !response.refreshToken || !response.expiresIn) {
-              throw new Error('Respuesta de login inválida');
+              throw new Error('Respuesta de login inválida del servidor');
             }
             
-            // Asegurar que el usuario que viene de la respuesta sea compatible con User de auth.types
             const userForStore: User = {
               id: String(response.user.id),
               email: response.user.email,
@@ -42,9 +40,9 @@ export class AuthEffects {
               firstName: response.user.firstName,
               lastName: response.user.lastName,
               role: response.user.role,
-              isActive: response.user.isActive || true,
-              createdAt: new Date(response.user.createdAt || new Date()),
-              updatedAt: new Date(response.user.updatedAt || new Date())
+              isActive: response.user.isActive !== undefined ? response.user.isActive : true,
+              createdAt: response.user.createdAt ? new Date(response.user.createdAt) : new Date(),
+              updatedAt: response.user.updatedAt ? new Date(response.user.updatedAt) : new Date()
             };
             
             return AuthActions.loginSuccess({
@@ -56,10 +54,9 @@ export class AuthEffects {
           }),
           catchError((error) => {
             console.error('Login error in effect:', error);
+            const errorMessage = error.error?.message || error.message || 'Error desconocido al iniciar sesión';
             return of(
-              AuthActions.loginFailure({
-                error: error.message || 'Error al iniciar sesión',
-              })
+              AuthActions.loginFailure({ error: errorMessage })
             );
           }),
           finalize(() => {
@@ -78,7 +75,6 @@ export class AuthEffects {
         tap((action) => {
           try {
             console.log('Login success action:', action);
-            // Guardar los nuevos datos de autenticación
             localStorage.setItem(this.TOKEN_KEY, action.token);
             localStorage.setItem(this.REFRESH_TOKEN_KEY, action.refreshToken);
             localStorage.setItem(this.USER_KEY, JSON.stringify(action.user));
@@ -101,7 +97,6 @@ export class AuthEffects {
         ofType(AuthActions.loginFailure),
         tap((action) => {
           console.error('Login failed:', action.error);
-          // Limpiar cualquier dato de autenticación residual
           localStorage.removeItem(this.TOKEN_KEY);
           localStorage.removeItem(this.REFRESH_TOKEN_KEY);
           localStorage.removeItem(this.USER_KEY);
@@ -118,14 +113,13 @@ export class AuthEffects {
         ofType(AuthActions.logout),
         tap(() => {
           try {
-            // Limpiar todos los datos de autenticación
             localStorage.removeItem(this.TOKEN_KEY);
             localStorage.removeItem(this.REFRESH_TOKEN_KEY);
             localStorage.removeItem(this.USER_KEY);
-            // Redirigir al login
             this.router.navigate(['/auth/login']);
           } catch (error) {
             console.error('Error during logout:', error);
+            this.router.navigate(['/auth/login']);
           }
         })
       );
@@ -140,8 +134,11 @@ export class AuthEffects {
       switchMap(() => {
         console.log('Refresh token effect triggered');
         return this.authService.refreshToken().pipe(
-          map((response) => {
+          map((response: RefreshTokenResponse) => {
             console.log('Refresh token successful:', response);
+            if (!response || !response.token || !response.refreshToken || !response.expiresIn) {
+              throw new Error('Respuesta de refresh token inválida del servidor');
+            }
             return AuthActions.refreshTokenSuccess({
               token: response.token,
               refreshToken: response.refreshToken,
@@ -150,10 +147,9 @@ export class AuthEffects {
           }),
           catchError((error) => {
             console.error('Token refresh error:', error);
+            const errorMessage = error.error?.message || error.message || 'Error al actualizar el token';
             return of(
-              AuthActions.refreshTokenFailure({
-                error: error.message || 'Error al actualizar el token',
-              })
+              AuthActions.refreshTokenFailure({ error: errorMessage })
             );
           })
         );

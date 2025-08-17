@@ -1,267 +1,207 @@
-import { Injectable, NgZone } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
-import { NetworkElement } from '../../../../shared/types/network.types';
+import { Injectable, inject } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { MapPerformanceService } from './map-performance.service';
 import { LoggerService } from '../../../../core/services/logger.service';
+import { map } from 'rxjs/operators';
 
-/**
- * Interfaz para métricas de rendimiento del mapa
- */
 export interface PerformanceMetrics {
-  /** Cuadros por segundo estimados */
   fps: number;
-  /** Tiempo de renderizado en ms */
   renderTime: number;
-  /** Número de elementos renderizados */
   elementCount: number;
-  /** Uso estimado de memoria en MB */
   memoryUsage: number;
-  /** Tiempo transcurrido en ms */
   elapsed: number;
 }
 
-/**
- * Interfaz para estadísticas del mapa
- */
 export interface MapStatistics {
-  /** Número total de elementos */
   totalElements: number;
-  /** Número total de conexiones */
   totalConnections: number;
-  /** Número de conexiones visibles */
   visibleConnections: number;
-  /** Número de alertas */
   totalAlerts: number;
-  /** Nivel de rendimiento (Alto, Medio, Bajo) */
   performanceLevel: string;
-  /** Uso de memoria formateado */
   memoryUsageFormatted: string;
-  /** Tiempo de carga en ms */
   loadTime: number;
 }
 
+export interface OptimizationConfig {
+  level: OptimizationLevel;
+  autoOptimize: boolean;
+  maxVisibleElements: number;
+  clusteringEnabled: boolean;
+  virtualScrollingEnabled: boolean;
+}
+
+export enum OptimizationLevel {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  ULTRA = 'ULTRA',
+  AUTO = 'AUTO'
+}
+
 /**
- * Servicio para gestionar el renderizado y métricas de rendimiento del mapa
- * 
- * Este servicio proporciona funcionalidades para monitorear y optimizar
- * el rendimiento del mapa, así como para calcular estadísticas útiles.
+ * Servicio que se encarga del renderizado del mapa
+ * Adaptador para el MapPerformanceService para mantener compatibilidad
  */
 @Injectable({
   providedIn: 'root'
 })
 export class MapRenderingService {
-  /** Subject para métricas de rendimiento */
-  private performanceMetrics$ = new Subject<PerformanceMetrics>();
+  private performanceService = inject(MapPerformanceService);
+  private logger = inject(LoggerService);
   
-  /** Subject para estadísticas del mapa */
-  private mapStatistics$ = new Subject<MapStatistics>();
-  
-  /** Valores de la última medición de rendimiento */
-  private lastMetrics: PerformanceMetrics = {
-    fps: 60,
+  // Subjects para las métricas
+  private performanceMetricsSubject = new BehaviorSubject<PerformanceMetrics>({
+    fps: 0,
     renderTime: 0,
     elementCount: 0,
     memoryUsage: 0,
     elapsed: 0
-  };
+  });
   
-  /** Valores de las últimas estadísticas */
-  private lastStatistics: MapStatistics = {
+  private mapStatisticsSubject = new BehaviorSubject<MapStatistics>({
     totalElements: 0,
     totalConnections: 0,
     visibleConnections: 0,
     totalAlerts: 0,
-    performanceLevel: 'Alto',
+    performanceLevel: 'Desconocido',
     memoryUsageFormatted: '0 MB',
     loadTime: 0
-  };
+  });
   
-  /** Tiempo de inicio para mediciones */
-  private startTime = 0;
+  private optimizationConfigSubject = new BehaviorSubject<OptimizationConfig>({
+    level: OptimizationLevel.AUTO,
+    autoOptimize: true,
+    maxVisibleElements: 1000,
+    clusteringEnabled: true,
+    virtualScrollingEnabled: true
+  });
   
-  /** Contador de frames para cálculo de FPS */
-  private frameCount = 0;
+  // Observables públicos
+  public performanceMetrics = this.performanceMetricsSubject.asObservable();
+  public mapStatistics = this.mapStatisticsSubject.asObservable();
+  public optimizationConfig = this.optimizationConfigSubject.asObservable();
   
-  /** Timestamp del último frame para cálculo de FPS */
-  private lastFrameTime = 0;
+  // Último puntaje de rendimiento calculado
+  private lastPerformanceScore = 0;
   
-  /** Valor de caché para memoización */
-  private memoizedValues = new Map<string, any>();
-  
-  constructor(
-    private logger: LoggerService,
-    private zone: NgZone
-  ) {
-    // Iniciar tiempo de referencia
-    this.startTime = performance.now();
+  constructor() {
+    this.initializeSubscriptions();
+    this.logger.debug('MapRenderingService inicializado - Adaptador para MapPerformanceService');
   }
   
   /**
-   * Inicia el seguimiento de rendimiento
+   * Inicializa las suscripciones a los servicios originales
    */
-  startPerformanceTracking(): void {
-    this.startTime = performance.now();
-    this.lastFrameTime = performance.now();
-    this.frameCount = 0;
-  }
-  
-  /**
-   * Registra un frame renderizado para métricas de rendimiento
-   * @param elementCount Número de elementos renderizados
-   */
-  trackFrame(elementCount: number): void {
-    // Incrementar contador de frames
-    this.frameCount++;
+  private initializeSubscriptions(): void {
+    // Suscribirse a las métricas de rendimiento del MapPerformanceService
+    this.performanceService.getMetrics().subscribe(metrics => {
+      this.performanceMetricsSubject.next(metrics);
+      this.calculatePerformanceScore();
+    });
     
-    // Calcular tiempo transcurrido desde el último frame
-    const now = performance.now();
-    const elapsed = now - this.lastFrameTime;
+    // Suscribirse a las estadísticas del mapa del MapPerformanceService
+    this.performanceService.getMapStatistics().subscribe(stats => {
+      this.mapStatisticsSubject.next(stats);
+    });
     
-    // Actualizar tiempo del último frame
-    this.lastFrameTime = now;
-    
-    // Calcular FPS cada 10 frames
-    if (this.frameCount % 10 === 0) {
-      const totalElapsed = now - this.startTime;
-      const fps = Math.round((this.frameCount / totalElapsed) * 1000);
-      
-      // Actualizar métricas
-      this.lastMetrics = {
-        fps,
-        renderTime: elapsed,
-        elementCount,
-        memoryUsage: this.estimateMemoryUsage(elementCount),
-        elapsed: totalElapsed
-      };
-      
-      // Notificar nuevas métricas
-      this.zone.run(() => {
-        this.performanceMetrics$.next(this.lastMetrics);
+    // Suscribirse a la configuración de rendimiento
+    this.performanceService.config$.subscribe(config => {
+      this.optimizationConfigSubject.next({
+        level: this.determineOptimizationLevel(config),
+        autoOptimize: config.autoOptimize,
+        maxVisibleElements: config.maxVisibleElements,
+        clusteringEnabled: config.enableClustering,
+        virtualScrollingEnabled: config.enableVirtualization
       });
-    }
-  }
-  
-  /**
-   * Estima el uso de memoria basado en la cantidad de elementos
-   * @param elementCount Número de elementos
-   * @returns Uso estimado de memoria en MB
-   */
-  private estimateMemoryUsage(elementCount: number): number {
-    // Estimación básica: cada elemento usa aproximadamente 5KB
-    // y hay overhead general de la aplicación
-    const baseMemory = 50; // MB
-    const elementMemory = (elementCount * 5) / 1024; // MB
-    
-    return Math.round((baseMemory + elementMemory) * 10) / 10;
-  }
-  
-  /**
-   * Actualiza estadísticas del mapa
-   * @param elements Elementos del mapa
-   * @param connectionCount Número de conexiones
-   * @param visibleConnectionCount Número de conexiones visibles
-   * @param alertCount Número de alertas
-   * @param loadTime Tiempo de carga
-   */
-  updateMapStatistics(
-    elements: NetworkElement[],
-    connectionCount: number,
-    visibleConnectionCount: number,
-    alertCount: number,
-    loadTime: number
-  ): void {
-    // Calcular nivel de rendimiento basado en FPS
-    const performanceLevel = this.lastMetrics.fps > 30 ? 'Alto' : 
-                           this.lastMetrics.fps > 15 ? 'Medio' : 'Bajo';
-    
-    // Formato de uso de memoria
-    const memoryUsageFormatted = `${this.lastMetrics.memoryUsage} MB`;
-    
-    // Actualizar estadísticas
-    this.lastStatistics = {
-      totalElements: elements.length,
-      totalConnections: connectionCount,
-      visibleConnections: visibleConnectionCount,
-      totalAlerts: alertCount,
-      performanceLevel,
-      memoryUsageFormatted,
-      loadTime
-    };
-    
-    // Notificar nuevas estadísticas
-    this.zone.run(() => {
-      this.mapStatistics$.next(this.lastStatistics);
     });
   }
   
   /**
-   * Implementa memoización para cálculos costosos
-   * @param key Clave única para el cálculo
-   * @param callback Función que realiza el cálculo costoso
-   * @param ttlMs Tiempo de vida en milisegundos para la caché
+   * Determina el nivel de optimización basado en la configuración
    */
-  memoize<T>(key: string, callback: () => T, ttlMs = 5000): T {
-    // Verificar si tenemos un valor en caché y si sigue siendo válido
-    const cachedValue = this.memoizedValues.get(key);
-    
-    if (cachedValue && (Date.now() - cachedValue.timestamp) < ttlMs) {
-      return cachedValue.value as T;
+  private determineOptimizationLevel(config: any): OptimizationLevel {
+    if (!config.autoOptimize) {
+      if (config.enableClustering && config.enableVirtualization) {
+        return OptimizationLevel.HIGH;
+      } else if (config.enableClustering || config.enableVirtualization) {
+        return OptimizationLevel.MEDIUM;
+      } else {
+        return OptimizationLevel.LOW;
+      }
     }
     
-    // Calcular nuevo valor
-    const value = callback();
+    return OptimizationLevel.AUTO;
+  }
+  
+  /**
+   * Calcula una puntuación de rendimiento en base a las métricas actuales
+   * @returns Puntuación de rendimiento entre 0 y 100
+   */
+  calculatePerformanceScore(): number {
+    const metrics = this.performanceMetricsSubject.value;
     
-    // Guardar en caché con timestamp
-    this.memoizedValues.set(key, {
-      value,
-      timestamp: Date.now()
+    // Usar FPS y tiempo de renderizado como base
+    const fpsFactor = Math.min(metrics.fps / 60, 1); // FPS relativo a 60fps
+    const renderFactor = Math.max(0, 1 - (metrics.renderTime / 100)); // Factor de tiempo de renderizado
+    
+    // Calcular factor de complejidad basado en número de elementos
+    let complexityFactor = 1;
+    if (metrics.elementCount > 1000) {
+      complexityFactor = Math.max(0.5, 1000 / metrics.elementCount);
+    }
+    
+    // Combinar factores con pesos:
+    // - FPS: 50%
+    // - Tiempo de renderizado: 30%
+    // - Complejidad: 20%
+    const score = (fpsFactor * 0.5 + renderFactor * 0.3 + complexityFactor * 0.2) * 100;
+    
+    this.lastPerformanceScore = Math.round(score);
+    return this.lastPerformanceScore;
+  }
+  
+  /**
+   * Establece el nivel de optimización
+   * @param level Nivel de optimización
+   */
+  setOptimizationLevel(level: OptimizationLevel): void {
+    const config = this.optimizationConfigSubject.value;
+    
+    // Actualizar configuración del adaptador
+    this.optimizationConfigSubject.next({
+      ...config,
+      level
     });
     
-    return value;
+    // Actualizar la configuración real en el servicio subyacente
+    this.performanceService.updateConfig({
+      autoOptimize: level === OptimizationLevel.AUTO,
+      enableClustering: level !== OptimizationLevel.LOW,
+      enableVirtualization: level === OptimizationLevel.HIGH || level === OptimizationLevel.ULTRA
+    });
+    
+    this.logger.debug(`Nivel de optimización actualizado a: ${level}`);
   }
   
   /**
-   * Limpia la caché de memoización
+   * Habilita o deshabilita la optimización automática
+   * @param enabled Estado de la optimización automática
    */
-  clearMemoizationCache(): void {
-    this.memoizedValues.clear();
-  }
-  
-  /**
-   * Obtiene las métricas de rendimiento actuales
-   */
-  getPerformanceMetrics(): PerformanceMetrics {
-    return { ...this.lastMetrics };
-  }
-  
-  /**
-   * Obtiene las estadísticas del mapa actuales
-   */
-  getMapStatistics(): MapStatistics {
-    return { ...this.lastStatistics };
-  }
-  
-  /**
-   * Observable para métricas de rendimiento
-   */
-  get performanceMetrics(): Observable<PerformanceMetrics> {
-    return this.performanceMetrics$.asObservable();
-  }
-  
-  /**
-   * Observable para estadísticas del mapa
-   */
-  get mapStatistics(): Observable<MapStatistics> {
-    return this.mapStatistics$.asObservable();
-  }
-  
-  /**
-   * Optimiza el mapa para mejor rendimiento
-   * @returns Ajustes aplicados para la optimización
-   */
-  optimizeForPerformance(): { clusterView: boolean, reduceDetails: boolean } {
-    return {
-      clusterView: true,
-      reduceDetails: true
-    };
+  setAutoOptimization(enabled: boolean): void {
+    const config = this.optimizationConfigSubject.value;
+    
+    // Actualizar configuración del adaptador
+    this.optimizationConfigSubject.next({
+      ...config,
+      autoOptimize: enabled,
+      level: enabled ? OptimizationLevel.AUTO : config.level
+    });
+    
+    // Actualizar la configuración real en el servicio subyacente
+    this.performanceService.updateConfig({
+      autoOptimize: enabled
+    });
+    
+    this.logger.debug(`Optimización automática ${enabled ? 'activada' : 'desactivada'}`);
   }
 } 

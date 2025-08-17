@@ -10,6 +10,7 @@ export enum ElementType {
   ROUTER = 'ROUTER',
   SERVER = 'SERVER',
   ANTENNA = 'ANTENNA',
+  SLACK_FIBER = 'SLACK_FIBER',
   OTHER = 'OTHER'
 }
 
@@ -74,6 +75,12 @@ export const ELEMENT_TYPES: Record<ElementType, ElementTypeInfo> = {
     name: 'Antena',
     icon: 'settings_input_antenna',
     description: 'Dispositivo de comunicación inalámbrica'
+  },
+  [ElementType.SLACK_FIBER]: {
+    id: ElementType.SLACK_FIBER,
+    name: 'Flojo de Fibra',
+    icon: 'waves',
+    description: 'Reserva de cable de fibra óptica'
   },
   [ElementType.OTHER]: {
     id: ElementType.OTHER,

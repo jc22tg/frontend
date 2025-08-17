@@ -1,11 +1,21 @@
+/**
+ * Configuración de entorno para producción
+ */
 export const environment = {
   production: true,
-  apiUrl: 'https://api.tu-dominio.com/api',
-  useMocks: false, // Deshabilitar mocks en producción
-  mockDelay: 0, // Sin retraso en producción
-  auth: {
-    tokenExpiration: 3600, // 1 hora en segundos
-    refreshTokenExpiration: 604800, // 7 días en segundos
-    sessionTimeout: 1800 // 30 minutos en segundos
+  apiUrl: '/api',
+  mapbox: {
+    accessToken: 'pk.placeholder_token_for_production',
+    style: 'mapbox://styles/mapbox/streets-v11'
+  },
+  defaultMapCenter: {
+    lat: 18.735693,
+    lng: -70.162651
+  },
+  defaultMapZoom: 8,
+  featureFlags: {
+    enableMockData: false,
+    enableOfflineMode: true,
+    enableDebugTools: false
   }
 }; 

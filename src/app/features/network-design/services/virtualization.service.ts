@@ -55,8 +55,8 @@ export class VirtualizationService {
       // Usar setTimeout para no bloquear el hilo principal
       setTimeout(() => {
         const visibleIds = elements
-          .filter(element => this.isElementInViewport(element, viewportBounds))
-          .map(element => element.id);
+          .filter(element => this.isElementInViewport(element, viewportBounds) && !!element.id)
+          .map(element => element.id as string);
         
         resolve(visibleIds);
       }, 0);

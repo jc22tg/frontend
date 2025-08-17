@@ -2,11 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  MonitoringData,
-  NetworkAlert,
-  MaintenanceSchedule,
   ElementType
 } from '../../../shared/models/network.model';
+import { 
+  MonitoringData,
+  NetworkAlert,
+  MaintenanceSchedule
+} from '../../../shared/types/network.types';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({

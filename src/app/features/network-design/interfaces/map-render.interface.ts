@@ -1,5 +1,6 @@
 import { NetworkElement, NetworkConnection } from '../../../shared/types/network.types';
-import { D3Node, D3LinkData } from '../types/network.types';
+import { D3Node, D3LinkData } from '../services/map-types';
+import { LeafletMouseEvent } from 'leaflet';
 
 /**
  * Interfaz para el servicio de renderizado del mapa

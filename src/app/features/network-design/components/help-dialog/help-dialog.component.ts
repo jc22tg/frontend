@@ -9,6 +9,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { inject } from '@angular/core';
 
 /**
  * Interfaz para los datos de entrada del diálogo de ayuda
@@ -420,26 +421,35 @@ export class HelpDialogComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   /**
-   * Constructor del componente
-   * @param data Datos de entrada para el diálogo
-   * @param dialogRef Referencia al diálogo para poder cerrarlo
+   * Datos de entrada para el diálogo
    */
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: HelpDialogData,
-    private dialogRef: MatDialogRef<HelpDialogComponent>
-  ) {}
+  public data = inject<HelpDialogData>(MAT_DIALOG_DATA);
+
+  /**
+   * Referencia al diálogo para poder cerrarlo
+   */
+  private dialogRef = inject<MatDialogRef<HelpDialogComponent>>(MatDialogRef);
+
+  /**
+   * Constructor del componente
+   */
+  constructor() {}
 
   /**
    * Método del ciclo de vida OnInit
    * Se ejecuta cuando el componente ha sido inicializado
    */
   ngOnInit(): void {
-    // Potenciales inicializaciones, como suscripciones a eventos del diálogo
-    this.dialogRef.backdropClick()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => this.close());
-    
-    // Otros inicializadores podrían ir aquí
+    try {
+      // Suscripciones a eventos del diálogo
+      this.dialogRef.backdropClick()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => this.close());
+      
+      // Otros inicializadores podrían ir aquí
+    } catch (error) {
+      console.error('Error al inicializar el componente de ayuda:', error);
+    }
   }
 
   /**
@@ -447,6 +457,14 @@ export class HelpDialogComponent implements OnInit, OnDestroy {
    * Se ejecuta cuando el componente va a ser destruido
    */
   ngOnDestroy(): void {
+    this.cleanup();
+  }
+
+  /**
+   * Limpia recursos cuando se destruye el componente
+   * @private
+   */
+  private cleanup(): void {
     // Limpiar recursos al destruir el componente
     this.destroy$.next();
     this.destroy$.complete();

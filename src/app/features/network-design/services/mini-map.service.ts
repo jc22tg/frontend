@@ -149,8 +149,8 @@ export class MiniMapService {
     ctx.lineWidth = 1;
     
     connections.forEach(connection => {
-      const sourceElement = elementsMap.get(connection.sourceId);
-      const targetElement = elementsMap.get(connection.targetId);
+      const sourceElement = elementsMap.get(connection.sourceElementId);
+      const targetElement = elementsMap.get(connection.targetElementId);
       
       if (sourceElement?.position?.coordinates && targetElement?.position?.coordinates) {
         const [srcX, srcY] = sourceElement.position.coordinates;
