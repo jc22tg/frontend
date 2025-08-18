@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Círculo exterior -->
-  <circle cx="12" cy="12" r="10" stroke="#A52A2A" stroke-width="1.5"/>
-  <!-- Círculo interior con color estándar de fibra óptica -->
-  <circle cx="12" cy="12" r="8" fill="#A52A2A" fill-opacity="0.2"/>
-  <!-- Número 8 -->
-  <text x="12" y="14" font-family="Arial" font-size="8" fill="#A52A2A" text-anchor="middle">8</text>
-</svg> 

@@ -1,1 +1,4 @@
 node_modules
+
+# Generated common definitions (auto-copied from backend)
+src/generated/

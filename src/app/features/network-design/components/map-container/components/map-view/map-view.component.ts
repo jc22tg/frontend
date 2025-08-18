@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef, ViewChild, Input, Output, EventEmitter, inject, Injector, NgZone } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, ElementRef, ViewChild, Input, Output, EventEmitter, inject, Injector, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject } from 'rxjs';
@@ -36,7 +36,7 @@ const CONSTANTS = {
   }
 };
 
-// Niveles de log disponibles para depuración - Duplicado de BaseMapComponent para evitar dependencia cíclica
+// Niveles de log disponibles para depuraciÃ³n - Duplicado de BaseMapComponent para evitar dependencia cÃ­clica
 enum LogLevel {
   DEBUG = 'debug',
   INFO = 'info',
@@ -48,8 +48,8 @@ enum LogLevel {
 /**
  * Componente para la vista principal del mapa
  * 
- * Este componente se encarga específicamente del renderizado y manejo
- * de interacciones con el mapa, mejorando la separación de responsabilidades.
+ * Este componente se encarga especÃ­ficamente del renderizado y manejo
+ * de interacciones con el mapa, mejorando la separaciÃ³n de responsabilidades.
  */
 @Component({
   selector: 'app-map-view',
@@ -157,7 +157,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   isDarkMode = false;
   errorMessage: string | null = null;
   
-  // Variables de interacción
+  // Variables de interacciÃ³n
   zoomScale = 1;
   panOffset = { x: 0, y: 0 };
   isDragging = false;
@@ -178,12 +178,12 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   private performanceService: MapPerformanceService;
   private interactionService: MapInteractionService;
   private connectionService: MapConnectionService | null = null;
-  protected zone: NgZone;
+  declare protected zone: NgZone;
   
   constructor(injector: Injector) {
     super(injector);
     
-    // Inicializar servicios específicos
+    // Inicializar servicios especÃ­ficos
     this.stateManager = injector.get(MapStateManagerService);
     this.elementManager = injector.get(MapElementManagerService);
     this.performanceService = injector.get(MapPerformanceService);
@@ -195,14 +195,14 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       this.connectionService = injector.get(MapConnectionService);
       this.logDebug('MapConnectionService inicializado correctamente');
     } catch (error) {
-      this.logDebug('MapConnectionService no disponible, algunas funciones de conexión podrían estar limitadas', null, LogLevel.WARN);
+      this.logDebug('MapConnectionService no disponible, algunas funciones de conexiÃ³n podrÃ­an estar limitadas', null, LogLevel.WARN);
     }
     
     this.logDebug('MapViewComponent inicializado');
   }
   
   /**
-   * Implementación del método abstracto de BaseMapComponent
+   * ImplementaciÃ³n del mÃ©todo abstracto de BaseMapComponent
    */
   protected initializeComponent(): void {
     // Suscribirse a eventos relevantes
@@ -219,7 +219,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     // Cargar elementos
     this.loadElements();
     
-    // Establecer un timeout corto para finalizar la carga automáticamente
+    // Establecer un timeout corto para finalizar la carga automÃ¡ticamente
     setTimeout(() => {
       this.finishLoading();
     }, 1500);
@@ -245,17 +245,17 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         this.updateCursor();
       });
     
-    // Subscripciones a elementos seleccionados - Manejando de forma más flexible según el servicio disponible
+    // Subscripciones a elementos seleccionados - Manejando de forma mÃ¡s flexible segÃºn el servicio disponible
     if (this.interactionService) {
       try {
-        // Intentar obtener los observables de selección desde MapStateService
+        // Intentar obtener los observables de selecciÃ³n desde MapStateService
         const mapStateService = this.injector.get(MapStateService, null);
         
         if (mapStateService) {
-          // Usar MapStateService para observables de selección
-          this.logDebug('Usando observables de selección de MapStateService');
+          // Usar MapStateService para observables de selecciÃ³n
+          this.logDebug('Usando observables de selecciÃ³n de MapStateService');
           
-          // Suscripción a IDs de elementos seleccionados
+          // SuscripciÃ³n a IDs de elementos seleccionados
           mapStateService.selectedElementIds$
             .pipe(takeUntil(this.destroy$))
             .subscribe(selectedIds => {
@@ -271,7 +271,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
                   this.cdr.markForCheck();
                 }
               } else if (this.selectedElement) {
-                // Limpiar selección
+                // Limpiar selecciÃ³n
                 this.selectedElement = null;
                 this.updateSelectionIndicators();
                 this.elementSelected.emit(null);
@@ -279,12 +279,12 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
               }
             });
           
-          // Suscripción a IDs de conexiones seleccionadas
+          // SuscripciÃ³n a IDs de conexiones seleccionadas
           mapStateService.selectedConnectionIds$
             .pipe(takeUntil(this.destroy$))
             .subscribe(selectedIds => {
               if (selectedIds && selectedIds.length > 0) {
-                // Buscar la conexión por ID
+                // Buscar la conexiÃ³n por ID
                 const connectionId = selectedIds[0]; // Tomamos la primera para mantener compatibilidad
                 const selectedConnection = this.connections.find(conn => conn.id === connectionId) || null;
                 
@@ -295,7 +295,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
                   this.cdr.markForCheck();
                 }
               } else if (this.selectedConnection) {
-                // Limpiar selección
+                // Limpiar selecciÃ³n
                 this.selectedConnection = null;
                 this.updateSelectionIndicators();
                 this.connectionSelected.emit(null);
@@ -317,16 +317,16 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
               }
             });
             
-          // No hay observable para conexiones en este modo, por lo que manejamos la selección manualmente
+          // No hay observable para conexiones en este modo, por lo que manejamos la selecciÃ³n manualmente
         } else {
-          // No hay observables disponibles, usamos la implementación manual
-          this.logDebug('No se encontraron observables de selección, usando selección manual', null, LogLevel.WARN);
+          // No hay observables disponibles, usamos la implementaciÃ³n manual
+          this.logDebug('No se encontraron observables de selecciÃ³n, usando selecciÃ³n manual', null, LogLevel.WARN);
         }
       } catch (error) {
-        this.logDebug('Error al configurar suscripciones de selección', error, LogLevel.ERROR);
+        this.logDebug('Error al configurar suscripciones de selecciÃ³n', error, LogLevel.ERROR);
       }
     } else {
-      this.logDebug('InteractionService no disponible, la selección funcionará solo manualmente', null, LogLevel.WARN);
+      this.logDebug('InteractionService no disponible, la selecciÃ³n funcionarÃ¡ solo manualmente', null, LogLevel.WARN);
     }
   }
   
@@ -356,7 +356,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       const gridContainer = svgElement.querySelector('.grid-container');
       
       if (!gridContainer) {
-        this.logDebug('No se encuentra el contenedor de la cuadrícula', null, LogLevel.WARN);
+        this.logDebug('No se encuentra el contenedor de la cuadrÃ­cula', null, LogLevel.WARN);
         return;
       }
       
@@ -365,11 +365,11 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         gridContainer.removeChild(gridContainer.firstChild);
       }
       
-      // Definir tamaño de cuadrícula y espacio
+      // Definir tamaÃ±o de cuadrÃ­cula y espacio
       const gridSize = 50; // Unidades de mapa
-      const gridExtent = 5000; // Área total cubierta (aumentada para asegurar que cubra toda la vista)
+      const gridExtent = 5000; // Ãrea total cubierta (aumentada para asegurar que cubra toda la vista)
       
-      // Crear fondo de color sólido
+      // Crear fondo de color sÃ³lido
       const background = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       background.setAttribute('x', (-gridExtent).toString());
       background.setAttribute('y', (-gridExtent).toString());
@@ -378,9 +378,9 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       background.setAttribute('fill', this.isDarkMode ? '#2D3748' : '#E8EEF2'); // Gris pizarra oscuro / Gris azulado claro
       gridContainer.appendChild(background);
       
-      // Crear cuadrícula con líneas más visibles
+      // Crear cuadrÃ­cula con lÃ­neas mÃ¡s visibles
       for (let x = -gridExtent; x <= gridExtent; x += gridSize) {
-        // Línea vertical
+        // LÃ­nea vertical
         const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         vLine.setAttribute('x1', x.toString());
         vLine.setAttribute('y1', (-gridExtent).toString());
@@ -393,7 +393,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       }
       
       for (let y = -gridExtent; y <= gridExtent; y += gridSize) {
-        // Línea horizontal
+        // LÃ­nea horizontal
         const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         hLine.setAttribute('x1', (-gridExtent).toString());
         hLine.setAttribute('y1', y.toString());
@@ -405,7 +405,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         gridContainer.appendChild(hLine);
       }
       
-      // Añadir ejes principales con un color más oscuro
+      // AÃ±adir ejes principales con un color mÃ¡s oscuro
       const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       xAxis.setAttribute('x1', (-gridExtent).toString());
       xAxis.setAttribute('y1', '0');
@@ -426,7 +426,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       yAxis.setAttribute('stroke-width', '2');
       gridContainer.appendChild(yAxis);
       
-      // Centrar automáticamente el mapa en el origen
+      // Centrar automÃ¡ticamente el mapa en el origen
       this.panOffset = {
         x: this.width / 2,
         y: this.height / 2
@@ -447,7 +447,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     this.errorMessage = null;
     this.cdr.markForCheck();
     
-    // Verificar que ElementManager esté disponible
+    // Verificar que ElementManager estÃ© disponible
     if (!this.elementManager) {
       this.logDebug('ElementManager no disponible, finalizando carga', null, LogLevel.WARN);
       setTimeout(() => {
@@ -458,17 +458,17 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     
     this.logDebug('Iniciando carga de elementos del mapa', null, LogLevel.INFO);
     
-    // Asegurar que la detección de cambios actualice la UI antes de continuar
+    // Asegurar que la detecciÃ³n de cambios actualice la UI antes de continuar
     setTimeout(() => {
       try {
-        // Registrar tiempo inicial para medición de rendimiento
+        // Registrar tiempo inicial para mediciÃ³n de rendimiento
         const startTime = performance.now();
         
         this.elementManager.loadElementsProgressively({
           batchSize: 50, // Aumentado para acelerar carga
           maxElements: 1000, // Aumentado para mayor contenido
           progressCallback: (progress) => {
-            // Forzar actualización de la UI cada 10% de progreso para más retroalimentación
+            // Forzar actualizaciÃ³n de la UI cada 10% de progreso para mÃ¡s retroalimentaciÃ³n
             if (progress % 10 === 0) {
               this.zone.run(() => {
                 this.logDebug(`Progreso de carga: ${progress}%`, null, LogLevel.INFO);
@@ -483,15 +483,15 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
               return;
             }
             
-            // Filtrar elementos sin posiciones válidas
+            // Filtrar elementos sin posiciones vÃ¡lidas
             const validElements = elements.filter(el => {
               // Verificar que el elemento exista
               if (!el) return false;
               
-              // Verificar la posición
+              // Verificar la posiciÃ³n
               const position = el.position;
               
-              // Verificar los diferentes formatos posibles de posición
+              // Verificar los diferentes formatos posibles de posiciÃ³n
               // 1. Array de coordenadas [x, y]
               if (Array.isArray(position) && position.length >= 2) {
                 return true; 
@@ -510,14 +510,14 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
                 }
               }
               
-              // Si llegamos aquí, la posición no es válida
-              this.logDebug(`Elemento con posición inválida: ${el.id || '(sin ID)'} - Tipo: ${el.type}`, 
+              // Si llegamos aquÃ­, la posiciÃ³n no es vÃ¡lida
+              this.logDebug(`Elemento con posiciÃ³n invÃ¡lida: ${el.id || '(sin ID)'} - Tipo: ${el.type}`, 
                 { positionType: position ? typeof position : 'undefined' }, LogLevel.DEBUG);
               return false;
             });
             
             if (validElements.length !== elements.length) {
-              this.logDebug(`Filtrados ${elements.length - validElements.length} elementos con posiciones inválidas`, null, LogLevel.WARN);
+              this.logDebug(`Filtrados ${elements.length - validElements.length} elementos con posiciones invÃ¡lidas`, null, LogLevel.WARN);
             }
             
             // Actualizar elementos dentro de la zona de Angular
@@ -533,23 +533,23 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
             
             this.zone.run(() => {
               if (result && result.success) {
-                // Verificar que getAllElements devuelva datos válidos
+                // Verificar que getAllElements devuelva datos vÃ¡lidos
                 const allElements = this.elementManager.getAllElements && typeof this.elementManager.getAllElements === 'function' 
                   ? this.elementManager.getAllElements() 
                   : [];
                   
                 this.elements = allElements;
                 
-                // Iniciar monitorización de rendimiento si está disponible
+                // Iniciar monitorizaciÃ³n de rendimiento si estÃ¡ disponible
                 if (this.performanceService && typeof this.performanceService.startMonitoring === 'function') {
                   this.performanceService.startMonitoring();
                 }
 
-                // Asegurar que la grilla y elementos estén visibles
+                // Asegurar que la grilla y elementos estÃ©n visibles
                 this.refreshMap();
                 
                 this.logDebug(
-                  `Carga de elementos completada con éxito en ${loadTime}ms`, 
+                  `Carga de elementos completada con Ã©xito en ${loadTime}ms`, 
                   { 
                     elementsCount: this.elements.length,
                     loadTimeMs: loadTime
@@ -557,7 +557,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
                   LogLevel.INFO
                 );
 
-                // Finalizar la carga después de un pequeño retraso para asegurar renderizado
+                // Finalizar la carga despuÃ©s de un pequeÃ±o retraso para asegurar renderizado
                 setTimeout(() => this.finishLoading(), 100);
               } else {
                 this.errorMessage = 'Error al cargar elementos';
@@ -578,24 +578,24 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
               this.errorMessage = `Error al cargar el mapa: ${errorMessage}`;
               this.mapError.emit(this.errorMessage);
               
-              // Mostrar información detallada en el log
-              this.logDebug(`Error de carga después de ${loadTime}ms`, err, LogLevel.ERROR);
+              // Mostrar informaciÃ³n detallada en el log
+              this.logDebug(`Error de carga despuÃ©s de ${loadTime}ms`, err, LogLevel.ERROR);
               
               this.finishLoading();
             });
           }
         });
       } catch (err) {
-        // Capturar errores durante la inicialización
+        // Capturar errores durante la inicializaciÃ³n
         this.zone.run(() => {
           this.handleError(err, 'Error al iniciar la carga del mapa');
           
           // Detallar mejor el mensaje de error
-          const errorMessage = (err as any)?.message || 'Inicialización fallida';
+          const errorMessage = (err as any)?.message || 'InicializaciÃ³n fallida';
           this.errorMessage = `Error al iniciar la carga: ${errorMessage}`;
           this.mapError.emit(this.errorMessage);
           
-          this.logDebug('Error crítico al iniciar la carga del mapa', err, LogLevel.ERROR);
+          this.logDebug('Error crÃ­tico al iniciar la carga del mapa', err, LogLevel.ERROR);
           
           this.finishLoading();
         });
@@ -618,13 +618,13 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       this.cdr.markForCheck();
       this.mapLoaded.emit();
 
-      // Forzar detección de cambios para asegurar actualización de UI
+      // Forzar detecciÃ³n de cambios para asegurar actualizaciÃ³n de UI
       setTimeout(() => this.cdr.detectChanges(), 0);
     });
   }
   
   /**
-   * Agrega elementos de muestra al mapa para visualización
+   * Agrega elementos de muestra al mapa para visualizaciÃ³n
    */
   private addSampleElements(): void {
     this.logDebug('Agregando elementos de muestra al mapa');
@@ -687,7 +687,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       const sampleConnections: NetworkConnection[] = [
         {
           id: 'sample-conn-1',
-          name: 'Conexión 1',
+          name: 'ConexiÃ³n 1',
           sourceElementId: 'sample-olt-1',
           targetElementId: 'sample-splitter-1',
           type: ConnectionType.FIBER,
@@ -695,7 +695,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         },
         {
           id: 'sample-conn-2',
-          name: 'Conexión 2',
+          name: 'ConexiÃ³n 2',
           sourceElementId: 'sample-olt-1',
           targetElementId: 'sample-splitter-2',
           type: ConnectionType.FIBER,
@@ -703,7 +703,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         },
         {
           id: 'sample-conn-3',
-          name: 'Conexión 3',
+          name: 'ConexiÃ³n 3',
           sourceElementId: 'sample-splitter-1',
           targetElementId: 'sample-fdp-1',
           type: ConnectionType.FIBER,
@@ -711,7 +711,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         },
         {
           id: 'sample-conn-4',
-          name: 'Conexión 4',
+          name: 'ConexiÃ³n 4',
           sourceElementId: 'sample-splitter-2',
           targetElementId: 'sample-fdp-2',
           type: ConnectionType.FIBER,
@@ -719,7 +719,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         },
         {
           id: 'sample-conn-5',
-          name: 'Conexión 5',
+          name: 'ConexiÃ³n 5',
           sourceElementId: 'sample-fdp-1',
           targetElementId: 'sample-ont-1',
           type: ConnectionType.FIBER,
@@ -727,7 +727,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         },
         {
           id: 'sample-conn-6',
-          name: 'Conexión 6',
+          name: 'ConexiÃ³n 6',
           sourceElementId: 'sample-fdp-2',
           targetElementId: 'sample-ont-2',
           type: ConnectionType.FIBER,
@@ -739,7 +739,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       this.elements = sampleElements;
       this.connections = sampleConnections;
       
-      // Forzar la actualización del mapa
+      // Forzar la actualizaciÃ³n del mapa
       this._activeLayers = [
         ElementType.OLT, 
         ElementType.SPLITTER, 
@@ -755,7 +755,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       if (this.elements.length > 0) {
         const position = this.elements[0].position;
         if (position && typeof position === 'object' && position.lat !== undefined && position.lng !== undefined) {
-          // Usando los campos lat y lng para calcular coordenadas del mapa (asumiendo conversión simple)
+          // Usando los campos lat y lng para calcular coordenadas del mapa (asumiendo conversiÃ³n simple)
           this.centerMap([position.lng, position.lat]);
         }
       }
@@ -781,13 +781,13 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     // Renderizar elementos filtrados
     this.renderElements(visibleElements);
     
-    // Actualizar indicadores de selección después de refrescar
+    // Actualizar indicadores de selecciÃ³n despuÃ©s de refrescar
     this.updateSelectionIndicators();
     
-    // Actualizar estadísticas si el servicio está disponible
+    // Actualizar estadÃ­sticas si el servicio estÃ¡ disponible
     if (this.performanceService) {
-      // Asumimos que el servicio tiene un método para registrar actualizaciones
-      // Si hay problemas de tipos, adaptar según la implementación real
+      // Asumimos que el servicio tiene un mÃ©todo para registrar actualizaciones
+      // Si hay problemas de tipos, adaptar segÃºn la implementaciÃ³n real
       if (typeof (this.performanceService as any).registerMapUpdate === 'function') {
         (this.performanceService as any).registerMapUpdate({
           elementsCount: visibleElements.length,
@@ -824,19 +824,19 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         elementLayer.removeChild(elementLayer.firstChild);
       }
       
-      // Procesamos primero las conexiones si el servicio está disponible
+      // Procesamos primero las conexiones si el servicio estÃ¡ disponible
       if (this.elementManager) {
         this.renderConnections();
       }
       
       this.logDebug(`Renderizando ${elements.length} elementos en el mapa`, null, LogLevel.INFO);
       
-      // Conteo de elementos para verificación
+      // Conteo de elementos para verificaciÃ³n
       let renderedCount = 0;
       
       // Renderizar elementos
       elements.forEach(element => {
-        // Obtener las coordenadas x, y del elemento según el formato de posición
+        // Obtener las coordenadas x, y del elemento segÃºn el formato de posiciÃ³n
         let x = 0;
         let y = 0;
         
@@ -847,18 +847,18 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           if (typeof element.position.lat === 'number' && typeof element.position.lng === 'number') {
             // Formato objeto lat/lng - convertimos a coordenadas del mapa
             x = element.position.lng * 100; // Escala arbitraria para ejemplo
-            y = element.position.lat * 100; // Ajustar según tu sistema de coordenadas
+            y = element.position.lat * 100; // Ajustar segÃºn tu sistema de coordenadas
           } else if (Array.isArray(element.position.coordinates) && element.position.coordinates.length >= 2) {
             // Formato coordinates GeoJSON [lng, lat]
             x = element.position.coordinates[0] * 100;
             y = element.position.coordinates[1] * 100;
           } else {
-            this.logDebug(`Elemento con formato de posición no soportado: ${element.id || '(sin ID)'}`);
+            this.logDebug(`Elemento con formato de posiciÃ³n no soportado: ${element.id || '(sin ID)'}`);
             return; // Saltar este elemento
           }
         } else {
-          this.logDebug(`Elemento sin posición válida: ${element.id || '(sin ID)'}`);
-          return; // Saltar elementos sin posición válida
+          this.logDebug(`Elemento sin posiciÃ³n vÃ¡lida: ${element.id || '(sin ID)'}`);
+          return; // Saltar elementos sin posiciÃ³n vÃ¡lida
         }
         
         // Crear grupo para el elemento
@@ -870,11 +870,11 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         // Posicionar grupo
         elementGroup.setAttribute('transform', `translate(${x}, ${y})`);
         
-        // Añadir forma según el tipo de elemento (simplificado)
+        // AÃ±adir forma segÃºn el tipo de elemento (simplificado)
         const elementShape = this.createElementShape(element);
         elementGroup.appendChild(elementShape);
         
-        // Añadir etiqueta si existe
+        // AÃ±adir etiqueta si existe
         if (element.name) {
           const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           label.setAttribute('x', '0');
@@ -887,7 +887,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           elementGroup.appendChild(label);
         }
         
-        // Añadir eventos
+        // AÃ±adir eventos
         elementGroup.addEventListener('mousedown', (e) => {
           e.stopPropagation();
           if (this.tool === 'select') {
@@ -895,20 +895,20 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           }
         });
         
-        // Añadir el grupo
+        // AÃ±adir el grupo
         elementLayer.appendChild(elementGroup);
         renderedCount++;
       });
       
-      this.logDebug(`Elementos renderizados con éxito: ${renderedCount} de ${elements.length}`);
+      this.logDebug(`Elementos renderizados con Ã©xito: ${renderedCount} de ${elements.length}`);
       
-      // Si no se renderiza ningún elemento pero la lista no está vacía, esto indica un problema
+      // Si no se renderiza ningÃºn elemento pero la lista no estÃ¡ vacÃ­a, esto indica un problema
       if (renderedCount === 0 && elements.length > 0) {
-        this.logDebug('No se pudo renderizar ningún elemento aunque la lista no está vacía', 
+        this.logDebug('No se pudo renderizar ningÃºn elemento aunque la lista no estÃ¡ vacÃ­a', 
                     { elementsSample: elements.slice(0, 3) }, LogLevel.WARN);
       }
       
-      // Centrar automáticamente el mapa si es la primera vez
+      // Centrar automÃ¡ticamente el mapa si es la primera vez
       if (renderedCount > 0 && this.panOffset.x === 0 && this.panOffset.y === 0) {
         this.centerMap([0, 0]);
       }
@@ -919,14 +919,14 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   }
   
   /**
-   * Crea una forma SVG para representar un elemento según su tipo
+   * Crea una forma SVG para representar un elemento segÃºn su tipo
    */
   private createElementShape(element: NetworkElement): SVGElement {
     let shape: SVGElement;
     
     switch (element.type) {
       case ElementType.OLT:
-        // Rectángulo para OLT
+        // RectÃ¡ngulo para OLT
         shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         shape.setAttribute('x', '-10');
         shape.setAttribute('y', '-10');
@@ -937,7 +937,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         break;
         
       case ElementType.ONT:
-        // Círculo para ONT
+        // CÃ­rculo para ONT
         shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         shape.setAttribute('cx', '0');
         shape.setAttribute('cy', '0');
@@ -953,7 +953,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         break;
         
       default:
-        // Círculo genérico para otros tipos
+        // CÃ­rculo genÃ©rico para otros tipos
         shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         shape.setAttribute('cx', '0');
         shape.setAttribute('cy', '0');
@@ -1000,7 +1000,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         connections = this.connectionService.getConnections();
         this.logDebug(`Obtenidas ${connections.length} conexiones del servicio MapConnectionService`);
       } else {
-        // Si no está disponible MapConnectionService, buscar en ElementManager
+        // Si no estÃ¡ disponible MapConnectionService, buscar en ElementManager
         this.logDebug('MapConnectionService no disponible, buscando en ElementManager', null, LogLevel.INFO);
         
         // Intentar obtener conexiones del ElementManager
@@ -1009,12 +1009,12 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           this.logDebug(`Obtenidas ${connections.length} conexiones de ElementManager`);
         } else {
           // Usar una alternativa: mantener conexiones previamente cargadas
-          this.logDebug('Método getConnections no disponible, usando alternativa', null, LogLevel.WARN);
+          this.logDebug('MÃ©todo getConnections no disponible, usando alternativa', null, LogLevel.WARN);
           connections = this.connections;
         }
       }
       
-      // Filtrar conexiones según capas activas
+      // Filtrar conexiones segÃºn capas activas
       const visibleConnections = connections.filter(connection => {
         if (!connection.sourceElementId || !connection.targetElementId) {
           return false;
@@ -1028,7 +1028,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           return false;
         }
         
-        // Verificar si los tipos están en las capas activas
+        // Verificar si los tipos estÃ¡n en las capas activas
         return this.activeLayers.includes(sourceElement.type) && 
                this.activeLayers.includes(targetElement.type);
       });
@@ -1044,14 +1044,14 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         const targetElement = this.elements.find(e => e.id === connection.targetElementId);
         
         if (!sourceElement?.position || !targetElement?.position) {
-          return; // Saltar conexiones sin elementos válidos
+          return; // Saltar conexiones sin elementos vÃ¡lidos
         }
         
         // Obtener coordenadas del elemento origen
         let sourceX = 0;
         let sourceY = 0;
         
-        // Obtener coordenadas según el formato de posición
+        // Obtener coordenadas segÃºn el formato de posiciÃ³n
         if (Array.isArray(sourceElement.position) && sourceElement.position.length >= 2) {
           // Formato array [x, y]
           [sourceX, sourceY] = sourceElement.position;
@@ -1059,7 +1059,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           if (typeof sourceElement.position.lat === 'number' && typeof sourceElement.position.lng === 'number') {
             // Formato objeto lat/lng
             sourceX = sourceElement.position.lng * 100; // Escala arbitraria para ejemplo
-            sourceY = sourceElement.position.lat * 100; // Ajustar según tu sistema de coordenadas
+            sourceY = sourceElement.position.lat * 100; // Ajustar segÃºn tu sistema de coordenadas
           } else if (Array.isArray(sourceElement.position.coordinates) && sourceElement.position.coordinates.length >= 2) {
             // Formato coordinates GeoJSON [lng, lat]
             sourceX = sourceElement.position.coordinates[0] * 100;
@@ -1068,14 +1068,14 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
             return; // Formato no soportado
           }
         } else {
-          return; // Posición no válida
+          return; // PosiciÃ³n no vÃ¡lida
         }
         
         // Obtener coordenadas del elemento destino
         let targetX = 0;
         let targetY = 0;
         
-        // Obtener coordenadas según el formato de posición
+        // Obtener coordenadas segÃºn el formato de posiciÃ³n
         if (Array.isArray(targetElement.position) && targetElement.position.length >= 2) {
           // Formato array [x, y]
           [targetX, targetY] = targetElement.position;
@@ -1083,7 +1083,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           if (typeof targetElement.position.lat === 'number' && typeof targetElement.position.lng === 'number') {
             // Formato objeto lat/lng
             targetX = targetElement.position.lng * 100; // Escala arbitraria para ejemplo
-            targetY = targetElement.position.lat * 100; // Ajustar según tu sistema de coordenadas
+            targetY = targetElement.position.lat * 100; // Ajustar segÃºn tu sistema de coordenadas
           } else if (Array.isArray(targetElement.position.coordinates) && targetElement.position.coordinates.length >= 2) {
             // Formato coordinates GeoJSON [lng, lat]
             targetX = targetElement.position.coordinates[0] * 100;
@@ -1092,17 +1092,17 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
             return; // Formato no soportado
           }
         } else {
-          return; // Posición no válida
+          return; // PosiciÃ³n no vÃ¡lida
         }
         
-        // Crear línea para la conexión
+        // Crear lÃ­nea para la conexiÃ³n
         const connectionLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         connectionLine.setAttribute('x1', sourceX.toString());
         connectionLine.setAttribute('y1', sourceY.toString());
         connectionLine.setAttribute('x2', targetX.toString());
         connectionLine.setAttribute('y2', targetY.toString());
         
-        // Estilo según estado
+        // Estilo segÃºn estado
         const status = connection.status || 'unknown';
         let strokeColor;
         
@@ -1126,7 +1126,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         connectionLine.setAttribute('data-source-id', connection.sourceElementId);
         connectionLine.setAttribute('data-target-id', connection.targetElementId);
         
-        // Añadir evento para seleccionar la conexión
+        // AÃ±adir evento para seleccionar la conexiÃ³n
         connectionLine.addEventListener('mousedown', (e) => {
           e.stopPropagation();
           if (this.tool === 'select') {
@@ -1134,7 +1134,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
           }
         });
         
-        // Añadir la línea al contenedor
+        // AÃ±adir la lÃ­nea al contenedor
         connectionsLayer.appendChild(connectionLine);
       });
       
@@ -1155,7 +1155,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   }
   
   /**
-   * Selecciona una conexión
+   * Selecciona una conexiÃ³n
    */
   private selectConnection(connection: NetworkConnection): void {
     this.selectedConnection = connection;
@@ -1166,7 +1166,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   }
   
   /**
-   * Actualiza indicadores de selección
+   * Actualiza indicadores de selecciÃ³n
    */
   private updateSelectionIndicators(): void {
     if (!this.mapSvgEl || !this.mapSvgEl.nativeElement) {
@@ -1178,7 +1178,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       const selectionLayer = svgElement.querySelector('.selection-layer');
       
       if (!selectionLayer) {
-        this.logDebug('No se encuentra la capa de selección', null, LogLevel.WARN);
+        this.logDebug('No se encuentra la capa de selecciÃ³n', null, LogLevel.WARN);
         return;
       }
       
@@ -1187,7 +1187,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
         selectionLayer.removeChild(selectionLayer.firstChild);
       }
       
-      // Crear indicador según lo que esté seleccionado
+      // Crear indicador segÃºn lo que estÃ© seleccionado
       if (this.selectedElement) {
         this.createElementSelectionIndicator(selectionLayer, this.selectedElement);
       } else if (this.selectedConnection) {
@@ -1195,24 +1195,24 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       }
       
     } catch (error) {
-      this.logDebug('Error al actualizar indicadores de selección', error, LogLevel.ERROR);
+      this.logDebug('Error al actualizar indicadores de selecciÃ³n', error, LogLevel.ERROR);
     }
   }
   
   /**
-   * Crea un indicador de selección para un elemento
+   * Crea un indicador de selecciÃ³n para un elemento
    */
   private createElementSelectionIndicator(container: Element, element: NetworkElement): void {
-    // Verificar que la posición sea un array y tenga al menos 2 elementos
+    // Verificar que la posiciÃ³n sea un array y tenga al menos 2 elementos
     if (!element.position || !Array.isArray(element.position) || element.position.length < 2) {
       return;
     }
     
-    // Acceder a las coordenadas directamente en lugar de usar desestructuración
+    // Acceder a las coordenadas directamente en lugar de usar desestructuraciÃ³n
     const x = element.position[0];
     const y = element.position[1];
     
-    // Crear círculo de selección
+    // Crear cÃ­rculo de selecciÃ³n
     const selectionCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     selectionCircle.setAttribute('cx', x.toString());
     selectionCircle.setAttribute('cy', y.toString());
@@ -1223,7 +1223,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     selectionCircle.setAttribute('stroke-dasharray', '4,2');
     selectionCircle.setAttribute('class', 'selection-indicator pulse-effect');
     
-    // Añadir animación de pulsación
+    // AÃ±adir animaciÃ³n de pulsaciÃ³n
     const animation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
     animation.setAttribute('attributeName', 'r');
     animation.setAttribute('from', '16');
@@ -1238,14 +1238,14 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   }
   
   /**
-   * Crea un indicador de selección para una conexión
+   * Crea un indicador de selecciÃ³n para una conexiÃ³n
    */
   private createConnectionSelectionIndicator(container: Element, connection: NetworkConnection): void {
     // Buscar elementos fuente y destino usando sourceId y targetId
     const sourceElement = this.elements.find(e => e.id === connection.sourceElementId);
     const targetElement = this.elements.find(e => e.id === connection.targetElementId);
     
-    // Verificar que ambos elementos existan y tengan posiciones válidas
+    // Verificar que ambos elementos existan y tengan posiciones vÃ¡lidas
     if (!sourceElement?.position || !targetElement?.position) {
       return;
     }
@@ -1262,7 +1262,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     const targetX = targetElement.position[0];
     const targetY = targetElement.position[1];
     
-    // Crear línea de selección que sigue la conexión
+    // Crear lÃ­nea de selecciÃ³n que sigue la conexiÃ³n
     const selectionLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     selectionLine.setAttribute('x1', sourceX.toString());
     selectionLine.setAttribute('y1', sourceY.toString());
@@ -1273,7 +1273,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     selectionLine.setAttribute('stroke-dasharray', '6,3');
     selectionLine.setAttribute('class', 'selection-indicator');
     
-    // Añadir animación de flujo a lo largo de la línea
+    // AÃ±adir animaciÃ³n de flujo a lo largo de la lÃ­nea
     const animation = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
     animation.setAttribute('attributeName', 'stroke-dashoffset');
     animation.setAttribute('from', '0');
@@ -1286,7 +1286,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   }
   
   /**
-   * Actualiza el cursor según la herramienta activa
+   * Actualiza el cursor segÃºn la herramienta activa
    */
   private updateCursor(): void {
     if (!this.mapContainerEl) return;
@@ -1323,7 +1323,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
    * Maneja el evento mousedown
    */
   onMouseDown(event: MouseEvent): void {
-    if (event.button !== 0) return; // Solo botón izquierdo
+    if (event.button !== 0) return; // Solo botÃ³n izquierdo
     
     this.isDragging = this.tool === 'pan';
     this.dragStart = { x: event.clientX, y: event.clientY };
@@ -1337,7 +1337,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
    * Maneja el evento mousemove
    */
   onMouseMove(event: MouseEvent): void {
-    // Emitir posición del cursor
+    // Emitir posiciÃ³n del cursor
     const rect = this.mapSvgEl.nativeElement.getBoundingClientRect();
     const cursorPosition = {
       x: event.clientX - rect.left,
@@ -1369,7 +1369,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   onWheel(event: WheelEvent): void {
     event.preventDefault();
     
-    // Determinar dirección de zoom
+    // Determinar direcciÃ³n de zoom
     const direction = event.deltaY < 0 ? 1 : -1;
     
     // Calcular nuevo zoom
@@ -1395,7 +1395,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
   }
   
   /**
-   * Ajustar zoom a un nivel específico
+   * Ajustar zoom a un nivel especÃ­fico
    * @param level Nivel de zoom (porcentaje)
    */
   setZoomLevel(level: number): void {
@@ -1427,7 +1427,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
    * Ajusta la vista para mostrar todos los elementos
    */
   fitToScreen(): void {
-    // Implementación pendiente para calcular límites y centrar todos los elementos
+    // ImplementaciÃ³n pendiente para calcular lÃ­mites y centrar todos los elementos
     this.zoomScale = 1;
     this.panOffset = { x: 0, y: 0 };
     this.zoomChanged.emit(100);
@@ -1448,7 +1448,7 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
     const centerY = this.height / 2;
 
     // Calculamos el nuevo panOffset para que las coordenadas (x,y)
-    // multiplicadas por el zoom actual, más el offset, resulten en el centro de la pantalla.
+    // multiplicadas por el zoom actual, mÃ¡s el offset, resulten en el centro de la pantalla.
     // targetX * zoomScale + newPanX = screenCenterX
     // newPanX = screenCenterX - targetX * zoomScale
     this.panOffset = {
@@ -1456,9 +1456,10 @@ export class MapViewComponent extends BaseMapComponent implements AfterViewInit 
       y: centerY - (coordinates[1] * this.zoomScale)
     };
 
-    this.lastPanOffset = { ...this.panOffset }; // Actualizar el último offset para el panning
+    this.lastPanOffset = { ...this.panOffset }; // Actualizar el Ãºltimo offset para el panning
     this.refreshMap(); // Volver a dibujar el mapa con el nuevo centrado
     this.logger.debug(`Mapa centrado en [${coordinates[0]}, ${coordinates[1]}] con panOffset:`, this.panOffset);
     this.cdr.markForCheck();
   }
 } 
+
