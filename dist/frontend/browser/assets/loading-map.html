@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargando Mapa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .preloader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #3f51b5;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 16px;
+            color: #666;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .loading-steps {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #777;
+        }
+        .steps {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .step {
+            width: 12px;
+            height: 12px;
+            margin: 0 5px;
+            background-color: #ddd;
+            border-radius: 50%;
+            transition: background-color 0.5s;
+        }
+        .step.active {
+            background-color: #3f51b5;
+        }
+    </style>
+</head>
+<body>
+    <div class="preloader">
+        <div class="spinner"></div>
+        <h1>Cargando Mapa de Red</h1>
+        <p id="loading-message">Preparando capas del mapa...</p>
+        
+        <div class="loading-steps">
+            <div class="steps">
+                <div class="step active" id="step1"></div>
+                <div class="step" id="step2"></div>
+                <div class="step" id="step3"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Mensajes de carga
+        const messages = [
+            "Preparando capas del mapa...",
+            "Cargando información de red...",
+            "Finalizando..."
+        ];
+        
+        let currentStep = 0;
+        const messageElement = document.getElementById("loading-message");
+        const steps = document.querySelectorAll(".step");
+        
+        // Animar pasos de carga
+        function updateStep() {
+            // Actualizar mensaje
+            if (currentStep < messages.length) {
+                messageElement.textContent = messages[currentStep];
+                
+                // Actualizar indicadores
+                steps.forEach((step, idx) => {
+                    step.classList.remove("active");
+                    if (idx === currentStep) step.classList.add("active");
+                });
+                
+                currentStep++;
+                
+                // Continuar animación
+                if (currentStep < messages.length) {
+                    setTimeout(updateStep, 1500);
+                } else {
+                    // Notificar completado
+                    setTimeout(notifyParent, 1000);
+                }
+            }
+        }
+        
+        // Iniciar animación después de un breve retraso
+        setTimeout(updateStep, 800);
+        
+        // Notificar a la ventana principal
+        function notifyParent() {
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage('map-assets-loaded', '*');
+                }
+            } catch (e) {
+                console.error('Error al notificar a ventana principal:', e);
+            }
+        }
+        
+        // Asegurar notificación incluso en errores
+        setTimeout(notifyParent, 6000);
+    </script>
+</body>
+</html> 
