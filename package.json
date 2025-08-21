@@ -48,7 +48,8 @@
     "tslib": "^2.3.0",
     "typeorm": "^0.3.22",
     "uuid": "^11.1.0",
-    "zone.js": "~0.15.0"
+    "zone.js": "~0.15.0",
+    "common-definitions": "file:../common-definitions"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.0",

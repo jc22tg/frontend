@@ -1,46 +1,51 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist/out-tsc",
-    "forceConsistentCasingInFileNames": false,
-    "strict": false,
-    "strictPropertyInitialization": false,
-    "noImplicitOverride": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": false,
-    "sourceMap": true,
-    "declaration": false,
-    "downlevelIteration": true,
-    "experimentalDecorators": true,
-    "moduleResolution": "node",
-    "importHelpers": true,
     "skipLibCheck": true,
-    "isolatedModules": false,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "bundler",
+    "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
-    "useDefineForClassFields": false,
-    "lib": [
-      "ES2022",
-      "dom"
-    ],
-    "types": ["node"],
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "noImplicitAny": false
+    "baseUrl": "./",
+    "strict": true,
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@environments/*": ["src/environments/*"],
+      "@angular/*": ["node_modules/@angular/*"],
+      "@core/*": ["src/app/core/*"],
+      "@features/*": ["src/app/features/*"],
+      "@shared/*": ["src/app/shared/*"],
+      "@projects/*": ["src/app/projects/*"],
+      "@elements/*": ["src/app/features/network-design/components/elements/*"],
+      "@common-definitions/*": ["../common-definitions/*"],
+      "@common-definitions/dtos/*": ["../common-definitions/dtos/*"],
+      "@common-definitions/entities/*": ["../common-definitions/entities/*"],
+      "@common-definitions/enums/*": ["../common-definitions/enums/*"],
+      "@common-definitions/interfaces/*": ["../common-definitions/interfaces/*"],
+      "@common-definitions/types/*": ["../common-definitions/types/*"],
+      "@common-definitions/constants/*": ["../common-definitions/constants/*"],
+      "@common-definitions/validators/*": ["../common-definitions/validators/*"],
+      "@common-definitions/transformers/*": ["../common-definitions/transformers/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": false,
-    "strictInputAccessModifiers": false,
-    "strictTemplates": false,
-    "fullTemplateTypeCheck": false,
-    "strictDomEventTypes": false,
-    "strictAttributeTypes": false,
-    "strictSafeNavigationTypes": false,
-    "strictDomLocalRefTypes": false,
-    "strictOutputEventTypes": false,
-    "strictInputTypes": false
-  }
+    "strictInjectionParameters": true,
+    "strictTemplates": true
+  },
+  "files": [
+    "src/environments/environment.ts",
+    "src/environments/environment.prod.ts",
+    "src/main.ts",
+    "src/polyfills.ts",
+    "src/main.server.ts",
+    "src/server.ts"
+  ]
 }
